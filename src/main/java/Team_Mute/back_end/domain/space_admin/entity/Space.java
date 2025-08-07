@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class Space {
 
 	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "space_id")
 	private Integer id;
 
@@ -21,7 +22,7 @@ public class Space {
 	//@JoinColumn(name = "category_id")
 	//private SpaceCategory category;
 	@Column(name = "category_id")
-	private Integer category_id;
+	private Integer categoryId;
 
 	@Column(name = "region_id", nullable = false)
 	private Integer regionId;
@@ -30,22 +31,22 @@ public class Space {
 	private Integer userId;
 
 	@Column(name = "space_name", nullable = false, length = 100)
-	private String name;
+	private String spaceName;
 
 	@Column(name = "space_capacity")
-	private Integer capacity;
+	private Integer spaceCapacity;
 
 	@Column(name = "space_location", length = 256)
-	private String location;
+	private String spaceLocation;
 
 	@Column(name = "space_description", columnDefinition = "TEXT")
-	private String description;
+	private String spaceDescription;
 
 	@Column(name = "space_image_url", columnDefinition = "TEXT")
 	private String imageUrl;
 
 	@Column(name = "space_is_available")
-	private Boolean isAvailable;
+	private Boolean spaceAvailable;
 
 	@Column(name = "reg_date")
 	private LocalDateTime regDate;
