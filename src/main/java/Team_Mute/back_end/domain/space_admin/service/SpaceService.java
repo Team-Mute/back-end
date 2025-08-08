@@ -2,8 +2,8 @@ package Team_Mute.back_end.domain.space_admin.service;
 
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.entity.*;
-	import Team_Mute.back_end.domain.space_admin.repository.*;
-	import org.springframework.stereotype.Service;
+import Team_Mute.back_end.domain.space_admin.repository.*;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -17,19 +17,22 @@ public class SpaceService {
 	private final AdminRegionRepository regionRepository;
 	private final SpaceTagRepository tagRepository;
 	private final SpaceTagMapRepository tagMapRepository;
+	private final SpaceImageRepository spaceImageRepository;
 
 	public SpaceService(
 		SpaceRepository spaceRepository,
 		SpaceCategoryRepository categoryRepository,
 		AdminRegionRepository regionRepository,
 		SpaceTagRepository tagRepository,
-		SpaceTagMapRepository tagMapRepository
+		SpaceTagMapRepository tagMapRepository,
+		SpaceImageRepository spaceImageRepository
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
 		this.regionRepository = regionRepository;
 		this.tagRepository = tagRepository;
 		this.tagMapRepository = tagMapRepository;
+		this.spaceImageRepository = spaceImageRepository;
 	}
 
 	public List<Space> getAllSpaces() {
@@ -37,7 +40,9 @@ public class SpaceService {
 	}
 
 	@Transactional
-	public Integer createSpace(SpaceCreateRequest req, String imageUrl) {
+	public Integer createWithImages(SpaceCreateRequest req, java.util.List<String> urls) {
+		String cover = urls.get(0);
+		java.util.List<String> details = urls.size() > 1 ? urls.subList(1, urls.size()) : java.util.List.of();
 
 		// 1. categoryName → categoryId
 		SpaceCategory category = categoryRepository.findByCategoryName(req.getCategoryName())
@@ -56,37 +61,27 @@ public class SpaceService {
 			.spaceLocation(req.getSpaceLocation())
 			.spaceDescription(req.getSpaceDescription())
 			.spaceCapacity(req.getSpaceCapacity())
-			.spaceAvailable(req.getSpaceAvailable())
-			.regDate(LocalDateTime.now())
-			.updDate(LocalDateTime.now())
+			.spaceIsAvailable(req.getSpaceIsAvailable())
+			.spaceImageUrl(cover)
 			.build();
-
-		space.setImageUrl(imageUrl);
 
 		Space saved = spaceRepository.save(space);
 
-		// 4. 태그 처리
-		for (String tagName : req.getTagNames()) {
-			SpaceTag tag = tagRepository.findByTagName(tagName)
-				.orElseGet(() -> {
-					SpaceTag newTag = SpaceTag.builder()
-						.tagName(tagName)
-						.regDate(LocalDateTime.now())
-						.updDate(LocalDateTime.now())
-						.build();
-					return tagRepository.save(newTag);
-				});
-
-			SpaceTagMap map = SpaceTagMap.builder()
-				.space(saved)
-				.tag(tag)
-				.regDate(LocalDateTime.now())
-				.build();
-
-			tagMapRepository.save(map);
+		// 2) 상세 이미지 저장 (우선순위 1..n)
+		if (!details.isEmpty()) {
+			int p = 1;
+			java.util.List<SpaceImage> list = new java.util.ArrayList<>(details.size());
+			for (String url : details) {
+				SpaceImage si = new SpaceImage();
+				si.setSpace(saved);      // FK 연결 (ManyToOne 사용 중일 때)
+				si.setImageUrl(url);
+				si.setImagePriority(p++);
+				list.add(si);
+			}
+			spaceImageRepository.saveAll(list);
 		}
 
-		return saved.getId();
+		// PK getter 이름 맞추기
+		return saved.getSpaceId();
 	}
 }
-

@@ -12,8 +12,10 @@ public class SpaceCreateRequest {
 	private String spaceLocation;
 	private String spaceDescription;
 	private Integer spaceCapacity;
-	private Boolean spaceAvailable;
+	private Boolean spaceIsAvailable;
 	private String regionName;
+	private Integer regionId;
+	private Integer categoryId;
 	private String categoryName;
 	private List<String> tagNames;
 	private Integer userId;

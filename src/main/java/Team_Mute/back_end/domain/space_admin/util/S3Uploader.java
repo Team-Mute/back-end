@@ -15,6 +15,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -72,6 +74,21 @@ public class S3Uploader {
 
 		return url;
 	}
+
+	public List<String> uploadAll(List<MultipartFile> files, String dirName) {
+		List<String> urls = new ArrayList<>(files.size());
+		for (MultipartFile file : files) {
+			if (file == null || file.isEmpty()) continue;
+			try {
+				urls.add(upload(file, dirName));
+			} catch (IOException e) {
+				throw new RuntimeException("파일 업로드 실패: " + file.getOriginalFilename(), e);
+			}
+		}
+		return urls;
+	}
+
+
 
 	private String createFileName(String originalName, String dirName) {
 		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));

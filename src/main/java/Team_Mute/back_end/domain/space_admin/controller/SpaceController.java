@@ -28,29 +28,27 @@ public class SpaceController {
 		return spaceService.getAllSpaces();
 	}
 
-	// 공간 등록 (이미지 포함 - multipart/form-data)
-	//@PostMapping("/upload")
+	// 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<?> upload(
 		@RequestPart("space") @Valid SpaceCreateRequest request,
-		@RequestPart("image") MultipartFile image
+		@RequestPart("images") List<MultipartFile> images
 	) {
 		try {
-			// S3 업로드
-			String imageUrl = s3Uploader.upload(image, "spaces");
+			if (images == null || images.isEmpty()) {
+				return ResponseEntity.badRequest().body("이미지가 최소 1장은 필요합니다.");
+			}
+			List<String> urls = s3Uploader.uploadAll(images, "spaces"); // throws IOException 버전
+			Integer id = spaceService.createWithImages(request, urls);
 
-			// DTO에 이미지 URL 세팅
-			request.setImageUrl(imageUrl);
+			return ResponseEntity.status(201).body(Map.of("spaceId", id, "coverImageUrl", urls.get(0)));
 
-			// 저장
-			Integer newSpaceId = spaceService.createSpace(request, imageUrl);
-
-			return ResponseEntity.status(201).body(Map.of("공간이 등록되었습니다. ID: ", newSpaceId, "imageUrl", imageUrl));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("등록 실패: " + e.getMessage());
 		} catch (Exception e) {
 			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
 		}
 	}
+
 }
 

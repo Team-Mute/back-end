@@ -3,34 +3,28 @@ package Team_Mute.back_end.domain.space_admin.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "tb_spaces")
-@Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class Space {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "space_id")
-	private Integer id;
+	private Integer spaceId;
 
-	//@ManyToOne(fetch = FetchType.LAZY)
-	//@JoinColumn(name = "category_id")
-	//private SpaceCategory category;
+	@Column(name = "region_id")
+	private Integer regionId;
+
 	@Column(name = "category_id")
 	private Integer categoryId;
-
-	@Column(name = "region_id", nullable = false)
-	private Integer regionId;
 
 	@Column(name = "user_id")
 	private Integer userId;
 
-	@Column(name = "space_name", nullable = false, length = 100)
+	@Column(name = "space_name", length = 100)
 	private String spaceName;
 
 	@Column(name = "space_capacity")
@@ -43,14 +37,14 @@ public class Space {
 	private String spaceDescription;
 
 	@Column(name = "space_image_url", columnDefinition = "TEXT")
-	private String imageUrl;
+	private String spaceImageUrl;
 
 	@Column(name = "space_is_available")
-	private Boolean spaceAvailable;
+	private Boolean spaceIsAvailable;
 
-	@Column(name = "reg_date")
-	private LocalDateTime regDate;
+	@Column(name = "reg_date", insertable = false, updatable = false)
+	private java.sql.Timestamp regDate;
 
-	@Column(name = "upd_date")
-	private LocalDateTime updDate;
+	@Column(name = "upd_date", insertable = true, updatable = true)
+	private java.sql.Timestamp updDate;
 }
