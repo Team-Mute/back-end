@@ -17,5 +17,6 @@ public class SpaceCreateRequest {
 	private String categoryName;
 	private List<String> tagNames;
 	private Integer userId;
+	private String imageUrl;
 }
 

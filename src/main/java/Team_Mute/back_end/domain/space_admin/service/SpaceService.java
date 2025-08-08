@@ -37,7 +37,7 @@ public class SpaceService {
 	}
 
 	@Transactional
-	public Integer createSpace(SpaceCreateRequest req) {
+	public Integer createSpace(SpaceCreateRequest req, String imageUrl) {
 
 		// 1. categoryName → categoryId
 		SpaceCategory category = categoryRepository.findByCategoryName(req.getCategoryName())
@@ -60,6 +60,8 @@ public class SpaceService {
 			.regDate(LocalDateTime.now())
 			.updDate(LocalDateTime.now())
 			.build();
+
+		space.setImageUrl(imageUrl);
 
 		Space saved = spaceRepository.save(space);
 
