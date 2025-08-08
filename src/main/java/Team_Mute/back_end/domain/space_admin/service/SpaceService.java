@@ -3,10 +3,12 @@ package Team_Mute.back_end.domain.space_admin.service;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.entity.*;
 import Team_Mute.back_end.domain.space_admin.repository.*;
+import io.micrometer.common.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -35,10 +37,12 @@ public class SpaceService {
 		this.spaceImageRepository = spaceImageRepository;
 	}
 
+	// 공간 전체 조회
 	public List<Space> getAllSpaces() {
 		return spaceRepository.findAll();
 	}
 
+	// 공간 등록
 	@Transactional
 	public Integer createWithImages(SpaceCreateRequest req, java.util.List<String> urls) {
 		String cover = urls.get(0);
@@ -67,6 +71,27 @@ public class SpaceService {
 
 		Space saved = spaceRepository.save(space);
 
+		// 4. 태그 처리
+		for (String tagName : req.getTagNames()) {
+			SpaceTag tag = tagRepository.findByTagName(tagName)
+				.orElseGet(() -> {
+					SpaceTag newTag = SpaceTag.builder()
+						.tagName(tagName)
+						.regDate(LocalDateTime.now())
+						.updDate(LocalDateTime.now())
+						.build();
+					return tagRepository.save(newTag);
+				});
+
+			SpaceTagMap map = SpaceTagMap.builder()
+				.space(saved)
+				.tag(tag)
+				.regDate(LocalDateTime.now())
+				.build();
+
+			tagMapRepository.save(map);
+		}
+
 		// 2) 상세 이미지 저장 (우선순위 1..n)
 		if (!details.isEmpty()) {
 			int p = 1;
@@ -83,5 +108,92 @@ public class SpaceService {
 
 		// PK getter 이름 맞추기
 		return saved.getSpaceId();
+	}
+
+	// 공간 수정
+	@Transactional
+	public void updateWithImages(Integer spaceId,
+								 SpaceCreateRequest req,
+								 java.util.List<String> urls) {
+
+		// 0) 대상 조회
+		Space space = spaceRepository.findById(spaceId)
+			.orElseThrow(() -> new IllegalArgumentException("해당 공간이 존재하지 않습니다: " + spaceId));
+
+		//커버 이미지 추출
+		String cover = urls.get(0);
+
+		// 1) categoryName → categoryId
+		SpaceCategory category = categoryRepository.findByCategoryName(req.getCategoryName())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다: " + req.getCategoryName()));
+
+		// 2) regionName → regionId
+		AdminRegion region = regionRepository.findByRegionName(req.getRegionName())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역명입니다: " + req.getRegionName()));
+
+		// 3) 본문 필드 “전체 교체”
+		space.setCategoryId(category.getId());
+		space.setRegionId(region.getId());
+		space.setUserId(req.getUserId());
+		space.setSpaceName(req.getSpaceName());
+		space.setSpaceLocation(req.getSpaceLocation());
+		space.setSpaceDescription(req.getSpaceDescription());
+		space.setSpaceCapacity(req.getSpaceCapacity());
+		space.setSpaceIsAvailable(req.getSpaceIsAvailable());
+
+		// 4) 태그 전량 교체
+		//    - tagMapRepository에 아래 메서드 하나 추가 필요:
+		//      void deleteBySpace(Space space);
+		tagMapRepository.deleteBySpace(space);
+		for (String tagName : req.getTagNames()) {
+			SpaceTag tag = tagRepository.findByTagName(tagName)
+				.orElseGet(() -> {
+					SpaceTag newTag = SpaceTag.builder()
+						.tagName(tagName)
+						.regDate(LocalDateTime.now())
+						.updDate(LocalDateTime.now())
+						.build();
+					return tagRepository.save(newTag);
+				});
+
+			SpaceTagMap map = SpaceTagMap.builder()
+				.space(space)
+				.tag(tag)
+				.regDate(LocalDateTime.now())
+				.build();
+			tagMapRepository.save(map);
+		}
+
+		// 5) 이미지 처리 (PUT 정책)
+		//    - urls == null        : 이미지 변경 없음 (기존 커버/상세 유지)
+		//    - urls.isEmpty()      : 커버/상세 전부 삭제 (커버 null, 상세 0장)
+		//    - urls.size() >= 1    : 커버/상세 전부 교체
+		if (urls != null) {
+			// 상세 이미지 전부 삭제 (리포지토리에 메서드 필요)
+			// SpaceImageRepository: void deleteBySpace(Space space);
+			spaceImageRepository.deleteBySpace(space);
+
+			if (urls.isEmpty()) {
+				space.setSpaceImageUrl(null); // 커버 제거
+			} else {
+				// 커버 이미지 교체
+				//String cover = urls.get(0);
+				space.setSpaceImageUrl(cover);
+
+				// 상세 이미지 재등록 (우선순위 1..n)
+				if (urls.size() > 1) {
+					int p = 1;
+					List<SpaceImage> list = new ArrayList<>(urls.size() - 1);
+					for (String url : urls.subList(1, urls.size())) {
+						SpaceImage si = new SpaceImage();
+						si.setSpace(space);
+						si.setImageUrl(url);
+						si.setImagePriority(p++);
+						list.add(si);
+					}
+					spaceImageRepository.saveAll(list);
+				}
+			}
+		}
 	}
 }

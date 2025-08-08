@@ -36,7 +36,7 @@ public class SpaceController {
 	) {
 		try {
 			if (images == null || images.isEmpty()) {
-				return ResponseEntity.badRequest().body("이미지가 최소 1장은 필요합니다.");
+				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
 			}
 			List<String> urls = s3Uploader.uploadAll(images, "spaces"); // throws IOException 버전
 			Integer id = spaceService.createWithImages(request, urls);
@@ -49,6 +49,33 @@ public class SpaceController {
 			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
 		}
 	}
+
+	// 공간 수정
+	@PutMapping(value = "/{spaceId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<?> update(
+		@PathVariable Integer spaceId,
+		@RequestPart("space") @Valid SpaceCreateRequest request,
+		@RequestPart(value = "images", required = false) List<MultipartFile> images
+	) {
+		try {
+			if (images == null || images.isEmpty()) {
+				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
+			}
+
+			List<String> urls = (images != null && !images.isEmpty())
+				? s3Uploader.uploadAll(images, "spaces")
+				: null; // 이미지 변경 없으면 null
+
+			spaceService.updateWithImages(spaceId, request, urls);
+
+			return ResponseEntity.noContent().build(); // 204
+		} catch (IllegalArgumentException e) {
+			return ResponseEntity.badRequest().body("수정 실패: " + e.getMessage());
+		} catch (Exception e) {
+			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+		}
+	}
+
 
 }
 
