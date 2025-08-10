@@ -4,13 +4,13 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.*;
 import Team_Mute.back_end.domain.space_admin.repository.*;
-import io.micrometer.common.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Service
 public class SpaceService {
@@ -41,6 +41,12 @@ public class SpaceService {
 	// 공간 전체 조회
 	public List<SpaceListResponse> getAllSpaces() {
 		return spaceRepository.findAllWithNames();
+	}
+
+	// 특정 공간 조회
+	public SpaceListResponse getSpaceById(Integer spaceId) {
+		return spaceRepository.findDetailWithNames(spaceId)
+			.orElseThrow(() -> new NoSuchElementException("공간을 찾을 수 없습니다."));
 	}
 
 	// 공간 등록

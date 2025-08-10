@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/spaces-admin")
@@ -26,8 +27,18 @@ public class SpaceController {
 
 	// 공간 전체 조회
 	@GetMapping
-	public List<SpaceListResponse> getSpaces() {
+	public List<SpaceListResponse> getAllSpaces() {
 		return spaceService.getAllSpaces();
+	}
+
+	// 특정 공간 조회
+	@GetMapping("/{spaceId}")
+	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
+		try {
+			return ResponseEntity.ok(spaceService.getSpaceById(spaceId));
+		} catch (NoSuchElementException e) {
+			return ResponseEntity.status(404).body(java.util.Map.of("message", "공간을 찾을 수 없습니다."));
+		}
 	}
 
 	// 공간 등록 (이미지 여러 장 포함 - multipart/form-data)

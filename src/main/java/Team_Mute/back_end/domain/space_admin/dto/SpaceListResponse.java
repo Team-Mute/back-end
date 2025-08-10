@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 @JsonPropertyOrder({
 	"spaceId", "spaceName", "regionName", "categoryName", "userId",
-	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "tagNames",
-	"spaceIsAvailable", "regDate", "updDate"
+	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "detailImageUrls",
+	"tagNames", "spaceIsAvailable", "regDate", "updDate"
 })
 public interface SpaceListResponse {
 	Integer getSpaceId();
@@ -17,6 +17,7 @@ public interface SpaceListResponse {
 	String  getSpaceLocation();
 	String  getSpaceDescription();
 	String  getSpaceImageUrl();
+	String[] getDetailImageUrls();
 	Boolean getSpaceIsAvailable();
 	String[] getTagNames();
 	java.time.LocalDateTime getRegDate();
