@@ -1,6 +1,7 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.*;
 import Team_Mute.back_end.domain.space_admin.repository.*;
 import io.micrometer.common.lang.Nullable;
@@ -38,8 +39,8 @@ public class SpaceService {
 	}
 
 	// 공간 전체 조회
-	public List<Space> getAllSpaces() {
-		return spaceRepository.findAll();
+	public List<SpaceListResponse> getAllSpaces() {
+		return spaceRepository.findAllWithNames();
 	}
 
 	// 공간 등록

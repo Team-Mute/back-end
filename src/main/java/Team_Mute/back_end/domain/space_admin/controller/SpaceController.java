@@ -1,6 +1,7 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
@@ -25,7 +26,7 @@ public class SpaceController {
 
 	// 공간 전체 조회
 	@GetMapping
-	public List<Space> getSpaces() {
+	public List<SpaceListResponse> getSpaces() {
 		return spaceService.getAllSpaces();
 	}
 

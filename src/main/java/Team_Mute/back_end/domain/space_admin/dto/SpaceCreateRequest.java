@@ -3,6 +3,7 @@ package Team_Mute.back_end.domain.space_admin.dto;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
