@@ -67,6 +67,7 @@ public class SpaceService {
 			.spaceCapacity(req.getSpaceCapacity())
 			.spaceIsAvailable(req.getSpaceIsAvailable())
 			.spaceImageUrl(cover)
+			.regDate(LocalDateTime.now())
 			.build();
 
 		Space saved = spaceRepository.save(space);
@@ -78,7 +79,6 @@ public class SpaceService {
 					SpaceTag newTag = SpaceTag.builder()
 						.tagName(tagName)
 						.regDate(LocalDateTime.now())
-						.updDate(LocalDateTime.now())
 						.build();
 					return tagRepository.save(newTag);
 				});
@@ -137,7 +137,7 @@ public class SpaceService {
 		space.setSpaceDescription(req.getSpaceDescription());
 		space.setSpaceCapacity(req.getSpaceCapacity());
 		space.setSpaceIsAvailable(req.getSpaceIsAvailable());
-
+        space.setUpdDate(LocalDateTime.now());
 		// 4) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);
 		for (String tagName : req.getTagNames()) {
@@ -146,7 +146,6 @@ public class SpaceService {
 					SpaceTag newTag = SpaceTag.builder()
 						.tagName(tagName)
 						.regDate(LocalDateTime.now())
-						.updDate(LocalDateTime.now())
 						.build();
 					return tagRepository.save(newTag);
 				});
