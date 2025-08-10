@@ -120,9 +120,6 @@ public class SpaceService {
 		Space space = spaceRepository.findById(spaceId)
 			.orElseThrow(() -> new IllegalArgumentException("해당 공간이 존재하지 않습니다: " + spaceId));
 
-		//커버 이미지 추출
-		String cover = urls.get(0);
-
 		// 1) categoryName → categoryId
 		SpaceCategory category = categoryRepository.findByCategoryName(req.getCategoryName())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다: " + req.getCategoryName()));
@@ -142,8 +139,6 @@ public class SpaceService {
 		space.setSpaceIsAvailable(req.getSpaceIsAvailable());
 
 		// 4) 태그 전량 교체
-		//    - tagMapRepository에 아래 메서드 하나 추가 필요:
-		//      void deleteBySpace(Space space);
 		tagMapRepository.deleteBySpace(space);
 		for (String tagName : req.getTagNames()) {
 			SpaceTag tag = tagRepository.findByTagName(tagName)
@@ -177,7 +172,7 @@ public class SpaceService {
 				space.setSpaceImageUrl(null); // 커버 제거
 			} else {
 				// 커버 이미지 교체
-				//String cover = urls.get(0);
+				String cover = urls.get(0);
 				space.setSpaceImageUrl(cover);
 
 				// 상세 이미지 재등록 (우선순위 1..n)

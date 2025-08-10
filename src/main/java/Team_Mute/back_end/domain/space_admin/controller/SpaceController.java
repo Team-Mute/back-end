@@ -5,6 +5,7 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,13 +36,17 @@ public class SpaceController {
 		@RequestPart("images") List<MultipartFile> images
 	) {
 		try {
-			if (images == null || images.isEmpty()) {
+			// 이미지가 없을 경우 예외 처리
+			boolean noUsableFiles = (images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
+
+			if (noUsableFiles) {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
 			}
+
 			List<String> urls = s3Uploader.uploadAll(images, "spaces"); // throws IOException 버전
 			Integer id = spaceService.createWithImages(request, urls);
 
-			return ResponseEntity.status(201).body(Map.of("spaceId", id, "coverImageUrl", urls.get(0)));
+			return ResponseEntity.status(201).body(Map.of("data", id, "coverImageUrl", urls.get(0)));
 
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("등록 실패: " + e.getMessage());
@@ -58,7 +63,10 @@ public class SpaceController {
 		@RequestPart(value = "images", required = false) List<MultipartFile> images
 	) {
 		try {
-			if (images == null || images.isEmpty()) {
+			// 이미지가 없을 경우 예외 처리
+			boolean noUsableFiles = (images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
+
+			if (noUsableFiles) {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
 			}
 
