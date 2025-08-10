@@ -36,6 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 
-src/main/resources/application.properties
-**/application.properties
+#민감 정보 분리 설정한 파일
+src/main/resources/application-secret.properties
+**/application-secret.properties
 
