@@ -58,7 +58,7 @@ public class SpaceController {
 			List<String> urls = s3Uploader.uploadAll(images, "spaces"); // throws IOException 버전
 			Integer id = spaceService.createWithImages(request, urls);
 
-			return ResponseEntity.status(201).body(Map.of("data", id, "coverImageUrl", urls.get(0)));
+			return ResponseEntity.ok(spaceService.getSpaceById(id));
 
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("등록 실패: " + e.getMessage());
@@ -88,7 +88,7 @@ public class SpaceController {
 
 			spaceService.updateWithImages(spaceId, request, urls);
 
-			return ResponseEntity.noContent().build(); // 204
+			return ResponseEntity.ok(spaceService.getSpaceById(spaceId));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("수정 실패: " + e.getMessage());
 		} catch (Exception e) {
