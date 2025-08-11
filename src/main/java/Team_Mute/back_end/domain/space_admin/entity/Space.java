@@ -26,25 +26,25 @@ public class Space {
 	@Column(name = "user_id")
 	private Integer userId;
 
-	@Column(name = "space_name", length = 100)
+	@Column(name = "space_name", unique = true, nullable = false, length = 100)
 	private String spaceName;
 
-	@Column(name = "space_capacity")
+	@Column(name = "space_capacity", nullable = false)
 	private Integer spaceCapacity;
 
-	@Column(name = "space_location", length = 256)
+	@Column(name = "space_location", nullable = false, length = 256)
 	private String spaceLocation;
 
-	@Column(name = "space_description", columnDefinition = "TEXT")
+	@Column(name = "space_description", nullable = false, columnDefinition = "TEXT")
 	private String spaceDescription;
 
-	@Column(name = "space_image_url", columnDefinition = "TEXT")
+	@Column(name = "space_image_url", nullable = false, columnDefinition = "TEXT")
 	private String spaceImageUrl;
 
-	@Column(name = "space_is_available")
+	@Column(name = "space_is_available", nullable = false)
 	private Boolean spaceIsAvailable;
 
-	@Column(name = "reg_date")
+	@Column(name = "reg_date", nullable = false)
 	private LocalDateTime regDate;
 
 	@Column(name = "upd_date")

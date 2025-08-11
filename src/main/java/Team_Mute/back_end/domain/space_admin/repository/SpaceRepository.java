@@ -4,7 +4,6 @@ package Team_Mute.back_end.domain.space_admin.repository;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,6 +11,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SpaceRepository extends JpaRepository<Space, Integer> {
+	// 공간 등록할 경우 공간명 중복 체크
+	boolean existsBySpaceName(String spaceName);
+
+	// 공간 수정할 경우 공간명 중복 체크
+	boolean existsBySpaceNameAndSpaceIdNot(String spaceName, Integer spaceId);
 
 	// 목록 + 조인 (regionName, categoryName 포함)
 	@Query(value = """
