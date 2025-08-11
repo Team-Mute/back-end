@@ -88,8 +88,6 @@ public class S3Uploader {
 		return urls;
 	}
 
-
-
 	private String createFileName(String originalName, String dirName) {
 		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 		return dirName + "/" + timestamp + "_" + originalName;
@@ -103,4 +101,6 @@ public class S3Uploader {
 			))
 			.build();
 	}
+
+	// 버킷에서 이미지 삭제
 }

@@ -4,6 +4,7 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.*;
 import Team_Mute.back_end.domain.space_admin.repository.*;
+import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class SpaceService {
 	private final SpaceTagRepository tagRepository;
 	private final SpaceTagMapRepository tagMapRepository;
 	private final SpaceImageRepository spaceImageRepository;
+	private final S3Deleter s3Deleter;
 
 	public SpaceService(
 		SpaceRepository spaceRepository,
@@ -29,7 +31,8 @@ public class SpaceService {
 		AdminRegionRepository regionRepository,
 		SpaceTagRepository tagRepository,
 		SpaceTagMapRepository tagMapRepository,
-		SpaceImageRepository spaceImageRepository
+		SpaceImageRepository spaceImageRepository,
+		S3Deleter s3Deleter
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
@@ -37,6 +40,7 @@ public class SpaceService {
 		this.tagRepository = tagRepository;
 		this.tagMapRepository = tagMapRepository;
 		this.spaceImageRepository = spaceImageRepository;
+		this.s3Deleter = s3Deleter;
 	}
 
 	// 공간 전체 조회
@@ -185,9 +189,36 @@ public class SpaceService {
 		//    - urls == null        : 이미지 변경 없음 (기존 커버/상세 유지)
 		//    - urls.isEmpty()      : 커버/상세 전부 삭제 (커버 null, 상세 0장)
 		//    - urls.size() >= 1    : 커버/상세 전부 교체
+
+		/* 대표(메인) 이미지 교체 시, 기존 S3 오브젝트 삭제*/
+		// 기존 대표 이미지 URL
+		String oldMainUrl = space.getSpaceImageUrl();
+		String newMainUrl = (urls != null && !urls.isEmpty()) ? urls.get(0) : null;
+
+		if (newMainUrl != null && oldMainUrl != null && !newMainUrl.equals(oldMainUrl)) {
+			s3Deleter.deleteByUrl(oldMainUrl); // 기존 대표 이미지 삭제
+		}
+
+		// 기존 상세 이미지 URL 목록 DB에서 조회
+		List<SpaceImage> oldImages = spaceImageRepository.findBySpace(space); // 직접 조회
+		List<String> oldGalleryUrls = oldImages.stream()
+			.map(SpaceImage::getImageUrl)
+			.toList();
+
+		// 새 상세 이미지 URL 목록 (urls의 1번 인덱스부터)
+		List<String> newGalleryUrls = (urls != null && urls.size() > 1)
+			? urls.subList(1, urls.size())
+			: java.util.Collections.emptyList();
+
+		// 기존에 있었는데 새 목록에 없는 것들 삭제
+		for (String oldUrl : oldGalleryUrls) {
+			if (!newGalleryUrls.contains(oldUrl)) {
+				s3Deleter.deleteByUrl(oldUrl);
+			}
+		}
+
 		if (urls != null) {
 			// 상세 이미지 전부 삭제 (리포지토리에 메서드 필요)
-			// SpaceImageRepository: void deleteBySpace(Space space);
 			spaceImageRepository.deleteBySpace(space);
 
 			if (urls.isEmpty()) {
