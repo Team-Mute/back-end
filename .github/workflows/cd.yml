@@ -1,0 +1,32 @@
+name: CD (Deploy to Koyeb)
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: "deploy-${{ github.ref_name }}"
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1) Koyeb CLI 설치+인증 (Secrets에 KOYEB_API_TOKEN 이미 넣었음)
+      - name: Configure Koyeb
+        uses: koyeb-community/koyeb-actions@v2
+        with:
+          api_token: ${{ secrets.KOYEB_API_TOKEN }}
+
+      # 2) 저장소를 Buildpacks로 빌드 & 배포 (Docker 안 씀)
+      - name: Build and Deploy
+        uses: koyeb/action-git-deploy@v1
+        with:
+          app-name: springboot-app          # 처음 배포 시 앱 자동 생성
+          service-name: mute-api                  # 서비스 이름
+          git-builder: buildpack             # ★ 도커 대신 Buildpacks
+          service-env: "JAVA_OPTS=-Xms256m -Xmx512m"
+          service-ports: "8080:http"         # 앱 내부 포트
+          service-routes: "/:8080"           # 외부 라우팅
+          service-checks: "8080:http:/actuator/health"  # Actuator 있으면 권장
