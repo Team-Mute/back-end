@@ -10,10 +10,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
           cache: gradle
-      - name: Build (Gradle)
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+      - name: Build
         if: hashFiles('gradlew') != ''
         run: ./gradlew build --no-daemon
       - name: Build (Maven)
