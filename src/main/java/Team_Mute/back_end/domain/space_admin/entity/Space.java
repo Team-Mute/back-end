@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
@@ -11,7 +13,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "tb_spaces")
 public class Space {
-
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "space_id")
@@ -49,4 +50,14 @@ public class Space {
 
 	@Column(name = "upd_date")
 	private LocalDateTime updDate;
+
+	@OneToMany(mappedBy = "space", cascade = CascadeType.REMOVE, orphanRemoval = true)
+	@Builder.Default
+	private List<SpaceImage> images = new ArrayList<>();
+
+	@OneToMany(mappedBy = "space", cascade = CascadeType.REMOVE, orphanRemoval = true)
+	@Builder.Default
+	private List<SpaceTagMap> tagMaps = new ArrayList<>();
+
+
 }

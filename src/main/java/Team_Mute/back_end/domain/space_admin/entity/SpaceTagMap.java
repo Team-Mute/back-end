@@ -15,8 +15,9 @@ public class SpaceTagMap {
 	@Column(name = "map_id")
 	private Integer id;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "space_id")
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "space_id", nullable = false, foreignKey = @ForeignKey(name = "fk_space_tag_map_space"))
+	@org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE) // (선택)
 	private Space space;
 
 	@ManyToOne(fetch = FetchType.LAZY)

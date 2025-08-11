@@ -244,4 +244,34 @@ public class SpaceService {
 			}
 		}
 	}
+
+	// 공간 삭제
+	@Transactional
+	public void deleteSpace(Integer spaceId) {
+		// 1) 존재 확인
+		Space space = spaceRepository.findById(spaceId)
+			.orElseThrow(() -> new NoSuchElementException("Space not found: " + spaceId));
+
+		// 2) S3 먼저 삭제 (실패 시 예외 → 트랜잭션 롤백)
+		// 2-1) 대표(커버) 이미지
+		String coverUrl = space.getSpaceImageUrl();
+		if (coverUrl != null && !coverUrl.isBlank()) {
+			s3Deleter.deleteByUrl(coverUrl);
+		}
+
+		// 2-2) 갤러리 이미지들
+		if (space.getImages() != null) {
+			for (SpaceImage img : space.getImages()) {
+				String url = img.getImageUrl();
+				if (url != null && !url.isBlank()) {
+					s3Deleter.deleteByUrl(url);
+				}
+			}
+		}
+
+		// 3) DB 삭제 (연관 테이블은 CASCADE/ON DELETE CASCADE로 함께 정리)
+		spaceRepository.delete(space);
+	}
+
+
 }

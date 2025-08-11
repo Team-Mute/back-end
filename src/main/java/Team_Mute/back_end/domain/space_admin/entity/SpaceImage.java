@@ -14,7 +14,8 @@ public class SpaceImage {
 	private Integer imageId;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "space_id")
+	@JoinColumn(name = "space_id", nullable = false, foreignKey = @ForeignKey(name = "fk_space_images_space"))
+	@org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
 	private Space space;                     // FK → tb_spaces.space_id
 
 	@Column(name = "image_url", nullable = false)

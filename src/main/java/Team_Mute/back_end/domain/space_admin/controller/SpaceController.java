@@ -1,5 +1,6 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
+import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
@@ -96,6 +97,15 @@ public class SpaceController {
 		}
 	}
 
+	// 공간 삭제
+	@DeleteMapping("/{spaceId}")
+	public ResponseEntity<DeleteSpaceResponse> delete(@PathVariable Integer spaceId) {
+		spaceService.deleteSpace(spaceId);
+		return ResponseEntity.ok(new DeleteSpaceResponse(
+			"공간 삭제 완료",
+			spaceId
+		));
+	}
 
 }
 
