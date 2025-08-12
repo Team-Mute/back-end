@@ -1,7 +1,16 @@
 <?xml version="1.0"?>
 <!DOCTYPE suppressions PUBLIC
-        "-//Puppy Crawl//DTD Suppressions 1.1//EN"
-        "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
 
 <suppressions>
+    <!-- 테스트 코드는 checkstyle 검사 제외 -->
+    <suppress files=".*Test\.java" checks=".*"/>
+
+    <!-- DTO나 VO 패키지는 검사 제외 -->
+    <suppress files=".*dto/.*" checks=".*"/>
+
+    <!-- 롬복 자동 생성 코드는 제외 -->
+    <suppress files=".*lombok.*" checks=".*"/>
 </suppressions>

@@ -1,28 +1,29 @@
-name: CD (Deploy to Koyeb)
+name: cd
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     concurrency:
-      group: "deploy-${{ github.ref_name }}"
+      group: "koyeb-${{ github.ref_name }}"
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
-      - name: Configure Koyeb
+      - name: Install & Configure Koyeb CLI
         uses: koyeb-community/koyeb-actions@v2
         with:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
-      - name: Build and Deploy
+
+      - name: Deploy from Git (Buildpacks)
         uses: koyeb/action-git-deploy@v1
         with:
-          app-name: springboot-app     #처음 배포 시 앱 자동 생성
-          service-name: mute-api       #서비스 이름
-          git-builder: buildpack       #도커 대신 Buildpacks
-          git-root: back-end
+          app-name: my-spring-app
+          service-name: mute-api
+          git-builder: buildpack
+          # 필요 시 커맨드 오버라이드(Procfile 대신)
+          git-run-command: "java -Dserver.port=$PORT -jar target/*.jar"
+          # 환경변수/포트/라우팅
+          service-env: "SPRING_PROFILES_ACTIVE=prod,DB_URL=@DB_URL,DB_USER=@DB_USER,DB_PASS=@DB_PASS"
           service-ports: "8080:http"
           service-routes: "/:8080"
-          service-checks: "8080:http:/"
-          service-env: "JAVA_OPTS=-Xms256m -Xmx512m,SPRING_PROFILES_ACTIVE=cloud"
