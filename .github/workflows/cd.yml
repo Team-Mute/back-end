@@ -29,31 +29,28 @@ jobs:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
 
       # 실제 배포 (DRY_RUN이면 스킵)
-      - name: Deploy to Koyeb (Buildpacks)
+      - name: Deploy from Git (Buildpacks)
         if: ${{ env.DRY_RUN != 'true' }}
         uses: koyeb/action-git-deploy@v1
         with:
-          app-name: my-spring-app          # 원하는 앱 이름
-          service-name: mute-api           # 서비스 이름
+          app-name: my-spring-app
+          service-name: mute-api
           git-builder: buildpack
-          # 빌드팩에 자바 버전 전달 (Paketo)
-          build-env: "BP_JAVA_VERSION=17.*"
-          # 리전/스펙(필요 시 조정)
-          service-regions: fra
-          service-instance-type: micro
+
+          # 여러 줄 값은 반드시 블록 스타일 사용
+          service-env: |
+            SPRING_PROFILES_ACTIVE=ci
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}
+            CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            CLOUD_AWS_REGION_STATIC=${{ secrets.AWS_REGION }}
+            CLOUD_AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}
+            CLOUD_AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+
           # 라우팅/포트
           service-ports: "8080:http"
           service-routes: "/:8080"
-          # 헬스체크 엔드포인트가 있을 때만 사용(없으면 이 줄 삭제)
+          # (옵션) 액추에이터 사용 시 헬스체크
           # service-checks: "8080:http:/actuator/health"
-          # 런타임 ENV (Koyeb 콘솔에 안 넣었다면 여기서 주입)
-          service-env: >-
-            SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }},
-            SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }},
-            SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }},
-            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},
-            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},
-            AWS_REGION=${{ secrets.AWS_REGION }},
-            AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }},
-            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }},
-            PORT=8080

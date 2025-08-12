@@ -14,16 +14,27 @@ jobs:
         with:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
 
-      - name: Deploy PR preview to Koyeb (buildpack)
+      - name: Deploy PR Preview
         uses: koyeb/action-git-deploy@v1
         with:
-          app-name: my-spring-app-pr
-          service-name: pr-${{ github.event.pull_request.number }}
+          app-name: my-spring-app-preview
+          service-name: preview-${{ github.event.number }}
           git-builder: buildpack
-          # 필요시 리전/인스턴스 지정
-          service-regions: fra
-          service-instance-type: micro
+          service-env: |
+            SPRING_PROFILES_ACTIVE=ci
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.CLOUD_AWS_CREDENTIALS_ACCESS_KEY }}
+            CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.CLOUD_AWS_CREDENTIALS_SECRET_KEY }}
+            CLOUD_AWS_REGION_STATIC=${{ secrets.CLOUD_AWS_REGION_STATIC }}
+            CLOUD_AWS_S3_BUCKET=${{ secrets.CLOUD_AWS_S3_BUCKET }}
           service-ports: "8080:http"
           service-routes: "/:8080"
-          # ⚠️ 환경변수는 줄바꿈 없이 한 줄, 공백 없이 콤마로 구분
-          service-env: "SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }},SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }},SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }},AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},AWS_REGION=${{ secrets.AWS_REGION }},AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }},AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }},PORT=8080"
+
+      - name: Add Preview URL as Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            🚀 **Preview Deployment Ready**
+            URL: https://${{ github.event.number }}.my-spring-app-preview.koyeb.app
