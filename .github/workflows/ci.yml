@@ -22,35 +22,23 @@ jobs:
       - name: Make gradlew executable (Linux)
         run: chmod +x ./gradlew
 
-      # Secrets → application-secret.properties 생성 (DB + AWS/S3)
-      - name: Create application-secret.properties
+      # DB 환경변수 주입 (Neon)
+      - name: Export DB env for Spring Boot
         run: |
-          mkdir -p src/main/resources
-          cat > src/main/resources/application-secret.properties <<'EOF'
-          # DB
-          spring.datasource.url=${NEON_JDBC_URL}
-          spring.datasource.username=${NEON_DB_USER}
-          spring.datasource.password=${NEON_DB_PASS}
-          spring.datasource.driver-class-name=org.postgresql.Driver
+          echo "SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }}" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }}" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }}" >> $GITHUB_ENV
+          echo "DB 환경변수 주입 완료"
 
-          # AWS
-          cloud.aws.credentials.access-key=${AWS_ACCESS_KEY_ID}
-          cloud.aws.credentials.secret-key=${AWS_SECRET_ACCESS_KEY}
+      # AWS 관련 환경변수 주입 (필요 시)
+      - name: Export AWS env
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
+          echo "AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}" >> $GITHUB_ENV
+          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
 
-          # S3
-          cloud.aws.region.static=${AWS_REGION}
-          cloud.aws.stack.auto=${AWS_STACK_AUTO}
-          cloud.aws.s3.bucket=${AWS_S3_BUCKET}
-          EOF
-        env:
-          NEON_JDBC_URL: ${{ secrets.NEON_JDBC_URL }}
-          NEON_DB_USER: ${{ secrets.NEON_DB_USER }}
-          NEON_DB_PASS: ${{ secrets.NEON_DB_PASS }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_STACK_AUTO: ${{ secrets.AWS_STACK_AUTO }}
-          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
 
       - name: Format code (Spotless + EditorConfig)
         run: ./gradlew spotlessApply editorconfigFormat --no-daemon
