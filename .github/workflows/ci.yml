@@ -1,8 +1,11 @@
 name: ci
 on:
   pull_request:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch: { }   # 필요시 수동 실행
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -14,18 +17,35 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle     # ← Gradle 캐시
+          cache: gradle
 
       - name: Make gradlew executable (Linux)
         run: chmod +x ./gradlew
 
+      # DB 환경변수 주입 (Neon)
+      - name: Export DB env for Spring Boot
+        run: |
+          echo "SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }}" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }}" >> $GITHUB_ENV
+          echo "SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }}" >> $GITHUB_ENV
+          echo "DB 환경변수 주입 완료"
+
+      # AWS 관련 환경변수 주입 (필요 시)
+      - name: Export AWS env
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
+          echo "AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}" >> $GITHUB_ENV
+          echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
+
+
       - name: Format code (Spotless + EditorConfig)
-        run: ./gradlew spotlessApply editorconfigFormat
+        run: ./gradlew spotlessApply editorconfigFormat --no-daemon
 
       - name: Build (tests included)
-        run: ./gradlew clean build --no-daemon
+        run: ./gradlew clean build --no-daemon --stacktrace
 
-      # Checkstyle 리포트 업로드(리뷰에 유용)
       - name: Upload Checkstyle reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -33,6 +53,5 @@ jobs:
           name: checkstyle-reports
           path: build/reports/checkstyle/*.html
 
-      # editorconfig-checker도 유지하고 싶다면
       - name: editorconfig-check
         uses: editorconfig-checker/action-editorconfig-checker@v2

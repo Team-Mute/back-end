@@ -2,28 +2,41 @@ name: cd
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Skip actual deployment (DRY_RUN=true)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    concurrency:
-      group: "koyeb-${{ github.ref_name }}"
-      cancel-in-progress: true
+    permissions:
+      contents: read
+    env:
+      DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install & Configure Koyeb CLI
         uses: koyeb-community/koyeb-actions@v2
         with:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
 
+      # 실제 배포 (DRY_RUN이면 스킵). 환경변수는 Koyeb 콘솔에 설정해두는 걸 권장!
       - name: Deploy from Git (Buildpacks)
+        if: ${{ env.DRY_RUN != 'true' }}
         uses: koyeb/action-git-deploy@v1
         with:
           app-name: my-spring-app
           service-name: mute-api
           git-builder: buildpack
-          # 필요 시 커맨드 오버라이드(Procfile 대신)
-          git-run-command: "java -Dserver.port=$PORT -jar target/*.jar"
-          # 환경변수/포트/라우팅
-          service-env: "SPRING_PROFILES_ACTIVE=prod,DB_URL=@DB_URL,DB_USER=@DB_USER,DB_PASS=@DB_PASS"
+          service-env: "SPRING_PROFILES_ACTIVE=ci"
           service-ports: "8080:http"
           service-routes: "/:8080"
+          # service-checks: "8080:http:/actuator/health"
