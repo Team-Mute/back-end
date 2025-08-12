@@ -1,28 +1,36 @@
 root = true
 
 [*]
-# [encoding-utf8]
+# 파일 인코딩
 charset = utf-8
 
-# [newline-lf]
+# 줄바꿈 스타일
 end_of_line = lf
-
-# [newline-eof]
 insert_final_newline = true
+trim_trailing_whitespace = true
 
 [*.bat]
+# Windows 배치 파일은 CRLF 사용
 end_of_line = crlf
 
 [*.java]
-# [indentation-tab]
+# 들여쓰기: 탭 사용
 indent_style = tab
-
-# [4-spaces-tab]
 indent_size = 4
 tab_width = 4
 
-# [no-trailing-spaces]
+# Import: 절대 * 임포트 사용 금지
+ij_java_class_count_to_use_import_on_demand = 999
+ij_java_names_count_to_use_import_on_demand = 999
+ij_java_layout_static_imports_separately = true
+ij_java_use_single_class_imports = true
+
+# Import 레이아웃 (NAVER 룰 순서)
+ij_java_imports_layout = import java.*, import javax.*, import org.*, import com.*, blankLine, import all other imports, blankLine, import mute.backend.*, blankLine, import static all other imports
+
+# 줄 끝 공백 제거
 trim_trailing_whitespace = true
 
-[line-length-120]
-max_line_length = 120
+# 줄 길이 제한
+ij_java_right_margin = 120
+ij_java_wrap_long_lines = true
