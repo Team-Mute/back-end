@@ -1,0 +1,17 @@
+name: pr-preview-cleanup
+on:
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install & Configure Koyeb CLI
+        uses: koyeb-community/koyeb-actions@v2
+        with:
+          api_token: ${{ secrets.KOYEB_API_TOKEN }}
+
+      - name: Delete PR preview service
+        run: |
+          koyeb service delete mute-preview/pr-${{ github.event.pull_request.number }} --yes || true

@@ -1,25 +1,11 @@
-name: cd
+name: pr-preview
 on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Skip actual deployment (DRY_RUN=true)"
-        required: false
-        default: "false"
-
-concurrency:
-  group: cd-${{ github.ref }}
-  cancel-in-progress: true
+  pull_request:
+    types: [ opened, synchronize, reopened ]
 
 jobs:
-  deploy:
+  preview:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +14,7 @@ jobs:
         with:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
 
-      # 배포 전 필수 시크릿 확인
+      # 필수 시크릿 존재 확인 (비어있으면 배포 전에 실패)
       - name:
         Preflight: required env present?
         run: |
@@ -36,30 +22,28 @@ jobs:
           test -n "${{ secrets.NEON_DB_USER }}"  || (echo "NEON_DB_USER empty"; exit 1)
           test -n "${{ secrets.NEON_DB_PASS }}"  || (echo "NEON_DB_PASS empty"; exit 1)
 
-      # 실제 배포 (DRY_RUN이면 스킵)
-      - name: Deploy to Koyeb (buildpack)
-        if: ${{ env.DRY_RUN != 'true' }}
+      - name: Deploy PR preview to Koyeb (buildpack)
         uses: koyeb/action-git-deploy@v1
         with:
-          app-name: my-spring-app              # 원하는 앱 이름
-          service-name: mute-api               # 서비스 이름
+          app-name: mute-preview
+          service-name: pr-${{ github.event.pull_request.number }} # PR마다 고유 서비스
           git-builder: buildpack
           service-regions: fra
           service-instance-type: micro
           service-ports: "8080:http"
           service-routes: "/:8080"
+          # 한 줄, 공백 없이 콤마로 구분
           service-env: "SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }},SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }},SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }},AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},AWS_REGION=${{ secrets.AWS_REGION }},AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }},AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }},PORT=8080"
 
-      # 서비스 URL 가져와서 헬스체크
+      # 배포 후 URL 가져오기
       - name: Get Koyeb service URL
-        if: ${{ env.DRY_RUN != 'true' }}
         id: url
         run: |
-          DOMAIN=$(koyeb service get my-spring-app/mute-api --output json | jq -r '.service.domains[0].name')
+          DOMAIN=$(koyeb service get mute-preview/pr-${{ github.event.pull_request.number }} --output json | jq -r '.service.domains[0].name')
           echo "url=https://$DOMAIN" >> $GITHUB_OUTPUT
 
+      # 헬스체크 (actuator 우선, 실패 시 / 로 폴백)
       - name: Probe health
-        if: ${{ env.DRY_RUN != 'true' }}
         run: |
           URL="${{ steps.url.outputs.url }}"
           for i in {1..40}; do
@@ -68,3 +52,16 @@ jobs:
             sleep 3
           done
           echo "Health check failed ❌"; exit 1
+
+      # PR 코멘트로 미리보기 링크 남기기
+      - name: Comment preview link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = "${{ steps.url.outputs.url }}";
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `🚀 Preview is live: ${url}`
+            });
