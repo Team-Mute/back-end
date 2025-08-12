@@ -1,8 +1,11 @@
 name: ci
 on:
   pull_request:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch: { }   # 필요시 수동 실행
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -14,18 +17,47 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle     # ← Gradle 캐시
+          cache: gradle
 
       - name: Make gradlew executable (Linux)
         run: chmod +x ./gradlew
 
+      # Secrets → application-secret.properties 생성 (DB + AWS/S3)
+      - name: Create application-secret.properties
+        run: |
+          mkdir -p src/main/resources
+          cat > src/main/resources/application-secret.properties <<'EOF'
+          # DB
+          spring.datasource.url=${NEON_JDBC_URL}
+          spring.datasource.username=${NEON_DB_USER}
+          spring.datasource.password=${NEON_DB_PASS}
+          spring.datasource.driver-class-name=org.postgresql.Driver
+
+          # AWS
+          cloud.aws.credentials.access-key=${AWS_ACCESS_KEY_ID}
+          cloud.aws.credentials.secret-key=${AWS_SECRET_ACCESS_KEY}
+
+          # S3
+          cloud.aws.region.static=${AWS_REGION}
+          cloud.aws.stack.auto=${AWS_STACK_AUTO}
+          cloud.aws.s3.bucket=${AWS_S3_BUCKET}
+          EOF
+        env:
+          NEON_JDBC_URL: ${{ secrets.NEON_JDBC_URL }}
+          NEON_DB_USER: ${{ secrets.NEON_DB_USER }}
+          NEON_DB_PASS: ${{ secrets.NEON_DB_PASS }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_STACK_AUTO: ${{ secrets.AWS_STACK_AUTO }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+
       - name: Format code (Spotless + EditorConfig)
-        run: ./gradlew spotlessApply editorconfigFormat
+        run: ./gradlew spotlessApply editorconfigFormat --no-daemon
 
       - name: Build (tests included)
-        run: ./gradlew clean build --no-daemon
+        run: ./gradlew clean build --no-daemon --stacktrace
 
-      # Checkstyle 리포트 업로드(리뷰에 유용)
       - name: Upload Checkstyle reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -33,6 +65,5 @@ jobs:
           name: checkstyle-reports
           path: build/reports/checkstyle/*.html
 
-      # editorconfig-checker도 유지하고 싶다면
       - name: editorconfig-check
         uses: editorconfig-checker/action-editorconfig-checker@v2
