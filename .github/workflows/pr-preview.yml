@@ -17,21 +17,13 @@ jobs:
       - name: Deploy PR preview to Koyeb (buildpack)
         uses: koyeb/action-git-deploy@v1
         with:
-          # 브랜치/PR마다 고유하게: 기본값이 <repo>-<branch>, <branch>라서 그대로 둬도 됨
           app-name: my-spring-app-pr
           service-name: pr-${{ github.event.pull_request.number }}
           git-builder: buildpack
-          build-env: "BP_JAVA_VERSION=17.*"
+          # 필요시 리전/인스턴스 지정
+          service-regions: fra
+          service-instance-type: micro
           service-ports: "8080:http"
           service-routes: "/:8080"
-          # 필요 ENV (네가 쓰는 것들로 채워넣기)
-          service-env: >-
-            SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }},
-                        SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }},
-                        SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }},
-                        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},
-                        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},
-                        AWS_REGION=${{ secrets.AWS_REGION }},
-                        AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }},
-                        AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }},
-                        PORT=8080
+          # ⚠️ 환경변수는 줄바꿈 없이 한 줄, 공백 없이 콤마로 구분
+          service-env: "SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }},SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }},SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }},AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},AWS_REGION=${{ secrets.AWS_REGION }},AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }},AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }},PORT=8080"
