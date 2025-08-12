@@ -1,0 +1,20 @@
+name: pr-preview-cleanup
+on:
+  pull_request:
+    types: [ closed ]
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install & Configure Koyeb CLI
+        uses: koyeb-community/koyeb-actions@v2
+        with:
+          api_token: ${{ secrets.KOYEB_API_TOKEN }}
+
+      - name: Delete PR preview service
+        run: |
+          # Koyeb에서 해당 서비스 삭제
+          koyeb service delete my-spring-app-pr/pr-${{ github.event.pull_request.number }} --yes || true
+          # 앱까지 비우고 싶으면(선택)
+          # koyeb app delete my-spring-app-pr --yes || true
