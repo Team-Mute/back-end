@@ -36,6 +36,7 @@ jobs:
             --instance-type micro \
             --regions tyo \
             --env SPRING_PROFILES_ACTIVE=ci \
+            --env BP_JVM_VERSION=17 \
             --env SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }} \
             --env SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }} \
             --env SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }} \
