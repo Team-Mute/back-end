@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -29,12 +30,13 @@ jobs:
           KOYEB_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
         run: |
           koyeb service update my-spring-app/mute-api \
-            --git github.com/Team-Mute/back-end \
+            --git https://github.com/Team-Mute/back-end \
             --git-branch main \
             --git-builder buildpack \
             --type web \
             --instance-type micro \
             --regions tyo \
+            --region '!fra' \
             --env SPRING_PROFILES_ACTIVE=ci \
             --env BP_JVM_VERSION=17 \
             --env SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }} \
@@ -45,7 +47,7 @@ jobs:
             --env AWS_REGION=${{ secrets.AWS_REGION }} \
             --env AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }} \
             --env AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }} \
-            --env JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0 -Xms128m -Xmx256m" \
+            --env JAVA_TOOL_OPTIONS='-XX:MaxRAMPercentage=75.0 -Xms128m -Xmx256m' \
             --ports 8080:http \
             --routes /:8080 \
-            --checks "8080:http:/actuator/health"
+            --checks "8080:http:/actuator/health?grace=30s&interval=10s"
