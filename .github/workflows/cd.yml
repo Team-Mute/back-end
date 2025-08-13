@@ -33,14 +33,14 @@ jobs:
           git-builder: buildpack
           service-env: |
             SPRING_PROFILES_ACTIVE=ci
-            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
-            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
-            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-            CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}
-            CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            CLOUD_AWS_REGION_STATIC=${{ secrets.AWS_REGION }}
-            CLOUD_AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}
-            CLOUD_AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+            SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }}
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}
+            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
           service-ports: "8080:http"
           service-routes: "/:8080"
           # service-checks: "8080:http:/actuator/health" # 액추에이터 헬스체크 쓰면 주석 해제
