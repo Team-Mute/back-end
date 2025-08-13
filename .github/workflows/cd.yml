@@ -1,14 +1,10 @@
 name: cd
+
 on:
   workflow_run:
-    workflows: [ "ci" ]   # CI 워크플로 이름과 동일하게!
+    workflows: [ "ci" ]     # CI 워크플로 name과 정확히 일치
     types: [ completed ]
-  workflow_dispatch:
-    inputs:
-      dry_run:
-        description: "Skip actual deployment (DRY_RUN=true)"
-        required: false
-        default: "false"
+  workflow_dispatch: { }   # 수동 실행 가능 → Actions 탭에 항상 표시
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -16,50 +12,35 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      DRY_RUN: ${{ github.event.inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download build artifact from CI
-        uses: actions/download-artifact@v4
-        with:
-          name: spring-boot-build           # CI와 동일 이름
-          path: ./deploy_bundle
-
-      - name:
-          Debug: List downloaded files
-        run: |
-          pwd
-          ls -al
-          echo "---- deploy_bundle ----"
-          ls -al deploy_bundle
 
       - name: Install & Configure Koyeb CLI
         uses: koyeb-community/koyeb-actions@v2
         with:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
 
-      # 실제 배포 (DRY_RUN이면 스킵)
-      - name: Deploy built JAR to Koyeb
-        if: ${{ env.DRY_RUN != 'true' }}
-        run: |
-          JAR_FILE=$(ls deploy_bundle/*.jar | head -n 1)
-          echo "Deploying $JAR_FILE to Koyeb..."
-          koyeb services update mute-api \
-            --app my-spring-app \
-            --type git \
-            --src $JAR_FILE \
-            --env SPRING_PROFILES_ACTIVE=ci \
-            --env SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }} \
-            --env SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }} \
-            --env SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }} \
-            --env CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }} \
-            --env CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-            --env CLOUD_AWS_REGION_STATIC=${{ secrets.AWS_REGION }} \
-            --env CLOUD_AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }} \
-            --env CLOUD_AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+      # 깃 소스를 Koyeb에서 Buildpacks로 빌드/배포 (아티팩트 인식 이슈 제거)
+      - name: Deploy from Git (Buildpacks)
+        uses: koyeb/action-git-deploy@v1
+        with:
+          app-name: my-spring-app            # ← 실제 앱 이름으로 변경
+          service-name: mute-api             # ← 실제 서비스 이름으로 변경
+          git-builder: buildpack
+          service-env: |
+            SPRING_PROFILES_ACTIVE=ci
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}
+            CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            CLOUD_AWS_REGION_STATIC=${{ secrets.AWS_REGION }}
+            CLOUD_AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}
+            CLOUD_AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          service-ports: "8080:http"
+          service-routes: "/:8080"
+          # service-checks: "8080:http:/actuator/health" # 액추에이터 헬스체크 쓰면 주석 해제

@@ -2,6 +2,8 @@ name: ci
 on:
   pull_request:
   workflow_dispatch: { }   # 필요시 수동 실행
+  push:
+    branches: [ main ]    # (권장) main 푸시 시에도 CI 실행
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -39,12 +41,20 @@ jobs:
           echo "AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}" >> $GITHUB_ENV
           echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
 
-
       - name: Format code (Spotless + EditorConfig)
         run: ./gradlew spotlessApply editorconfigFormat --no-daemon
 
       - name: Build (tests included)
         run: ./gradlew clean build --no-daemon --stacktrace
+
+      # 배포/추적용 JAR 업로드 (CD에서 굳이 쓰지 않더라도 보관용으로 유용)
+      - name: Upload JAR for deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: spring-boot-build
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload Checkstyle reports
         if: always()
