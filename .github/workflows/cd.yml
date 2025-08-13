@@ -1,7 +1,8 @@
 name: cd
 on:
-  push:
-    branches: [ "main" ]
+  workflow_run:
+    workflows: [ "ci" ]   # CI 워크플로 이름과 동일하게!
+    types: [ completed ]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -15,6 +16,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,34 +25,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download build artifact from CI
+        uses: actions/download-artifact@v4
+        with:
+          name: spring-boot-build           # CI와 동일 이름
+          path: ./deploy_bundle
+
+      - name:
+          Debug: List downloaded files
+        run: |
+          pwd
+          ls -al
+          echo "---- deploy_bundle ----"
+          ls -al deploy_bundle
+
       - name: Install & Configure Koyeb CLI
         uses: koyeb-community/koyeb-actions@v2
         with:
           api_token: ${{ secrets.KOYEB_API_TOKEN }}
 
       # 실제 배포 (DRY_RUN이면 스킵)
-      - name: Deploy from Git (Buildpacks)
+      - name: Deploy built JAR to Koyeb
         if: ${{ env.DRY_RUN != 'true' }}
-        uses: koyeb/action-git-deploy@v1
-        with:
-          app-name: my-spring-app
-          service-name: mute-api
-          git-builder: buildpack
-
-          # 여러 줄 값은 반드시 블록 스타일 사용
-          service-env: |
-            SPRING_PROFILES_ACTIVE=ci
-            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
-            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
-            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
-            CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}
-            CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            CLOUD_AWS_REGION_STATIC=${{ secrets.AWS_REGION }}
-            CLOUD_AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}
-            CLOUD_AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
-
-          # 라우팅/포트
-          service-ports: "8080:http"
-          service-routes: "/:8080"
-          # (옵션) 액추에이터 사용 시 헬스체크
-          # service-checks: "8080:http:/actuator/health"
+        run: |
+          JAR_FILE=$(ls deploy_bundle/*.jar | head -n 1)
+          echo "Deploying $JAR_FILE to Koyeb..."
+          koyeb services update mute-api \
+            --app my-spring-app \
+            --type git \
+            --src $JAR_FILE \
+            --env SPRING_PROFILES_ACTIVE=ci \
+            --env SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }} \
+            --env SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }} \
+            --env SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }} \
+            --env CLOUD_AWS_CREDENTIALS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --env CLOUD_AWS_CREDENTIALS_SECRET_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --env CLOUD_AWS_REGION_STATIC=${{ secrets.AWS_REGION }} \
+            --env CLOUD_AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }} \
+            --env CLOUD_AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
