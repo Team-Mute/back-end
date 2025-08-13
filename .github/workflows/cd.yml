@@ -2,9 +2,9 @@ name: cd
 
 on:
   workflow_run:
-    workflows: [ "ci" ]     # CI 워크플로 name과 정확히 일치
+    workflows: [ "ci" ]
     types: [ completed ]
-  workflow_dispatch: { }   # 수동 실행 가능 → Actions 탭에 항상 표시
+  workflow_dispatch: { }
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -19,28 +19,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install & Configure Koyeb CLI
-        uses: koyeb-community/koyeb-actions@v2
-        with:
-          api_token: ${{ secrets.KOYEB_API_TOKEN }}
+      - name: Install Koyeb CLI
+        run: |
+          curl -sL https://github.com/koyeb/koyeb-cli/releases/download/v1.3.0/koyeb_1.3.0_Linux_x86_64.tar.gz | tar xz
+          sudo mv koyeb /usr/local/bin/
 
-      # 깃 소스를 Koyeb에서 Buildpacks로 빌드/배포 (아티팩트 인식 이슈 제거)
-      - name: Deploy from Git (Buildpacks)
-        uses: koyeb/action-git-deploy@v1
-        with:
-          app-name: my-spring-app            # ← 실제 앱 이름으로 변경
-          service-name: mute-api             # ← 실제 서비스 이름으로 변경
-          git-builder: buildpack
-          service-env: |
-            SPRING_PROFILES_ACTIVE=ci
-            SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }}
-            SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }}
-            SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }}
-            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            AWS_REGION=${{ secrets.AWS_REGION }}
-            AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}
-            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
-          service-ports: "8080:http"
-          service-routes: "/:8080"
-          # service-checks: "8080:http:/actuator/health" # 액추에이터 헬스체크 쓰면 주석 해제
+      - name: Update existing Koyeb service
+        env:
+          KOYEB_TOKEN: ${{ secrets.KOYEB_API_TOKEN }}
+        run: |
+          koyeb service update my-spring-app/mute-api \
+            --git github.com/Team-Mute/back-end \
+            --git-branch main \
+            --git-builder buildpack \
+            --type web \
+            --instance-type micro \
+            --regions tyo \
+            --env SPRING_PROFILES_ACTIVE=ci \
+            --env SPRING_DATASOURCE_URL=${{ secrets.NEON_JDBC_URL }} \
+            --env SPRING_DATASOURCE_USERNAME=${{ secrets.NEON_DB_USER }} \
+            --env SPRING_DATASOURCE_PASSWORD=${{ secrets.NEON_DB_PASS }} \
+            --env AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --env AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --env AWS_REGION=${{ secrets.AWS_REGION }} \
+            --env AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }} \
+            --env AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }} \
+            --env JAVA_TOOL_OPTIONS="-Dserver.port=8080 -XX:MaxRAMPercentage=75.0 -Xms128m -Xmx256m" \
+            --ports 8080:http \
+            --routes /:8080
