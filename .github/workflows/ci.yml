@@ -21,6 +21,10 @@ jobs:
           java-version: 17
           cache: gradle
 
+      # Gradle Wrapper 검증 (보안/안정성)
+      - name: Validate Gradle Wrapper
+        uses: gradle/wrapper-validation-action@v2
+
       - name: Make gradlew executable (Linux)
         run: chmod +x ./gradlew
 
@@ -41,11 +45,25 @@ jobs:
           echo "AWS_STACK_AUTO=${{ secrets.AWS_STACK_AUTO }}" >> $GITHUB_ENV
           echo "AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}" >> $GITHUB_ENV
 
-      - name: Format code (Spotless + EditorConfig)
-        run: ./gradlew spotlessApply editorconfigFormat --no-daemon
+
+      - name: Code style checks (Spotless)
+        run: |
+          if ./gradlew tasks | grep -q "spotlessCheck"; then
+             ./gradlew spotlessCheck --no-daemon
+          fi
 
       - name: Build (tests included)
         run: ./gradlew clean build --no-daemon --stacktrace
+
+      - name: Upload Test Reports (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/build/test-results/test/**
+            **/build/reports/tests/test/**
+          retention-days: 7
 
       # 배포/추적용 JAR 업로드 (CD에서 굳이 쓰지 않더라도 보관용으로 유용)
       - name: Upload JAR for deployment
