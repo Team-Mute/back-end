@@ -121,6 +121,9 @@ public class SpaceService {
 			.spaceCapacity(req.getSpaceCapacity())
 			.spaceIsAvailable(req.getSpaceIsAvailable())
 			.spaceImageUrl(cover)
+			.reservationWay(req.getReservationWay())
+			.spaceRules(req.getSpaceRules())
+			.saveStatus(req.getSaveStatus() != null ? req.getSaveStatus() : req.getSaveStatus().DRAFT) // null일 경우 기본값 DRAFT(임시 저장)
 			.regDate(LocalDateTime.now())
 			.build();
 
@@ -202,6 +205,9 @@ public class SpaceService {
 		space.setSpaceCapacity(req.getSpaceCapacity());
 		space.setSpaceIsAvailable(req.getSpaceIsAvailable());
 		space.setUpdDate(LocalDateTime.now());
+		space.setReservationWay(req.getReservationWay());
+		space.setSpaceRules(req.getSpaceRules());
+		space.setSaveStatus(req.getSaveStatus() != null ? req.getSaveStatus() : req.getSaveStatus().DRAFT);
 
 		// 6) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);
@@ -310,6 +316,4 @@ public class SpaceService {
 		// 3) DB 삭제 (연관 테이블은 CASCADE/ON DELETE CASCADE로 함께 정리)
 		spaceRepository.delete(space);
 	}
-
-
 }
