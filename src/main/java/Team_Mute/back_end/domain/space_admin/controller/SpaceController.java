@@ -1,22 +1,29 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
+import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
+import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
-import Team_Mute.back_end.domain.space_admin.entity.Space;
+import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/spaces-admin")
@@ -25,6 +32,24 @@ public class SpaceController {
 
 	private final SpaceService spaceService;
 	private final S3Uploader s3Uploader;
+
+	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	@GetMapping("/regions")
+	public List<RegionListItem> getRegions() {
+		return spaceService.getAllRegions();
+	}
+
+	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	@GetMapping("/categories")
+	public List<CategoryListItem> getCategories() {
+		return spaceService.getAllCategories();
+	}
+
+	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	@GetMapping("/tags")
+	public List<TagListItem> getTags() {
+		return spaceService.getAllTags();
+	}
 
 	// 공간 전체 조회
 	@GetMapping

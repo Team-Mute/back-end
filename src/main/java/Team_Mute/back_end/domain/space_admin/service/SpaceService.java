@@ -1,18 +1,32 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
+import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
+import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
-import Team_Mute.back_end.domain.space_admin.entity.*;
-import Team_Mute.back_end.domain.space_admin.repository.*;
+import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
+import Team_Mute.back_end.domain.space_admin.entity.AdminRegion;
+import Team_Mute.back_end.domain.space_admin.entity.Space;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceImage;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceTagMap;
+import Team_Mute.back_end.domain.space_admin.repository.AdminRegionRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceCategoryRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceImageRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SpaceService {
@@ -41,6 +55,30 @@ public class SpaceService {
 		this.tagMapRepository = tagMapRepository;
 		this.spaceImageRepository = spaceImageRepository;
 		this.s3Deleter = s3Deleter;
+	}
+
+	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	public List<RegionListItem> getAllRegions() {
+		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+			.stream()
+			.map(element -> new RegionListItem(element.getId(), element.getRegionName()))
+			.toList();
+	}
+
+	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	public List<CategoryListItem> getAllCategories() {
+		return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+			.stream()
+			.map(element -> new CategoryListItem(element.getId(), element.getCategoryName()))
+			.toList();
+	}
+
+	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	public List<TagListItem> getAllTags() {
+		return tagRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+			.stream()
+			.map(element -> new TagListItem(element.getId(), element.getTagName()))
+			.toList();
 	}
 
 	// 공간 전체 조회
@@ -163,7 +201,7 @@ public class SpaceService {
 		space.setSpaceDescription(req.getSpaceDescription());
 		space.setSpaceCapacity(req.getSpaceCapacity());
 		space.setSpaceIsAvailable(req.getSpaceIsAvailable());
-        space.setUpdDate(LocalDateTime.now());
+		space.setUpdDate(LocalDateTime.now());
 
 		// 6) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);
