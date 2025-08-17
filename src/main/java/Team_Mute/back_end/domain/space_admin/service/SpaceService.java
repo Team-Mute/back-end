@@ -24,7 +24,6 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -181,8 +180,8 @@ public class SpaceService {
 				SpaceOperation.builder()
 					.space(space)
 					.day(o.getDay()) // day: 1=월 ~ 7=일
-					.operationFrom(LocalTime.parse(o.getFrom()))
-					.operationTo(LocalTime.parse(o.getTo()))
+					.operationFrom(o.getFrom())
+					.operationTo(o.getTo())
 					.isOpen(Boolean.TRUE.equals(o.getIsOpen()))
 					.build()
 			).toList();
@@ -195,8 +194,8 @@ public class SpaceService {
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
 				SpaceClosedDay.builder()
 					.space(space)
-					.closedFrom(LocalDateTime.parse(c.getFrom(), f))
-					.closedTo(LocalDateTime.parse(c.getTo(), f))
+					.closedFrom(c.getFrom())
+					.closedTo(c.getTo())
 					.build()
 			).toList();
 			spaceClosedDayRepository.saveAll(closedDay);
@@ -276,8 +275,8 @@ public class SpaceService {
 				SpaceOperation.builder()
 					.space(space)
 					.day(o.getDay())
-					.operationFrom(LocalTime.parse(o.getFrom()))
-					.operationTo(LocalTime.parse(o.getTo()))
+					.operationFrom(o.getFrom())
+					.operationTo(o.getTo())
 					.isOpen(Boolean.TRUE.equals(o.getIsOpen()))
 					.build()
 			).toList();
@@ -291,8 +290,8 @@ public class SpaceService {
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
 				SpaceClosedDay.builder()
 					.space(space)
-					.closedFrom(LocalDateTime.parse(c.getFrom(), f))
-					.closedTo(LocalDateTime.parse(c.getTo(), f))
+					.closedFrom(c.getFrom())
+					.closedTo(c.getTo())
 					.build()
 			).toList();
 			spaceClosedDayRepository.saveAll(closedDay);
