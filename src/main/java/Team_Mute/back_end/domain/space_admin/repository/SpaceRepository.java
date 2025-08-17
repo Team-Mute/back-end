@@ -32,7 +32,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		     s.space_is_available AS spaceIsAvailable,
 		     s.reservation_way    AS reservationWay,
 		     s.space_rules        AS spaceRules,
-		     s.save_status        AS saveStatus,
+		     s.save_status::text  AS saveStatus,
 		     /* 상세 이미지 */
 			 COALESCE((
 			   SELECT array_agg(si.image_url ORDER BY si.image_priority ASC, si.image_id ASC)
@@ -40,19 +40,52 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 			   WHERE si.space_id = s.space_id
 				 AND (s.space_image_url IS NULL OR si.image_url <> s.space_image_url)
 			 ), ARRAY[]::text[]) AS detailImageUrls,
+
 		     /* 태그 배열 */
-		       COALESCE(array_agg(DISTINCT t.tag_name ORDER BY t.tag_name), '{}') AS tagNames,
+		     COALESCE((
+				SELECT ARRAY(
+				  SELECT DISTINCT t.tag_name
+				  FROM tb_space_tag_map m
+				  JOIN tb_space_tags t ON t.tag_id = m.tag_id
+				  WHERE m.space_id = s.space_id
+				  ORDER BY t.tag_name
+				)
+			  ), ARRAY[]::text[]) AS tagNames,
+
 		     s.reg_date           AS regDate,
-		     s.upd_date           AS updDate
+		     s.upd_date           AS updDate,
+
+		     /* 운영시간 JSON */
+		     COALESCE((
+			   SELECT json_agg(
+					  json_build_object(
+						'day',    o.day,
+						'from',   to_char(o.operation_from,'HH24:MI'),
+						'to',     to_char(o.operation_to,  'HH24:MI'),
+						'isOpen', o.is_open
+					  )
+					  ORDER BY o.day
+					)
+			   FROM tb_space_operation o
+			   WHERE o.space_id = s.space_id
+		     ), '[]'::json)::text AS operations,
+
+		     /* 휴무일 JSON */
+		     COALESCE((
+			   SELECT json_agg(
+					  json_build_object(
+						'from', to_char(cd.closed_from,'YYYY-MM-DD"T"HH24:MI:SS'),
+						'to',   to_char(cd.closed_to,  'YYYY-MM-DD"T"HH24:MI:SS')
+					  )
+					  ORDER BY cd.closed_from
+					)
+			   FROM tb_space_closedday cd
+			   WHERE cd.space_id = s.space_id
+		     ), '[]'::json)::text AS closedDays
+
 		   FROM tb_spaces s
 		   JOIN tb_admin_region     r ON r.region_id   = s.region_id
 		   JOIN tb_space_categories c ON c.category_id = s.category_id
-		LEFT JOIN tb_space_tag_map m ON m.space_id   = s.space_id
-		LEFT JOIN tb_space_tags  t ON t.tag_id      = m.tag_id
-		GROUP BY
-		       s.space_id, r.region_name, c.category_name, s.user_id,
-			s.space_name, s.space_capacity, s.space_location, s.space_description,
-			s.space_image_url, s.space_is_available, s.reg_date, s.upd_date
 		   ORDER BY s.reg_date DESC
 		""",
 		countQuery = "SELECT COUNT(*) FROM tb_spaces",
@@ -92,7 +125,36 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 			 ), ARRAY[]::text[]) AS tagNames,
 
 		  s.reg_date           AS regDate,
-		  s.upd_date           AS updDate
+		  s.upd_date           AS updDate,
+
+		 /* 운영시간 JSON */
+			COALESCE((
+			  SELECT json_agg(
+					   json_build_object(
+						 'day',    o.day,
+						 'from',   to_char(o.operation_from,'HH24:MI'),
+						 'to',     to_char(o.operation_to,  'HH24:MI'),
+						 'isOpen', o.is_open
+					   )
+					   ORDER BY o.day
+					 )
+			  FROM tb_space_operation o
+			  WHERE o.space_id = s.space_id
+			), '[]'::json)::text AS operations,
+
+		 /* 휴무일 JSON */
+			COALESCE((
+			  SELECT json_agg(
+					   json_build_object(
+						 'from', to_char(cd.closed_from,'YYYY-MM-DD"T"HH24:MI:SS'),
+						 'to',   to_char(cd.closed_to,  'YYYY-MM-DD"T"HH24:MI:SS')
+					   )
+					   ORDER BY cd.closed_from
+					 )
+			  FROM tb_space_closedday cd
+			  WHERE cd.space_id = s.space_id
+			), '[]'::json)::text AS closedDays
+
 		FROM tb_spaces s
 		JOIN tb_admin_region     r ON r.region_id   = s.region_id
 		JOIN tb_space_categories c ON c.category_id = s.category_id

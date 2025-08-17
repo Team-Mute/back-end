@@ -1,11 +1,13 @@
 package Team_Mute.back_end.domain.space_admin.dto;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonRawValue;
 
 @JsonPropertyOrder({
 	"spaceId", "spaceName", "regionName", "categoryName", "userId",
 	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "detailImageUrls",
-	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "saveStatus", "regDate", "updDate"
+	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "saveStatus", "operations", "closedDays",
+	"regDate", "updDate"
 })
 public interface SpaceListResponse {
 	Integer getSpaceId();
@@ -37,6 +39,12 @@ public interface SpaceListResponse {
 	String getSpaceRules();
 
 	String getSaveStatus(); // Enum은 DB에서 문자열
+
+	@JsonRawValue
+	String getOperations();
+
+	@JsonRawValue
+	String getClosedDays();
 
 	java.time.LocalDateTime getRegDate();
 
