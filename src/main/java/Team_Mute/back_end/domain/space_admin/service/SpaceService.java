@@ -8,18 +8,24 @@ import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.entity.AdminRegion;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceClosedDay;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceImage;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceOperation;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTagMap;
 import Team_Mute.back_end.domain.space_admin.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceCategoryRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceClosedDayRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceImageRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceOperationRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -38,6 +44,8 @@ public class SpaceService {
 	private final SpaceTagMapRepository tagMapRepository;
 	private final SpaceImageRepository spaceImageRepository;
 	private final S3Deleter s3Deleter;
+	private final SpaceOperationRepository spaceOperationRepository;
+	private final SpaceClosedDayRepository spaceClosedDayRepository;
 
 	public SpaceService(
 		SpaceRepository spaceRepository,
@@ -46,7 +54,9 @@ public class SpaceService {
 		SpaceTagRepository tagRepository,
 		SpaceTagMapRepository tagMapRepository,
 		SpaceImageRepository spaceImageRepository,
-		S3Deleter s3Deleter
+		S3Deleter s3Deleter,
+		SpaceOperationRepository spaceOperationRepository,
+		SpaceClosedDayRepository spaceClosedDayRepository
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
@@ -55,6 +65,8 @@ public class SpaceService {
 		this.tagMapRepository = tagMapRepository;
 		this.spaceImageRepository = spaceImageRepository;
 		this.s3Deleter = s3Deleter;
+		this.spaceOperationRepository = spaceOperationRepository;
+		this.spaceClosedDayRepository = spaceClosedDayRepository;
 	}
 
 	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
@@ -163,6 +175,33 @@ public class SpaceService {
 			spaceImageRepository.saveAll(list);
 		}
 
+		// 운영시간 저장
+		if (req.getOperations() != null && !req.getOperations().isEmpty()) {
+			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
+				SpaceOperation.builder()
+					.space(space)
+					.day(o.getDay()) // day: 1=월 ~ 7=일
+					.operationFrom(LocalTime.parse(o.getFrom()))
+					.operationTo(LocalTime.parse(o.getTo()))
+					.isOpen(Boolean.TRUE.equals(o.getIsOpen()))
+					.build()
+			).toList();
+			spaceOperationRepository.saveAll(ops);
+		}
+
+		// 운영시간 및 휴무일 저장
+		if (req.getClosedDays() != null && !req.getClosedDays().isEmpty()) {
+			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME; // "2025-09-15T09:00:00"
+			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
+				SpaceClosedDay.builder()
+					.space(space)
+					.closedFrom(LocalDateTime.parse(c.getFrom(), f))
+					.closedTo(LocalDateTime.parse(c.getTo(), f))
+					.build()
+			).toList();
+			spaceClosedDayRepository.saveAll(closedDay);
+		}
+
 		// PK getter 이름 맞추기
 		return saved.getSpaceId();
 	}
@@ -229,7 +268,37 @@ public class SpaceService {
 			tagMapRepository.save(map);
 		}
 
-		// 7) 이미지 처리 (PUT 정책)
+		// 7) 운영 시간 및 휴무일 처리
+		// 운영시간
+		spaceOperationRepository.deleteBySpaceId(spaceId);
+		if (!req.getOperations().isEmpty()) {
+			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
+				SpaceOperation.builder()
+					.space(space)
+					.day(o.getDay())
+					.operationFrom(LocalTime.parse(o.getFrom()))
+					.operationTo(LocalTime.parse(o.getTo()))
+					.isOpen(Boolean.TRUE.equals(o.getIsOpen()))
+					.build()
+			).toList();
+			spaceOperationRepository.saveAll(ops);
+		}
+
+		// 휴무일
+		spaceClosedDayRepository.deleteBySpaceId(spaceId);
+		if (!req.getClosedDays().isEmpty()) {
+			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME;
+			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
+				SpaceClosedDay.builder()
+					.space(space)
+					.closedFrom(LocalDateTime.parse(c.getFrom(), f))
+					.closedTo(LocalDateTime.parse(c.getTo(), f))
+					.build()
+			).toList();
+			spaceClosedDayRepository.saveAll(closedDay);
+		}
+
+		// 8) 이미지 처리 (PUT 정책)
 		//    - urls == null        : 이미지 변경 없음 (기존 커버/상세 유지)
 		//    - urls.isEmpty()      : 커버/상세 전부 삭제 (커버 null, 상세 0장)
 		//    - urls.size() >= 1    : 커버/상세 전부 교체

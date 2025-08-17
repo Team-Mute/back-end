@@ -98,11 +98,23 @@ public class Space {
 	@Column(name = "upd_date")
 	private LocalDateTime updDate;
 
+	// 공간 상세 이미지 Mapping
 	@OneToMany(mappedBy = "space", cascade = CascadeType.REMOVE, orphanRemoval = true)
 	@Builder.Default
 	private List<SpaceImage> images = new ArrayList<>();
 
+	// 공간 태그(화이트 보두, WIFI 등) Mapping
 	@OneToMany(mappedBy = "space", cascade = CascadeType.REMOVE, orphanRemoval = true)
 	@Builder.Default
 	private List<SpaceTagMap> tagMaps = new ArrayList<>();
+
+	// 공간 운영 시간 Mapping
+	@OneToMany(mappedBy = "space", cascade = CascadeType.REMOVE, orphanRemoval = true)
+	@Builder.Default
+	private List<SpaceOperation> operations = new ArrayList<>();
+
+	// 공간 휴무일 Mapping
+	@OneToMany(mappedBy = "space", cascade = CascadeType.REMOVE, orphanRemoval = true)
+	@Builder.Default
+	private List<SpaceClosedDay> closedDays = new ArrayList<>();
 }

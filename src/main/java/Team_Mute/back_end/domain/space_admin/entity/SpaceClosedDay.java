@@ -18,29 +18,27 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "tb_space_tag_map")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SpaceTagMap {
-
+@Entity
+@Table(name = "tb_space_closedday")
+public class SpaceClosedDay {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "map_id")
-	private Integer id;
+	@Column(name = "closed_id")
+	private Integer closedId;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "space_id", nullable = false, foreignKey = @ForeignKey(name = "fk_space_tag_map_space"))
+	@JoinColumn(name = "space_id", nullable = false, foreignKey = @ForeignKey(name = "fk_space_closedday"))
 	@org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
 	private Space space;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "tag_id")
-	private SpaceTag tag;
+	@Column(name = "closed_from", nullable = false)
+	private LocalDateTime closedFrom;
 
-	@Column(name = "reg_date")
-	private LocalDateTime regDate;
+	@Column(name = "closed_to", nullable = false)
+	private LocalDateTime closedTo;
 }
