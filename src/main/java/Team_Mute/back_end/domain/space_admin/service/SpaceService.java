@@ -29,7 +29,6 @@ import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.beans.BeanUtils;
@@ -263,7 +262,27 @@ public class SpaceService {
 		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
 
-		// 6) 본문 필드 “전체 교체”
+		// 6) 이미지 처리 직전, 최종 결과 기준 검증 로직
+		if (urls == null) {
+			// 변경 없음 → 기존 상태 유지
+			boolean hasAny = (space.getSpaceImageUrl() != null)
+				|| !spaceImageRepository.findBySpace(space).isEmpty();
+			if (!hasAny) {
+				throw new IllegalArgumentException("이미지는 최소 1장은 필요합니다.");
+			}
+		} else {
+			// urls 기반 최종 결과 계산
+			String newMainUrl = urls.isEmpty() ? null : urls.get(0);
+			List<String> newGalleryUrls = (urls.size() > 1) ? urls.subList(1, urls.size()) : List.of();
+
+			boolean resultEmpty = (newMainUrl == null) && newGalleryUrls.isEmpty();
+			if (resultEmpty) {
+				throw new IllegalArgumentException("이미지는 최소 1장은 필요합니다.");
+			}
+		}
+
+
+		// 7) 본문 필드 “전체 교체”
 		space.setCategoryId(category.getCategoryId());
 		space.setRegionId(region.getRegionId());
 		space.setUserId(req.getUserId());
@@ -277,7 +296,7 @@ public class SpaceService {
 		space.setSpaceRules(req.getSpaceRules());
 		space.setSaveStatus(req.getSaveStatus());
 
-		// 6) 태그 전량 교체
+		// 8) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);
 		for (String tagName : req.getTagNames()) {
 			SpaceTag tag = tagRepository.findByTagName(tagName)
@@ -297,7 +316,7 @@ public class SpaceService {
 			tagMapRepository.save(map);
 		}
 
-		// 7) 운영 시간 및 휴무일 처리
+		// 9) 운영 시간 및 휴무일 처리
 		// 운영시간
 		spaceOperationRepository.deleteBySpaceId(spaceId);
 		if (!req.getOperations().isEmpty()) {
@@ -327,54 +346,59 @@ public class SpaceService {
 			spaceClosedDayRepository.saveAll(closedDay);
 		}
 
-		// 8) 이미지 처리 (PUT 정책)
-		//    - urls == null        : 이미지 변경 없음 (기존 커버/상세 유지)
-		//    - urls.isEmpty()      : 커버/상세 전부 삭제 (커버 null, 상세 0장)
-		//    - urls.size() >= 1    : 커버/상세 전부 교체
-
-		/* 대표(메인) 이미지 교체 시, 기존 S3 오브젝트 삭제*/
-		// 기존 대표 이미지 URL
-		String oldMainUrl = space.getSpaceImageUrl();
-		String newMainUrl = (urls != null && !urls.isEmpty()) ? urls.get(0) : null;
-
-		if (newMainUrl != null && oldMainUrl != null && !newMainUrl.equals(oldMainUrl)) {
-			s3Deleter.deleteByUrl(oldMainUrl); // 기존 대표 이미지 삭제
-		}
-
-		// 기존 상세 이미지 URL 목록 DB에서 조회
-		List<SpaceImage> oldImages = spaceImageRepository.findBySpace(space); // 직접 조회
-		List<String> oldGalleryUrls = oldImages.stream()
-			.map(SpaceImage::getImageUrl)
-			.toList();
-
-		// 새 상세 이미지 URL 목록 (urls의 1번 인덱스부터)
-		List<String> newGalleryUrls = (urls != null && urls.size() > 1)
-			? urls.subList(1, urls.size())
-			: java.util.Collections.emptyList();
-
-		// 기존에 있었는데 새 목록에 없는 것들 삭제
-		for (String oldUrl : oldGalleryUrls) {
-			if (!newGalleryUrls.contains(oldUrl)) {
-				s3Deleter.deleteByUrl(oldUrl);
-			}
-		}
+		// 10) 이미지 처리 (PUT 정책)
+		// - urls == null   : 이미지 변경 없음 (기존 유지, S3 조작 없음)
+		// - urls.isEmpty() : 커버/상세 전부 삭제 (커버 null, 상세 0장) + S3 삭제
+		// - urls.size()>=1 : 커버/상세 전부 교체 + S3 삭제(제거분만)
 
 		if (urls != null) {
-			// 상세 이미지 전부 삭제 (리포지토리에 메서드 필요)
+			// 기존 상태 스냅샷
+			final String oldMainUrl = space.getSpaceImageUrl();
+			final java.util.List<SpaceImage> oldImages = spaceImageRepository.findBySpace(space);
+			final java.util.List<String> oldGalleryUrls = oldImages.stream()
+				.map(SpaceImage::getImageUrl)
+				.filter(java.util.Objects::nonNull)
+				.collect(java.util.stream.Collectors.toList());
+
+			// 새 상태 스냅샷
+			final String newMainUrl = urls.isEmpty() ? null : urls.get(0);
+			final java.util.List<String> newGalleryUrls = (urls.size() > 1)
+				? urls.subList(1, urls.size())
+				: java.util.Collections.emptyList();
+
+			// --- 삭제 대상 URL 계산(메인 + 상세) ---
+			java.util.List<String> deleteUrls = new java.util.ArrayList<>();
+
+			// 메인 이미지: 전체 삭제 또는 교체면 삭제 대상
+			if (oldMainUrl != null) {
+				if (newMainUrl == null || !newMainUrl.equals(oldMainUrl)) {
+					deleteUrls.add(oldMainUrl);
+				}
+			}
+
+			// 상세 이미지: 기존 - 신규 차집합만 삭제
+			for (String oldUrl : oldGalleryUrls) {
+				if (!newGalleryUrls.contains(oldUrl)) {
+					deleteUrls.add(oldUrl);
+				}
+			}
+
+			// --- DB 갱신 ---
+			// 상세 전량 삭제 후 재삽입(단순 PUT 정책)
 			spaceImageRepository.deleteBySpace(space);
 
 			if (urls.isEmpty()) {
-				space.setSpaceImageUrl(null); // 커버 제거
+				// 전체 삭제
+				space.setSpaceImageUrl(null);
 			} else {
-				// 커버 이미지 교체
-				String cover = urls.get(0);
-				space.setSpaceImageUrl(cover);
+				// 커버 교체
+				space.setSpaceImageUrl(newMainUrl);
 
-				// 상세 이미지 재등록 (우선순위 1..n)
-				if (urls.size() > 1) {
+				// 상세 재등록 (우선순위 1..n)
+				if (!newGalleryUrls.isEmpty()) {
 					int p = 1;
-					List<SpaceImage> list = new ArrayList<>(urls.size() - 1);
-					for (String url : urls.subList(1, urls.size())) {
+					java.util.List<SpaceImage> list = new java.util.ArrayList<>(newGalleryUrls.size());
+					for (String url : newGalleryUrls) {
 						SpaceImage si = new SpaceImage();
 						si.setSpace(space);
 						si.setImageUrl(url);
@@ -383,6 +407,27 @@ public class SpaceService {
 					}
 					spaceImageRepository.saveAll(list);
 				}
+			}
+
+			// 변경사항 확정 (지연 flush 방지)
+			spaceRepository.save(space);
+			spaceRepository.flush();
+
+			// --- 커밋 이후 S3 삭제 (DB 커밋 성공 시에만) ---
+			if (!deleteUrls.isEmpty()) {
+				org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+					new org.springframework.transaction.support.TransactionSynchronization() {
+						@Override
+						public void afterCommit() {
+							for (String url : deleteUrls) {
+								try {
+									s3Deleter.deleteByUrl(url);
+								} catch (Exception ignored) {
+								}
+							}
+						}
+					}
+				);
 			}
 		}
 	}

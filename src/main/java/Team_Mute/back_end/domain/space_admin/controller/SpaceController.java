@@ -84,7 +84,6 @@ public class SpaceController {
 		try {
 			// 이미지가 없을 경우 예외 처리
 			boolean noUsableFiles = (images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
-
 			if (noUsableFiles) {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
 			}
