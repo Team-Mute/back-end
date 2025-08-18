@@ -36,4 +36,8 @@ public class UserRole {
 	@UpdateTimestamp
 	@Column(name = "upd_date")
 	private LocalDateTime updDate;
+
+	public UserRole(String roleName) {
+		this.roleName = roleName;
+	}
 }

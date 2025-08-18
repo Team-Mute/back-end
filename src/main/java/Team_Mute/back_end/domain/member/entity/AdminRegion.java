@@ -45,4 +45,8 @@ public class AdminRegion {
 
 	@OneToMany(mappedBy = "adminRegion", fetch = FetchType.LAZY)
 	private List<User> users;
+
+	public AdminRegion(String regionName) {
+		this.regionName = regionName;
+	}
 }

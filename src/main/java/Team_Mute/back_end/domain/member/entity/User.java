@@ -71,15 +71,15 @@ public class User {
 	private Boolean agreeLocation;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "role_id", insertable = false, updatable = false)
+	@JoinColumn(name = "role_id")
 	private UserRole userRole;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "company_id", insertable = false, updatable = false)
+	@JoinColumn(name = "company_id")
 	private UserCompany userCompany;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "region_id", insertable = false, updatable = false)
+	@JoinColumn(name = "region_id")
 	private AdminRegion adminRegion;
 
 	@Column(name = "token_ver", nullable = false)

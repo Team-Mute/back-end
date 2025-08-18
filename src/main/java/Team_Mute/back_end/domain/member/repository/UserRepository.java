@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import Team_Mute.back_end.domain.member.entity.User;
+import Team_Mute.back_end.domain.member.entity.UserRole;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -32,4 +33,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 	@Query("select u.tokenVer from User u where u.userId = :userId")
 	Optional<Integer> findTokenVerByUserId(@Param("userId") Long userId);
+
+	boolean existsByRole(UserRole role);
 }

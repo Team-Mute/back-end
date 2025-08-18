@@ -27,6 +27,7 @@ import Team_Mute.back_end.domain.member.dto.response.UserInfoResponseDto;
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.entity.UserCompany;
+import Team_Mute.back_end.domain.member.entity.UserRole;
 import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
 import Team_Mute.back_end.domain.member.exception.InvalidPasswordException;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
@@ -34,6 +35,7 @@ import Team_Mute.back_end.domain.member.exception.UserRegistrationException;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
+import Team_Mute.back_end.domain.member.repository.UserRoleRepository;
 import Team_Mute.back_end.domain.member.session.SessionStore;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +53,12 @@ public class UserService {
 	private final SessionStore sessionStore;
 	private final EmailService emailService;
 	private final AdminRegionRepository adminRegionRepository;
+	private final UserRoleRepository userRoleRepository;
+
+	@PostConstruct
+	public void init() {
+		createInitialAdmin();
+	}
 
 	public SignupResponseDto signUp(SignupRequestDto requestDto) {
 		try {
@@ -362,24 +370,43 @@ public class UserService {
 			.collect(Collectors.joining());
 	}
 
-	@PostConstruct
 	public void createInitialAdmin() {
-		if (userRepository.findByRoleId(0).isEmpty()) {
+		// 1. 'ADMIN' 역할을 찾거나, 없으면 새로 생성하여 저장합니다.
+		UserRole adminRole = userRoleRepository.findByRoleName("Master")
+			.orElseGet(() -> {
+				log.info("'ADMIN' 역할이 존재하지 않아 새로 생성합니다.");
+				return userRoleRepository.save(new UserRole("Master"));
+			});
+
+		// 2. '기본 지역'을 찾거나, 없으면 새로 생성하여 저장합니다.
+		AdminRegion defaultRegion = adminRegionRepository.findByRegionName("전 지역")
+			.orElseGet(() -> {
+				log.info("'기본 지역'이 존재하지 않아 새로 생성합니다.");
+				return adminRegionRepository.save(new AdminRegion("전 지역"));
+			});
+
+		// 3. 'ADMIN' 역할을 가진 사용자가 없는 경우에만 초기 관리자 생성을 진행합니다.
+		if (!userRepository.existsByRole(adminRole)) {
 			log.info("최초 관리자 계정이 존재하지 않아 새로 생성합니다.");
 			String adminEmail = "songh6508@gmail.com";
+
+			// 이메일 중복 체크는 여전히 유효합니다.
 			if (userRepository.existsByUserEmail(adminEmail)) {
 				log.info("이미 {} 계정이 존재하여 생성을 건너뜁니다.", adminEmail);
 				return;
 			}
+
+			// 4. User를 생성할 때, ID가 아닌 실제 엔티티 객체를 설정합니다.
 			User admin = User.builder()
 				.userEmail(adminEmail)
 				.userName("master1")
 				.userPwd(passwordService.encodePassword("master1234!"))
-				.roleId(0)
-				.regionId(0)
+				.userRole(adminRole)           // roleId(0) 대신 adminRole 객체 사용
+				.adminRegion(defaultRegion)     // regionId(0) 대신 defaultRegion 객체 사용
 				.userPhone("01074181170")
 				.tokenVer(1)
 				.build();
+
 			userRepository.save(admin);
 			log.info("최초 관리자 계정({}) 생성이 완료되었습니다.", adminEmail);
 		}
