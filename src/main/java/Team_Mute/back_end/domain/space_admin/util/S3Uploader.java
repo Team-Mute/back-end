@@ -1,22 +1,25 @@
 package Team_Mute.back_end.domain.space_admin.util;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 @Component
 @RequiredArgsConstructor
@@ -102,5 +105,54 @@ public class S3Uploader {
 			.build();
 	}
 
-	// 버킷에서 이미지 삭제
+	/* 복제한 데이터 업로드 */
+	public String copyByUrl(String sourceUrl, String targetDir) {
+		if (sourceUrl == null || sourceUrl.isBlank()) {
+			throw new IllegalArgumentException("S3 sourceUrl이 비어 있습니다.");
+		}
+		String sourceKey = extractKeyFromUrl(sourceUrl);
+		String newKey = buildNewKey(targetDir, sourceKey.substring(sourceKey.lastIndexOf('/') + 1));
+
+		try (S3Client s3 = getS3Client()) {
+			CopyObjectRequest req = CopyObjectRequest.builder()
+				.copySource(bucket + "/" + urlEncode(sourceKey))
+				.destinationBucket(bucket)
+				.destinationKey(newKey)
+				//.acl(ObjectCannedACL.PUBLIC_READ) // 공개 URL 사용 중이면 그대로 유지
+				.build();
+
+			s3.copyObject(req);
+			return buildPublicUrl(newKey);
+		}
+	}
+
+	// S3 퍼블릭 URL 생성(CloudFront를 쓰지 않는 기본 케이스)
+	private String buildPublicUrl(String key) {
+		// ex) https://{bucket}.s3.{region}.amazonaws.com/{key}
+		String encKey = urlEncode(key);
+		return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + encKey;
+	}
+
+	private String urlEncode(String s) {
+		return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
+	}
+
+	private String buildNewKey(String dirName, String originalName) {
+		String ts = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+		return dirName + "/" + ts + "_" + originalName;
+	}
+
+	private String extractKeyFromUrl(String url) {
+		// S3 또는 CloudFront URL 모두에서 key만 추출
+		try {
+			URI u = URI.create(url);
+			String path = u.getPath();               // "/folder/file.png"
+			String key = path.startsWith("/") ? path.substring(1) : path;
+			// CloudFront 도메인으로 쓰는 경우에도 path가 곧 key이므로 그대로 사용
+			// s3 website endpoint 등 변형이 있어도 path기반으로 동작
+			return URLDecoder.decode(key, StandardCharsets.UTF_8);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("S3 URL에서 Key 추출 실패: " + url, e);
+		}
+	}
 }

@@ -25,12 +25,14 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
+import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class SpaceService {
 	private final SpaceTagRepository tagRepository;
 	private final SpaceTagMapRepository tagMapRepository;
 	private final SpaceImageRepository spaceImageRepository;
+	private final S3Uploader s3Uploader;
 	private final S3Deleter s3Deleter;
 	private final SpaceOperationRepository spaceOperationRepository;
 	private final SpaceClosedDayRepository spaceClosedDayRepository;
@@ -57,6 +60,7 @@ public class SpaceService {
 		SpaceTagRepository tagRepository,
 		SpaceTagMapRepository tagMapRepository,
 		SpaceImageRepository spaceImageRepository,
+		S3Uploader s3Uploader,
 		S3Deleter s3Deleter,
 		SpaceOperationRepository spaceOperationRepository,
 		SpaceClosedDayRepository spaceClosedDayRepository,
@@ -68,6 +72,7 @@ public class SpaceService {
 		this.tagRepository = tagRepository;
 		this.tagMapRepository = tagMapRepository;
 		this.spaceImageRepository = spaceImageRepository;
+		this.s3Uploader = s3Uploader;
 		this.s3Deleter = s3Deleter;
 		this.spaceOperationRepository = spaceOperationRepository;
 		this.spaceClosedDayRepository = spaceClosedDayRepository;
@@ -408,5 +413,125 @@ public class SpaceService {
 
 		// 3) DB 삭제 (연관 테이블은 CASCADE/ON DELETE CASCADE로 함께 정리)
 		spaceRepository.delete(space);
+	}
+
+	/**
+	 * 바디 없이 spaceId만 받아 복제.
+	 * - 이름: 원본 이름 + " (복제)", 중복 시 (복제 2), (복제 3)...
+	 * - 상태: 항상 DRAFT
+	 * - 이미지: S3 실제 복사 후 새 URL 저장
+	 * - 태그/운영시간/휴무일: 깊은 복제
+	 * - 반환: 상세 응답(프로젝트의 Projection/DTO)으로 반환
+	 */
+	@Transactional
+	public SpaceListResponse cloneSpace(Integer sourceSpaceId) {
+		// 1) 원본 조회
+		Space src = spaceRepository.findById(sourceSpaceId)
+			.orElseThrow(() -> new NoSuchElementException("원본 공간을 찾을 수 없습니다. spaceId=" + sourceSpaceId));
+
+		// 2) 본문 복제 (스칼라 필드만 복사, 식별자/연관/감사 컬럼 제외)
+		Space clone = new Space();
+		BeanUtils.copyProperties(
+			src, clone,
+			"spaceId", "images", "tagMaps", "operations", "closedDays",
+			"regDate", "updDate"
+		);
+
+		// 이름 중복 방지: "원본명 (복제)", 충돌 시 "원본명 (복제 2)", ...
+		String baseName = (src.getSpaceName() != null && !src.getSpaceName().isBlank())
+			? src.getSpaceName() : "새 공간";
+		clone.setSpaceName(nextUniqueClonedName(baseName));
+
+		clone.setSaveStatus("DRAFT"); // 저장 상태는 항상 DRAFT 강제
+		clone.setRegDate(LocalDateTime.now()); // regDate = 복제 일시
+
+		// 메인 이미지도 S3에 실제 복사 후 새 URL로 교체
+		String mainUrl = src.getSpaceImageUrl();
+		if (mainUrl != null && !mainUrl.isBlank()) {
+			String copiedMainUrl = s3Uploader.copyByUrl(mainUrl, "spaces"); // 같은 디렉토리 규칙
+			clone.setSpaceImageUrl(copiedMainUrl);
+		}
+
+		// 3) 저장 (식별자 확보)
+		clone = spaceRepository.save(clone);
+		final Integer clonedId = clone.getSpaceId(); // 람다에서 사용 위해 미리 캡쳐
+
+		// 4) 이미지 복제 (S3 실복사)
+		List<SpaceImage> srcImages = spaceImageRepository.findBySpace(src);
+		if (srcImages != null && !srcImages.isEmpty()) {
+			for (SpaceImage si : srcImages) {
+				SpaceImage ni = new SpaceImage();
+				ni.setSpace(clone);
+				ni.setImagePriority(si.getImagePriority());
+
+				String newUrl = null;
+				if (si.getImageUrl() != null && !si.getImageUrl().isBlank()) {
+					// 버킷 내 복사 → 새 키/URL
+					newUrl = s3Uploader.copyByUrl(si.getImageUrl(), "spaces");
+				}
+				ni.setImageUrl(newUrl);
+				spaceImageRepository.save(ni);
+			}
+		}
+
+		// 5) 태그 매핑 복제
+		if (src.getTagMaps() != null && !src.getTagMaps().isEmpty()) {
+			for (SpaceTagMap map : src.getTagMaps()) {
+				SpaceTagMap newMap = new SpaceTagMap();
+				newMap.setSpace(clone);
+				newMap.setTag(map.getTag()); // 동일 태그 참조
+				tagMapRepository.save(newMap);
+			}
+		}
+
+		// 6) 운영시간 복제
+		List<SpaceOperation> ops = spaceOperationRepository.findAllBySpaceId(src.getSpaceId());
+		if (ops != null && !ops.isEmpty()) {
+			for (SpaceOperation o : ops) {
+				SpaceOperation no = new SpaceOperation();
+				no.setSpace(clone);
+				no.setDay(o.getDay());
+				no.setOperationFrom(o.getOperationFrom());
+				no.setOperationTo(o.getOperationTo());
+				no.setIsOpen(o.getIsOpen());
+				spaceOperationRepository.save(no);
+			}
+		}
+
+		// 7) 휴무일 복제
+		List<SpaceClosedDay> cds = spaceClosedDayRepository.findAllBySpaceId(src.getSpaceId());
+		if (cds != null && !cds.isEmpty()) {
+			for (SpaceClosedDay c : cds) {
+				SpaceClosedDay nc = new SpaceClosedDay();
+				nc.setSpace(clone);
+				nc.setClosedFrom(c.getClosedFrom());
+				nc.setClosedTo(c.getClosedTo());
+				spaceClosedDayRepository.save(nc);
+			}
+		}
+
+		// 8) 복제 결과 상세 반환 (프로젝트의 기존 Projection/DTO 사용)
+		return spaceRepository.findDetailWithNames(clonedId)
+			.orElseThrow(() -> new IllegalStateException("복제된 공간 조회 실패: spaceId=" + clonedId));
+	}
+
+	/**
+	 * "원본명 (복제)"가 존재하면 "원본명 (복제 2)", "원본명 (복제 3)" ... 로 유니크 이름 생성
+	 * SpaceRepository에 existsBySpaceName(String name) 존재한다고 가정.
+	 */
+	private String nextUniqueClonedName(String baseName) {
+		String suffix = " (복제)";
+		String candidate = baseName + suffix;
+		if (!spaceRepository.existsBySpaceName(candidate)) {
+			return candidate;
+		}
+		int n = 2;
+		while (true) {
+			candidate = baseName + " (복제 " + n + ")";
+			if (!spaceRepository.existsBySpaceName(candidate)) {
+				return candidate;
+			}
+			n++;
+		}
 	}
 }

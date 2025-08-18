@@ -130,7 +130,16 @@ public class SpaceController {
 
 			spaceService.updateWithImages(spaceId, request, urls);
 
-			return ResponseEntity.ok(spaceService.getSpaceById(spaceId));
+			String message = "";
+			if (request.getSaveStatus().equals("DRAFT")) {
+				message = "임시 저장 수정 완료";
+			} else if (request.getSaveStatus().equals("PUBLISHED")) {
+				message = "수정 완료";
+			}
+			return ResponseEntity.ok(Map.of(
+				"message", message,
+				"data", spaceService.getSpaceById(spaceId)
+			));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("수정 실패: " + e.getMessage());
 		} catch (Exception e) {
@@ -148,5 +157,11 @@ public class SpaceController {
 		));
 	}
 
+	// 공간 복제 (기존 공간을 기준으로 새 공간 생성)
+	@PostMapping("/clone/{spaceId}")
+	public ResponseEntity<SpaceListResponse> clone(@PathVariable Integer spaceId) {
+		SpaceListResponse result = spaceService.cloneSpace(spaceId);
+		return ResponseEntity.ok(result);
+	}
 }
 
