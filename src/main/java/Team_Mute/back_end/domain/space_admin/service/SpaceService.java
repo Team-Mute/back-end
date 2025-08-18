@@ -1,6 +1,7 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
 import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
+import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
@@ -17,6 +18,7 @@ import Team_Mute.back_end.domain.space_admin.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceCategoryRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceClosedDayRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceImageRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceLocationRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceOperationRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
@@ -45,6 +47,7 @@ public class SpaceService {
 	private final S3Deleter s3Deleter;
 	private final SpaceOperationRepository spaceOperationRepository;
 	private final SpaceClosedDayRepository spaceClosedDayRepository;
+	private final SpaceLocationRepository spaceLocationRepository;
 
 	public SpaceService(
 		SpaceRepository spaceRepository,
@@ -55,7 +58,8 @@ public class SpaceService {
 		SpaceImageRepository spaceImageRepository,
 		S3Deleter s3Deleter,
 		SpaceOperationRepository spaceOperationRepository,
-		SpaceClosedDayRepository spaceClosedDayRepository
+		SpaceClosedDayRepository spaceClosedDayRepository,
+		SpaceLocationRepository spaceLocationRepository
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
@@ -66,6 +70,7 @@ public class SpaceService {
 		this.s3Deleter = s3Deleter;
 		this.spaceOperationRepository = spaceOperationRepository;
 		this.spaceClosedDayRepository = spaceClosedDayRepository;
+		this.spaceLocationRepository = spaceLocationRepository;
 	}
 
 	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
@@ -90,6 +95,17 @@ public class SpaceService {
 			.stream()
 			.map(element -> new TagListItem(element.getTagId(), element.getTagName()))
 			.toList();
+	}
+
+	// 지역 아이디로 주소 조회(공간 등록 및 수정할 시 사용)
+	public List<LocationListItem> getLocationByRegionId(Integer regionId) {
+		return spaceLocationRepository.findByRegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
+			.map(element -> new LocationListItem(
+				element.getLocationId(),
+				element.getLocationName(),
+				element.getAddressRoad(),
+				element.getPostalCode()
+			)).toList();
 	}
 
 	// 공간 전체 조회

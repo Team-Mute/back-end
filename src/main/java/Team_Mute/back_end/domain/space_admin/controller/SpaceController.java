@@ -2,6 +2,7 @@ package Team_Mute.back_end.domain.space_admin.controller;
 
 import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
+import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
@@ -49,6 +50,12 @@ public class SpaceController {
 	@GetMapping("/tags")
 	public List<TagListItem> getTags() {
 		return spaceService.getAllTags();
+	}
+
+	// 지역 아이디로 건물 주소 조회
+	@GetMapping("locations/{regionId}")
+	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
+		return spaceService.getLocationByRegionId(regionId);
 	}
 
 	// 공간 전체 조회
