@@ -70,25 +70,25 @@ public class SpaceService {
 
 	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
 	public List<RegionListItem> getAllRegions() {
-		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "regionId"))
 			.stream()
-			.map(element -> new RegionListItem(element.getId(), element.getRegionName()))
+			.map(element -> new RegionListItem(element.getRegionId(), element.getRegionName()))
 			.toList();
 	}
 
 	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
 	public List<CategoryListItem> getAllCategories() {
-		return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+		return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "categoryId"))
 			.stream()
-			.map(element -> new CategoryListItem(element.getId(), element.getCategoryName()))
+			.map(element -> new CategoryListItem(element.getCategoryId(), element.getCategoryName()))
 			.toList();
 	}
 
 	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
 	public List<TagListItem> getAllTags() {
-		return tagRepository.findAll(Sort.by(Sort.Direction.ASC, "id"))
+		return tagRepository.findAll(Sort.by(Sort.Direction.ASC, "tagId"))
 			.stream()
-			.map(element -> new TagListItem(element.getId(), element.getTagName()))
+			.map(element -> new TagListItem(element.getTagId(), element.getTagName()))
 			.toList();
 	}
 
@@ -123,8 +123,8 @@ public class SpaceService {
 
 		// 3. 공간 저장
 		Space space = Space.builder()
-			.categoryId(category.getId())
-			.regionId(region.getId())
+			.categoryId(category.getCategoryId())
+			.regionId(region.getRegionId())
 			.userId(req.getUserId())
 			.spaceName(req.getSpaceName())
 			.spaceLocation(req.getSpaceLocation())
@@ -234,8 +234,8 @@ public class SpaceService {
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역명입니다: " + req.getRegionName()));
 
 		// 5) 본문 필드 “전체 교체”
-		space.setCategoryId(category.getId());
-		space.setRegionId(region.getId());
+		space.setCategoryId(category.getCategoryId());
+		space.setRegionId(region.getRegionId());
 		space.setUserId(req.getUserId());
 		space.setSpaceName(req.getSpaceName());
 		space.setSpaceLocation(req.getSpaceLocation());
