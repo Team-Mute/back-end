@@ -155,7 +155,7 @@ public class SpaceService {
 			.spaceImageUrl(cover)
 			.reservationWay(req.getReservationWay())
 			.spaceRules(req.getSpaceRules())
-			.saveStatus(req.getSaveStatus() != null ? req.getSaveStatus() : req.getSaveStatus().DRAFT) // null일 경우 기본값 DRAFT(임시 저장)
+			.saveStatus(req.getSaveStatus())
 			.regDate(LocalDateTime.now())
 			.build();
 
@@ -270,7 +270,7 @@ public class SpaceService {
 		space.setUpdDate(LocalDateTime.now());
 		space.setReservationWay(req.getReservationWay());
 		space.setSpaceRules(req.getSpaceRules());
-		space.setSaveStatus(req.getSaveStatus() != null ? req.getSaveStatus() : req.getSaveStatus().DRAFT);
+		space.setSaveStatus(req.getSaveStatus());
 
 		// 6) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);

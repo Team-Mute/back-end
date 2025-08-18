@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -91,8 +92,16 @@ public class SpaceController {
 			List<String> urls = s3Uploader.uploadAll(images, "spaces"); // throws IOException 버전
 			Integer id = spaceService.createWithImages(request, urls);
 
-			return ResponseEntity.ok(spaceService.getSpaceById(id));
-
+			String message = "";
+			if (request.getSaveStatus().equals("DRAFT")) {
+				message = "임시 저장 완료";
+			} else if (request.getSaveStatus().equals("PUBLISHED")) {
+				message = "등록 완료";
+			}
+			return ResponseEntity.ok(Map.of(
+				"message", message,
+				"data", spaceService.getSpaceById(id)
+			));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("등록 실패: " + e.getMessage());
 		} catch (Exception e) {

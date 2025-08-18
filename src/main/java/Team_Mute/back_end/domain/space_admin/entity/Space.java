@@ -3,8 +3,6 @@ package Team_Mute.back_end.domain.space_admin.entity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -19,12 +17,6 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-// 공간 저장 상태를 나타내는 Enum.
-// DRAFT : 임시 저장 상태
-// PUBLISHED : 저장 완료 상태
 
 @Getter
 @Setter
@@ -85,10 +77,8 @@ public class Space {
 	private String spaceRules;
 
 	// 저장 상태[임시저장(DRAFT) or 저장(PUBLISHED)]
-	@Enumerated(EnumType.STRING)
-	@JdbcTypeCode(SqlTypes.NAMED_ENUM)
-	@Column(name = "save_status")
-	private SaveStatus saveStatus;
+	@Column(name = "save_status", nullable = false)
+	private String saveStatus;
 
 	// 등록일
 	@Column(name = "reg_date", nullable = false)

@@ -1,10 +1,10 @@
 package Team_Mute.back_end.domain.space_admin.dto;
 
-import Team_Mute.back_end.domain.space_admin.entity.SaveStatus;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,8 +38,11 @@ public class SpaceCreateRequest {
 	@Size(max = 5000) // 길이 여유
 	private String spaceRules;
 
+	// DRAFT : 임시 저장 상태
+	// PUBLISHED : 저장 완료 상태
 	@NotNull(message = "saveStatus는 필수입니다")
-	private SaveStatus saveStatus;
+	@Pattern(regexp = "DRAFT|PUBLISHED", message = "saveStatus는 DRAFT 또는 PUBLISHED만 가능합니다.")
+	private String saveStatus;
 
 	// 운영시간: 1~7(월~일) 요일, HH:mm 형식
 	private List<OperationItem> operations;
