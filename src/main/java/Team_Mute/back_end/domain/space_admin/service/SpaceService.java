@@ -11,6 +11,7 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceClosedDay;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceImage;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceLocation;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceOperation;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTagMap;
@@ -129,21 +130,25 @@ public class SpaceService {
 		String cover = urls.get(0);
 		java.util.List<String> details = urls.size() > 1 ? urls.subList(1, urls.size()) : java.util.List.of();
 
-		// 1. categoryName → categoryId
-		SpaceCategory category = categoryRepository.findByCategoryName(req.getCategoryName())
-			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다: " + req.getCategoryName()));
+		// 1. categoryId
+		SpaceCategory category = categoryRepository.findByCategoryId(req.getCategoryId())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리 ID입니다: " + req.getCategoryId()));
 
-		// 2. regionName → regionId
-		AdminRegion region = regionRepository.findByRegionName(req.getRegionName())
-			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역명입니다: " + req.getRegionName()));
+		// 2. regionId
+		AdminRegion region = regionRepository.findByRegionId(req.getRegionId())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역 ID입니다: " + req.getRegionId()));
 
-		// 3. 공간 저장
+		// 3. locationId
+		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
+
+		// 4. 공간 저장
 		Space space = Space.builder()
 			.categoryId(category.getCategoryId())
 			.regionId(region.getRegionId())
 			.userId(req.getUserId())
 			.spaceName(req.getSpaceName())
-			.spaceLocation(req.getSpaceLocation())
+			.locationId(location.getLocationId())
 			.spaceDescription(req.getSpaceDescription())
 			.spaceCapacity(req.getSpaceCapacity())
 			.spaceIsAvailable(req.getSpaceIsAvailable())
@@ -156,7 +161,7 @@ public class SpaceService {
 
 		Space saved = spaceRepository.save(space);
 
-		// 4. 태그 처리
+		// 5. 태그 처리
 		for (String tagName : req.getTagNames()) {
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
@@ -176,7 +181,7 @@ public class SpaceService {
 			tagMapRepository.save(map);
 		}
 
-		// 2) 상세 이미지 저장 (우선순위 1..n)
+		// 상세 이미지 저장 (우선순위 1..n)
 		if (!details.isEmpty()) {
 			int p = 1;
 			java.util.List<SpaceImage> list = new java.util.ArrayList<>(details.size());
@@ -241,20 +246,24 @@ public class SpaceService {
 			space.setSpaceName(newName);
 		}
 
-		// 3) categoryName → categoryId
-		SpaceCategory category = categoryRepository.findByCategoryName(req.getCategoryName())
-			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다: " + req.getCategoryName()));
+		// 3) categoryId
+		SpaceCategory category = categoryRepository.findByCategoryId(req.getCategoryId())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다: " + req.getCategoryId()));
 
-		// 4) regionName → regionId
-		AdminRegion region = regionRepository.findByRegionName(req.getRegionName())
-			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역명입니다: " + req.getRegionName()));
+		// 4) regionId
+		AdminRegion region = regionRepository.findByRegionId(req.getRegionId())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역명입니다: " + req.getRegionId()));
 
-		// 5) 본문 필드 “전체 교체”
+		// 5) locationId
+		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
+
+		// 6) 본문 필드 “전체 교체”
 		space.setCategoryId(category.getCategoryId());
 		space.setRegionId(region.getRegionId());
 		space.setUserId(req.getUserId());
 		space.setSpaceName(req.getSpaceName());
-		space.setSpaceLocation(req.getSpaceLocation());
+		space.setLocationId(location.getLocationId());
 		space.setSpaceDescription(req.getSpaceDescription());
 		space.setSpaceCapacity(req.getSpaceCapacity());
 		space.setSpaceIsAvailable(req.getSpaceIsAvailable());

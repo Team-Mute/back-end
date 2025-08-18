@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 @Setter
 public class SpaceCreateRequest {
 	private String spaceName;
-	private String spaceLocation;
+	private Integer locationId;
 	private String spaceDescription;
 	private Integer spaceCapacity;
 	private Boolean spaceIsAvailable;

@@ -61,8 +61,8 @@ public class Space {
 	private Integer spaceCapacity;
 
 	// 공간 주소
-	@Column(name = "space_location", nullable = false, length = 256)
-	private String spaceLocation;
+	@Column(name = "location_id")
+	private Integer locationId;
 
 	// 공간 설명
 	@Column(name = "space_description", nullable = false, columnDefinition = "TEXT")

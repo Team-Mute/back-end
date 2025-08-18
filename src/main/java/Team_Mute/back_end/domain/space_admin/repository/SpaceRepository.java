@@ -26,7 +26,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		     c.category_name      AS categoryName,
 		     s.user_id            AS userId,
 		     s.space_capacity     AS spaceCapacity,
-		     s.space_location     AS spaceLocation,
+		     l.address_road       AS addressRoad,
 		     s.space_description  AS spaceDescription,
 		     s.space_image_url    AS spaceImageUrl,
 		     s.space_is_available AS spaceIsAvailable,
@@ -86,6 +86,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		   FROM tb_spaces s
 		   JOIN tb_admin_region     r ON r.region_id   = s.region_id
 		   JOIN tb_space_categories c ON c.category_id = s.category_id
+		   JOIN tb_locations        l ON l.location_id = s.location_id
 		   ORDER BY s.reg_date DESC
 		""",
 		countQuery = "SELECT COUNT(*) FROM tb_spaces",
@@ -101,7 +102,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		  c.category_name      AS categoryName,
 		  s.user_id            AS userId,
 		  s.space_capacity     AS spaceCapacity,
-		  s.space_location     AS spaceLocation,
+		  l.address_road       AS addressRoad,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
 		  s.space_is_available AS spaceIsAvailable,
@@ -158,6 +159,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		FROM tb_spaces s
 		JOIN tb_admin_region     r ON r.region_id   = s.region_id
 		JOIN tb_space_categories c ON c.category_id = s.category_id
+		JOIN tb_locations        l ON l.location_id = s.location_id
 		WHERE s.space_id = :spaceId
 		""", nativeQuery = true)
 	Optional<SpaceListResponse> findDetailWithNames(@Param("spaceId") Integer spaceId);
