@@ -489,6 +489,7 @@ public class SpaceService {
 		clone.setSpaceName(nextUniqueClonedName(baseName));
 
 		clone.setSaveStatus("DRAFT"); // 저장 상태는 항상 DRAFT 강제
+		clone.setSpaceIsAvailable(false); // 복제한 정보는 항상 비공개(사용자에게 노출 X)
 		clone.setRegDate(LocalDateTime.now()); // regDate = 복제 일시
 
 		// 메인 이미지도 S3에 실제 복사 후 새 URL로 교체
