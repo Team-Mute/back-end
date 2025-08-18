@@ -1,6 +1,7 @@
 package Team_Mute.back_end.domain.space_admin.repository;
 
 
+import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 
@@ -98,11 +99,31 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		SELECT
 		  s.space_id           AS spaceId,
 		  s.space_name         AS spaceName,
-		  r.region_name        AS regionName,
-		  c.category_name      AS categoryName,
+		  /* 지역 */
+		  COALESCE(
+		      json_build_object(
+			      'regionId',   r.region_id,
+			      'regionName', r.region_name
+			  ), '{}'::json
+		  ) AS region,
+
+		  /* 카테고리 */
+		  COALESCE(
+		         json_build_object(
+			      'categoryId',   c.category_id,
+			      'categoryName', c.category_name
+			  ), '{}'::json
+		  ) AS category,
+
+		  /* 주소 */
+		  COALESCE(
+		      json_build_object(
+			      'locationId',  l.location_id,
+			      'addressRoad', l.address_road
+			  ), '{}'::json
+		  ) AS location,
 		  s.user_id            AS userId,
 		  s.space_capacity     AS spaceCapacity,
-		  l.address_road       AS addressRoad,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
 		  s.space_is_available AS spaceIsAvailable,
@@ -162,5 +183,5 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		JOIN tb_locations        l ON l.location_id = s.location_id
 		WHERE s.space_id = :spaceId
 		""", nativeQuery = true)
-	Optional<SpaceListResponse> findDetailWithNames(@Param("spaceId") Integer spaceId);
+	Optional<SpaceDatailResponse> findDetailWithNames(@Param("spaceId") Integer spaceId);
 }

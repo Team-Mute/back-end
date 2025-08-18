@@ -5,6 +5,7 @@ import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
@@ -158,8 +159,8 @@ public class SpaceController {
 
 	// 공간 복제 (기존 공간을 기준으로 새 공간 생성)
 	@PostMapping("/clone/{spaceId}")
-	public ResponseEntity<SpaceListResponse> clone(@PathVariable Integer spaceId) {
-		SpaceListResponse result = spaceService.cloneSpace(spaceId);
+	public ResponseEntity<SpaceDatailResponse> clone(@PathVariable Integer spaceId) {
+		SpaceDatailResponse result = spaceService.cloneSpace(spaceId);
 		return ResponseEntity.ok(result);
 	}
 }

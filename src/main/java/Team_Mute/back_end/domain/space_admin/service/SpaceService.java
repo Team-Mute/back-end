@@ -4,6 +4,7 @@ import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.entity.AdminRegion;
@@ -119,7 +120,7 @@ public class SpaceService {
 	}
 
 	// 특정 공간 조회
-	public SpaceListResponse getSpaceById(Integer spaceId) {
+	public SpaceDatailResponse getSpaceById(Integer spaceId) {
 		return spaceRepository.findDetailWithNames(spaceId)
 			.orElseThrow(() -> new NoSuchElementException("공간을 찾을 수 없습니다."));
 	}
@@ -469,7 +470,7 @@ public class SpaceService {
 	 * - 반환: 상세 응답(프로젝트의 Projection/DTO)으로 반환
 	 */
 	@Transactional
-	public SpaceListResponse cloneSpace(Integer sourceSpaceId) {
+	public SpaceDatailResponse cloneSpace(Integer sourceSpaceId) {
 		// 1) 원본 조회
 		Space src = spaceRepository.findById(sourceSpaceId)
 			.orElseThrow(() -> new NoSuchElementException("원본 공간을 찾을 수 없습니다. spaceId=" + sourceSpaceId));
