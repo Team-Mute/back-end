@@ -1,0 +1,49 @@
+package Team_Mute.back_end.global.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import Team_Mute.back_end.domain.member.jwt.JwtService;
+import Team_Mute.back_end.domain.member.session.SessionStore;
+import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService, SessionStore store) throws
+		Exception {
+		http
+			.cors(cors -> {
+			})
+			.csrf(AbstractHttpConfigurer::disable)
+			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.authorizeHttpRequests(authz -> authz
+				.requestMatchers("/api/auth/login", "/api/sms/**", "/api/users/signup",
+					"/api/users/check-email", "/api/corpname", "/api/users/reset-password", "/api/admin/auth/login",
+					"/api/admin/reset-password", "/v3/api-docs/**",
+					"/swagger-ui/**",
+					"/swagger-resources/**",
+					"/swagger-ui.html")
+				.permitAll()
+				.requestMatchers("/api/admin/signup")
+				.hasAnyRole("0")
+				.requestMatchers("/api/admin/**", "/api/admin/account/**")
+				.hasAnyRole("0", "1", "2")
+				.requestMatchers("/api/users/account/**", "/api/auth/refresh", "/api/auth/logout")
+				.authenticated()
+				.anyRequest()
+				.authenticated()
+			)
+			.addFilterBefore(new JwtAuthFilter(jwtService, store), UsernamePasswordAuthenticationFilter.class);
+
+		return http.build();
+	}
+}
