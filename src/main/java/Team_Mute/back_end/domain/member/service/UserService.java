@@ -38,7 +38,6 @@ import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.member.repository.UserRoleRepository;
 import Team_Mute.back_end.domain.member.session.SessionStore;
-import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,11 +55,6 @@ public class UserService {
 	private final EmailService emailService;
 	private final AdminRegionRepository adminRegionRepository;
 	private final UserRoleRepository userRoleRepository;
-
-	@PostConstruct
-	public void init() {
-		createInitialAdmin();
-	}
 
 	public SignupResponseDto signUp(SignupRequestDto requestDto) {
 		try {
