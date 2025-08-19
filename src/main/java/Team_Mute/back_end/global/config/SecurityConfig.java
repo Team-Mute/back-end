@@ -31,13 +31,13 @@ public class SecurityConfig {
 					"/api/admin/reset-password", "/v3/api-docs/**",
 					"/swagger-ui/**",
 					"/swagger-resources/**",
-					"/swagger-ui.html")
+					"/swagger-ui.html", "/api/auth/refresh")
 				.permitAll()
 				.requestMatchers("/api/admin/signup")
 				.hasAnyRole("0")
 				.requestMatchers("/api/admin/**", "/api/admin/account/**")
 				.hasAnyRole("0", "1", "2")
-				.requestMatchers("/api/users/account/**", "/api/auth/refresh", "/api/auth/logout")
+				.requestMatchers("/api/users/account/**", "/api/auth/logout")
 				.authenticated()
 				.anyRequest()
 				.authenticated()
