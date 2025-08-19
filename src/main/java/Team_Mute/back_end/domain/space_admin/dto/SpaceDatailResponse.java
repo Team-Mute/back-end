@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
 @JsonPropertyOrder({
 	"spaceId", "spaceName", "region", "category", "location", "userId",
 	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "detailImageUrls",
-	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "saveStatus", "operations", "closedDays",
+	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "operations", "closedDays",
 	"regDate", "updDate"
 })
 public interface SpaceDatailResponse {
@@ -32,8 +32,6 @@ public interface SpaceDatailResponse {
 	String getReservationWay();
 
 	String getSpaceRules();
-
-	String getSaveStatus();
 
 	@JsonRawValue
 	String getOperations();

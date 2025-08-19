@@ -160,7 +160,6 @@ public class SpaceService {
 			.spaceImageUrl(cover)
 			.reservationWay(req.getReservationWay())
 			.spaceRules(req.getSpaceRules())
-			.saveStatus(req.getSaveStatus())
 			.regDate(LocalDateTime.now())
 			.build();
 
@@ -295,7 +294,6 @@ public class SpaceService {
 		space.setUpdDate(LocalDateTime.now());
 		space.setReservationWay(req.getReservationWay());
 		space.setSpaceRules(req.getSpaceRules());
-		space.setSaveStatus(req.getSaveStatus());
 
 		// 8) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);
@@ -488,7 +486,6 @@ public class SpaceService {
 			? src.getSpaceName() : "새 공간";
 		clone.setSpaceName(nextUniqueClonedName(baseName));
 
-		clone.setSaveStatus("DRAFT"); // 저장 상태는 항상 DRAFT 강제
 		clone.setSpaceIsAvailable(false); // 복제한 정보는 항상 비공개(사용자에게 노출 X)
 		clone.setRegDate(LocalDateTime.now()); // regDate = 복제 일시
 

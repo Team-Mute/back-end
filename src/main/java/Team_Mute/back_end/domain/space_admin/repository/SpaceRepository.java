@@ -33,7 +33,6 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		     s.space_is_available AS spaceIsAvailable,
 		     s.reservation_way    AS reservationWay,
 		     s.space_rules        AS spaceRules,
-		     s.save_status::text  AS saveStatus,
 		     /* 상세 이미지 */
 			 COALESCE((
 			   SELECT array_agg(si.image_url ORDER BY si.image_priority ASC, si.image_id ASC)
@@ -129,7 +128,6 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		  s.space_is_available AS spaceIsAvailable,
 		  s.reservation_way    AS  reservationWay,
 		  s.space_rules        AS spaceRules,
-		  s.save_status        AS saveStatus,
 		  /* 상세 이미지 */
 			 COALESCE((
 			   SELECT array_agg(si.image_url ORDER BY si.image_priority ASC, si.image_id ASC)

@@ -76,10 +76,6 @@ public class Space {
 	@Column(name = "space_rules", nullable = true, columnDefinition = "TEXT")
 	private String spaceRules;
 
-	// 저장 상태[임시저장(DRAFT) or 저장(PUBLISHED)]
-	@Column(name = "save_status", nullable = false)
-	private String saveStatus;
-
 	// 등록일
 	@Column(name = "reg_date", nullable = false)
 	private LocalDateTime regDate;

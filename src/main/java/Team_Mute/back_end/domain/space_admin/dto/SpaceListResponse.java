@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 @JsonPropertyOrder({
-	"spaceId", "spaceName", "regionName", "categoryName", "locationName", "userId",
-	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "detailImageUrls",
-	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "saveStatus", "operations", "closedDays",
+	"spaceId", "spaceName", "regionName", "categoryName", "addressRoad", "userId",
+	"spaceCapacity", "spaceDescription", "spaceImageUrl", "detailImageUrls",
+	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "operations", "closedDays",
 	"regDate", "updDate"
 })
 public interface SpaceListResponse {
@@ -16,15 +16,13 @@ public interface SpaceListResponse {
 
 	String getCategoryName();
 
-	String getLocationName();
+	String getAddressRoad();
 
 	Integer getUserId();
 
 	String getSpaceName();
 
 	Integer getSpaceCapacity();
-
-	String getSpaceLocation();
 
 	String getSpaceDescription();
 
@@ -39,8 +37,6 @@ public interface SpaceListResponse {
 	String getReservationWay();
 
 	String getSpaceRules();
-
-	String getSaveStatus(); // Enum은 DB에서 문자열
 
 	@JsonRawValue
 	String getOperations();
