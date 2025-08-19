@@ -88,6 +88,7 @@ public class SpaceCreateRequest {
 		@NotNull
 		@Min(1)
 		@Max(7)
+		@Schema(description = "요일 (1=월요일, 2=화요일, …, 7=일요일)", example = "1")
 		private Integer day;             // 1=월 ~ 7=일
 
 		// "HH:mm" 형식만 허용

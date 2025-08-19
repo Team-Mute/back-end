@@ -5,6 +5,7 @@ import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
@@ -12,7 +13,12 @@ import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -32,6 +38,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+@Tag(name = "공간 관리 API", description = "관리자 공간 관리 관련 API 명세")
 @RestController
 @RequestMapping("/api/spaces-admin")
 @RequiredArgsConstructor
@@ -62,6 +69,7 @@ public class SpaceController {
 
 	// 지역 아이디로 건물 주소 조회
 	@GetMapping("locations/{regionId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
 	@Operation(summary = "지점 아이디로 주소 조회")
 	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
 		return spaceService.getLocationByRegionId(regionId);
@@ -76,6 +84,7 @@ public class SpaceController {
 
 	// 특정 공간 조회
 	@GetMapping("/{spaceId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
 	@Operation(summary = "공간 단건 조회")
 	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
 		try {
@@ -89,14 +98,21 @@ public class SpaceController {
 
 	// 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	@Operation(summary = "공간 등록")
-	public ResponseEntity<?> upload(
-		@Parameter(
-			name = "space",
-			description = "공간 정보 (JSON 문자열)",
+	@Operation(
+		summary = "공간 등록",
+		requestBody = @RequestBody(
 			required = true,
-			schema = @Schema(implementation = SpaceCreateRequest.class)
+			content = @Content(
+				mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+				schema = @Schema(implementation = SpaceCreateUpdateDoc.class),
+				encoding = {
+					@Encoding(name = "space", contentType = MediaType.APPLICATION_JSON_VALUE),
+					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+				}
+			)
 		)
+	)
+	public ResponseEntity<?> upload(
 		@RequestPart("space") String spaceJson,
 		@RequestPart("images") List<MultipartFile> images
 	) {
@@ -125,15 +141,23 @@ public class SpaceController {
 
 	// 공간 수정
 	@PutMapping(value = "/{spaceId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	@Operation(summary = "공간 수정")
-	public ResponseEntity<?> update(
-		@PathVariable Integer spaceId,
-		@Parameter(
-			name = "space",
-			description = "공간 정보 (JSON 문자열)",
+	@Operation(
+		summary = "공간 수정",
+		requestBody = @RequestBody(
 			required = true,
-			schema = @Schema(implementation = SpaceCreateRequest.class)
+			content = @Content(
+				mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+				schema = @Schema(implementation = SpaceCreateUpdateDoc.class),
+				encoding = {
+					@Encoding(name = "space", contentType = MediaType.APPLICATION_JSON_VALUE),
+					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+				}
+			)
 		)
+	)
+	public ResponseEntity<?> update(
+		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
+		@PathVariable Integer spaceId,
 		@RequestPart("space") @Valid String spaceJson,
 		@RequestPart(value = "images", required = false) List<MultipartFile> images
 	) {
@@ -167,6 +191,7 @@ public class SpaceController {
 
 	// 공간 삭제
 	@DeleteMapping("/{spaceId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "삭제할 공간 ID", required = true)
 	@Operation(summary = "공간 삭제")
 	public ResponseEntity<DeleteSpaceResponse> delete(@PathVariable Integer spaceId) {
 		spaceService.deleteSpace(spaceId);
@@ -176,8 +201,9 @@ public class SpaceController {
 		));
 	}
 
-	// 공간 복제 (기존 공간을 기준으로 새 공간 생성)
-	@PostMapping("/clone/{spaceId}")
+	// 공간 복사 (기존 공간을 기준으로 새 공간 생성)
+	@PostMapping("/copy/{spaceId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "복사할 공간 ID", required = true)
 	@Operation(summary = "공간 복사")
 	public ResponseEntity<SpaceDatailResponse> clone(@PathVariable Integer spaceId) {
 		SpaceDatailResponse result = spaceService.cloneSpace(spaceId);
