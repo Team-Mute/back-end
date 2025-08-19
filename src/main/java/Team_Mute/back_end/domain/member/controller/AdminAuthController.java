@@ -29,7 +29,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Tag(name = "관리자 인증 API", description = "관리자 인증 관련 API 명세")
 @RestController
 @RequestMapping("/api/admin/auth")
@@ -78,6 +80,7 @@ public class AdminAuthController {
 		HttpServletResponse res
 	) {
 		if (refreshToken == null || refreshToken.isBlank()) {
+			log.info("refreshToken이 없어용!");
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 
