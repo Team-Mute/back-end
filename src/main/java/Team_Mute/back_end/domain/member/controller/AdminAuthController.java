@@ -56,7 +56,7 @@ public class AdminAuthController {
 
 		final List<Integer> ADMIN_ROLES = Arrays.asList(0, 1, 2);
 
-		if (admin == null || !ADMIN_ROLES.contains(admin.getRoleId())) {
+		if (admin == null || !ADMIN_ROLES.contains(admin.getUserRole().getRoleId())) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 

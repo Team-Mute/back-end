@@ -38,6 +38,7 @@ import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.member.repository.UserRoleRepository;
 import Team_Mute.back_end.domain.member.session.SessionStore;
 import jakarta.annotation.PostConstruct;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,15 +69,23 @@ public class UserService {
 				throw new DuplicateEmailException("이미 가입된 이메일 입니다.");
 			}
 
-			Integer companyId = getOrCreateCompany(requestDto.getCompanyName());
+			UserCompany userCompany = getOrCreateCompany(requestDto.getCompanyName());
+			UserRole userRole = userRoleRepository.findById(3)
+				.orElseGet(() -> {
+					log.info("기본 'customer' 역할(ID: 3)이 없어 새로 생성합니다.");
+					UserRole newRole = new UserRole();
+					newRole.setRoleId(3); // ID를 직접 설정
+					newRole.setRoleName("customer");
+					return userRoleRepository.save(newRole);
+				});
 
 			String encodedPassword = passwordService.encodePassword(requestDto.getUserPwd());
 
-			User user = createUser(requestDto, encodedPassword, companyId);
+			User user = createUser(requestDto, encodedPassword, userCompany, userRole);
 			User savedUser = userRepository.save(user);
 
 			log.info("회원가입 완료: userId={}, email={}, company={}",
-				savedUser.getUserId(), savedUser.getUserEmail(), savedUser.getCompanyId());
+				savedUser.getUserId(), savedUser.getUserEmail(), savedUser.getUserCompany().getCompanyId());
 
 			return new SignupResponseDto(
 				requestDto.getUserName() + "님 회원가입이 완료 되었습니다.",
@@ -90,13 +99,12 @@ public class UserService {
 		}
 	}
 
-	private Integer getOrCreateCompany(String companyName) {
+	private UserCompany getOrCreateCompany(String companyName) {
 		return userCompanyRepository.findByCompanyName(companyName)
-			.map(UserCompany::getCompanyId)
 			.orElseGet(() -> createNewCompany(companyName));
 	}
 
-	private Integer createNewCompany(String companyName) {
+	private UserCompany createNewCompany(String companyName) {
 		try {
 			Integer maxCompanyId = userCompanyRepository.findMaxCompanyId().orElse(0);
 			UserCompany newCompany = UserCompany.builder()
@@ -106,21 +114,22 @@ public class UserService {
 				.build();
 			UserCompany savedCompany = userCompanyRepository.save(newCompany);
 			log.info("New company created: {}", companyName);
-			return savedCompany.getCompanyId();
+			return savedCompany;
 		} catch (Exception e) {
 			log.error("Failed to create new company: {}", companyName, e);
 			throw new UserRegistrationException("회사 정보 처리 중 오류가 발생했습니다.");
 		}
 	}
 
-	private User createUser(SignupRequestDto requestDto, String encodedPassword, Integer companyId) {
+	private User createUser(SignupRequestDto requestDto, String encodedPassword, UserCompany companyObject,
+		UserRole userRoleObject) {
 		return User.builder()
 			.userName(requestDto.getUserName())
 			.userPhone(requestDto.getUserPhone())
 			.userEmail(requestDto.getUserEmail())
 			.userPwd(encodedPassword)
-			.companyId(companyId)
-			.roleId(3)
+			.userCompany(companyObject)
+			.userRole(userRoleObject)
 			.agreeEmail(requestDto.getAgreeEmail())
 			.agreeSms(requestDto.getAgreeSms())
 			.agreeLocation(requestDto.getAgreeLocation())
@@ -215,16 +224,16 @@ public class UserService {
 			.orElseThrow(UserNotFoundException::new);
 
 		String regionName = "N/A";
-		if (admin.getRegionId() != null && admin.getRegionId() != 0) {
-			regionName = adminRegionRepository.findById(admin.getRegionId())
+		if (admin.getAdminRegion().getRegionId() != null && admin.getAdminRegion().getRegionId() != 0) {
+			regionName = adminRegionRepository.findById(admin.getAdminRegion().getRegionId())
 				.map(AdminRegion::getRegionName)
 				.orElse("지역 정보 없음");
-		} else if (admin.getRegionId() != null) {
+		} else if (admin.getAdminRegion().getRegionId() != null) {
 			regionName = "Master";
 		}
 
 		return new AdminInfoResponse(
-			admin.getRoleId(),
+			admin.getUserRole().getRoleId(),
 			regionName,
 			admin.getUserEmail(),
 			admin.getUserName(),
@@ -244,7 +253,7 @@ public class UserService {
 		}
 
 		AdminRegion region = findOrCreateRegion(requestDto.getRegionName());
-		admin.setRegionId(region.getRegionId());
+		admin.setAdminRegion(region);
 		admin.setUserName(requestDto.getUserName());
 		admin.setUserPhone(requestDto.getUserPhone());
 
@@ -260,7 +269,7 @@ public class UserService {
 		if (caller.getUserId().equals(targetUser.getUserId())) {
 			throw new IllegalArgumentException("자신을 삭제할 수 없습니다.");
 		}
-		if (targetUser.getRoleId() == 0) {
+		if (targetUser.getUserRole().getRoleId() == 0) {
 			throw new AccessDeniedException("Master 관리자는 삭제할 수 없습니다.");
 		}
 
@@ -284,7 +293,7 @@ public class UserService {
 		User user = userRepository.findByUserEmail(requestDto.getUserEmail())
 			.orElseThrow(UserNotFoundException::new);
 
-		if (user.getRoleId() > 2) {
+		if (user.getUserRole().getRoleId() > 2) {
 			throw new AccessDeniedException("관리자 계정만 초기화할 수 있습니다.");
 		}
 
@@ -305,7 +314,9 @@ public class UserService {
 			throw new IllegalArgumentException("자신의 권한을 수정할 수 없습니다.");
 		}
 
-		targetUser.setRoleId(requestDto.getRoleId());
+		UserRole roleToSet = userRoleRepository.findById(requestDto.getRoleId())
+			.orElseThrow(() -> new EntityNotFoundException("해당 역할을 찾을 수 없습니다."));
+		targetUser.setUserRole(roleToSet);
 		targetUser.setTokenVer(targetUser.getTokenVer() + 1);
 		log.info("관리자 권한 수정 완료: targetUserId={}, newRoleId={}", targetUser.getUserId(), requestDto.getRoleId());
 	}
@@ -315,7 +326,7 @@ public class UserService {
 		User caller = userRepository.findById(callerId)
 			.orElseThrow(UserNotFoundException::new);
 
-		if (caller.getRoleId() != 0) {
+		if (caller.getUserRole().getRoleId() != 0) {
 			throw new AccessDeniedException("Master 관리자만 이 작업을 수행할 수 있습니다.");
 		}
 		return caller;
@@ -332,10 +343,11 @@ public class UserService {
 		String temporaryPassword = generateRandomPassword();
 		AdminRegion region = findOrCreateRegion(requestDto.getRegionName());
 		String encodedPassword = passwordService.encodePassword(temporaryPassword);
+		UserRole adminRole = userRoleRepository.findById(requestDto.getRoleId()).orElseThrow();
 
 		User user = User.builder()
-			.roleId(requestDto.getRoleId())
-			.regionId(region.getRegionId())
+			.userRole(adminRole)
+			.adminRegion(region)
 			.userEmail(requestDto.getUserEmail())
 			.userName(requestDto.getUserName())
 			.userPhone(requestDto.getUserPhone())
@@ -386,7 +398,7 @@ public class UserService {
 			});
 
 		// 3. 'ADMIN' 역할을 가진 사용자가 없는 경우에만 초기 관리자 생성을 진행합니다.
-		if (!userRepository.existsByRole(adminRole)) {
+		if (!userRepository.existsByUserRole(adminRole)) {
 			log.info("최초 관리자 계정이 존재하지 않아 새로 생성합니다.");
 			String adminEmail = "songh6508@gmail.com";
 

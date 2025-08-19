@@ -70,8 +70,8 @@ public class AuthController {
 		}
 
 		String userId = String.valueOf(user.getUserId());
-		String companyId = String.valueOf(user.getCompanyId());
-		Integer roles = user.getRoleId();
+		String companyId = String.valueOf(user.getUserCompany().getCompanyId());
+		Integer roles = user.getUserRole().getRoleId();
 		Integer ver = user.getTokenVer();
 
 		TokenPair pair = auth.login(

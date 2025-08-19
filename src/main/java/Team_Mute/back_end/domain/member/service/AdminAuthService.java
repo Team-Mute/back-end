@@ -39,15 +39,15 @@ public class AdminAuthService {
 		String userId = admin.getUserId().toString();
 
 		Map<String, Object> accessTokenClaims = new HashMap<>();
-		accessTokenClaims.put("roleId", admin.getRoleId());
-		accessTokenClaims.put("regionId", admin.getRegionId());
+		accessTokenClaims.put("roleId", admin.getUserRole().getRoleId());
+		accessTokenClaims.put("regionId", admin.getAdminRegion().getRegionId());
 		accessTokenClaims.put("tokenVer", admin.getTokenVer());
 		accessTokenClaims.put("sid", sid);
 
 		String at = jwt.createAccessToken(IdGenerator.newJtiAT(), ADMIN_AUDIENCE, userId, accessTokenClaims);
 
 		Map<String, Object> refreshTokenClaims = new HashMap<>();
-		refreshTokenClaims.put("regionId", admin.getRegionId());
+		refreshTokenClaims.put("regionId", admin.getAdminRegion().getRegionId());
 		refreshTokenClaims.put("tokenVer", admin.getTokenVer());
 		refreshTokenClaims.put("sid", sid);
 
@@ -56,7 +56,7 @@ public class AdminAuthService {
 		Duration rtTtl = Duration.ofSeconds(props.refreshToken().ttlSeconds());
 		Map<String, Object> session = Map.of(
 			"userId", userId,
-			"roleId", admin.getRoleId(),
+			"roleId", admin.getUserRole().getRoleId(),
 			"loginAt", Instant.now().toString()
 		);
 

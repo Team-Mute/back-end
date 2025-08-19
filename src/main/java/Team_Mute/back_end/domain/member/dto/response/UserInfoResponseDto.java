@@ -26,8 +26,8 @@ public class UserInfoResponseDto {
 	public static UserInfoResponseDto fromEntity(User user) {
 		return UserInfoResponseDto.builder()
 			.userId(user.getUserId())
-			.roleId(user.getRoleId())
-			.companyId(user.getCompanyId())
+			.roleId(user.getUserRole().getRoleId())
+			.companyId(user.getUserCompany().getCompanyId())
 			.userEmail(user.getUserEmail())
 			.userName(user.getUserName())
 			.userPhone(user.getUserPhone())
