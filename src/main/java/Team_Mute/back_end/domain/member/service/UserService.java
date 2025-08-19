@@ -2,6 +2,7 @@ package Team_Mute.back_end.domain.member.service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -383,42 +384,40 @@ public class UserService {
 	}
 
 	public void createInitialAdmin() {
-		// 1. 'ADMIN' 역할을 찾거나, 없으면 새로 생성하여 저장합니다.
-		UserRole adminRole = userRoleRepository.findByRoleName("Master")
-			.orElseGet(() -> {
-				log.info("'Master' 역할이 존재하지 않아 새로 생성합니다.");
-				UserRole newRole = new UserRole("Master");
-				newRole.setRoleId(0);
-				return userRoleRepository.save(newRole);
-			});
+		Optional<UserRole> adminRoleOpt = userRoleRepository.findById(0);
+		UserRole adminRole;
+		if (adminRoleOpt.isEmpty()) {
+			log.info("역할(ID:0, 이름:Master)이 없어 새로 생성합니다.");
+			UserRole newAdminRole = new UserRole("Master");
+			newAdminRole.setRoleId(0);
+			adminRole = userRoleRepository.save(newAdminRole);
+		} else {
+			adminRole = adminRoleOpt.get();
+		}
 
-		// 2. '기본 지역'을 찾거나, 없으면 새로 생성하여 저장합니다.
 		AdminRegion defaultRegion = adminRegionRepository.findByRegionName("전 지역")
 			.orElseGet(() -> {
-				log.info("'기본 지역'이 존재하지 않아 새로 생성합니다.");
+				log.info("'전 지역'이 존재하지 않아 새로 생성합니다.");
 				return adminRegionRepository.save(new AdminRegion("전 지역"));
 			});
 
-		// 3. 'ADMIN' 역할을 가진 사용자가 없는 경우에만 초기 관리자 생성을 진행합니다.
 		if (!userRepository.existsByUserRole(adminRole)) {
 			log.info("최초 관리자 계정이 존재하지 않아 새로 생성합니다.");
 			String adminEmail = "songh6508@gmail.com";
 
-			// 이메일 중복 체크는 여전히 유효합니다.
 			if (userRepository.existsByUserEmail(adminEmail)) {
 				log.info("이미 {} 계정이 존재하여 생성을 건너뜁니다.", adminEmail);
 				return;
 			}
 
-			// 4. User를 생성할 때, ID가 아닌 실제 엔티티 객체를 설정합니다.
 			User admin = User.builder()
 				.userEmail(adminEmail)
 				.userName("master1")
 				.userPwd(passwordService.encodePassword("master1234!"))
-				.userRole(adminRole)           // roleId(0) 대신 adminRole 객체 사용
-				.adminRegion(defaultRegion)     // regionId(0) 대신 defaultRegion 객체 사용
 				.userPhone("01074181170")
 				.tokenVer(1)
+				.userRole(adminRole)
+				.adminRegion(defaultRegion)
 				.build();
 
 			userRepository.save(admin);
