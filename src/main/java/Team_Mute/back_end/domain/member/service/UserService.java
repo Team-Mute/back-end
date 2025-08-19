@@ -386,8 +386,10 @@ public class UserService {
 		// 1. 'ADMIN' 역할을 찾거나, 없으면 새로 생성하여 저장합니다.
 		UserRole adminRole = userRoleRepository.findByRoleName("Master")
 			.orElseGet(() -> {
-				log.info("'ADMIN' 역할이 존재하지 않아 새로 생성합니다.");
-				return userRoleRepository.save(new UserRole("Master"));
+				log.info("'Master' 역할이 존재하지 않아 새로 생성합니다.");
+				UserRole newRole = new UserRole("Master");
+				newRole.setRoleId(0);
+				return userRoleRepository.save(newRole);
 			});
 
 		// 2. '기본 지역'을 찾거나, 없으면 새로 생성하여 저장합니다.
