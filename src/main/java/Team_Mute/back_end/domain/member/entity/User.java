@@ -32,15 +32,6 @@ public class User {
 	@Column(name = "user_id")
 	private Long userId;
 
-	@Column(name = "role_id", nullable = false)
-	private Integer roleId;
-
-	@Column(name = "company_id")
-	private Integer companyId;
-
-	@Column(name = "region_id")
-	private Integer regionId;
-
 	@Column(name = "user_email", length = 100, nullable = false, unique = true)
 	private String userEmail;
 
