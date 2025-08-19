@@ -1,8 +1,10 @@
 package Team_Mute.back_end.domain.space_admin.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -17,31 +19,68 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 @Getter
 @Setter
+@Schema(description = "공간 등록 JSON")
 public class SpaceCreateRequest {
+	@NotBlank
+	@Schema(example = "공간명")
 	private String spaceName;
-	private Integer locationId;
+
+	@NotBlank
+	@Schema(example = "쾌적한 공간입니다.")
 	private String spaceDescription;
+
+	@NotNull
+	@Min(1)
+	@Schema(example = "1")
+	private Integer locationId;
+
+	@NotNull
+	@Min(1)
+	@Schema(example = "50")
 	private Integer spaceCapacity;
-	private Boolean spaceIsAvailable;
-	private String regionName;
+
+	@NotNull
+	@Min(1)
+	@Schema(example = "1")
 	private Integer regionId;
+
+	@NotNull
+	@Min(1)
+	@Schema(example = "1")
 	private Integer categoryId;
-	private String categoryName;
+
+	@NotNull
+	@Schema(example = "true")
+	private Boolean spaceIsAvailable;
+
+	@Schema(example = "[\"TV\",\"화이트보드\",\"WIFI\"]")
 	private List<String> tagNames;
+
+	@NotNull
+	@Min(1)
+	@Schema(example = "1")
 	private Integer userId;
-	private String imageUrl;
 
 	@Size(max = 5000) // 길이 여유
+	@Schema(example = "웹 신청 후 관리자 승인")
 	private String reservationWay;
 
 	@Size(max = 5000) // 길이 여유
+	@Schema(example = "실내 흡연 금지, 음식물 반입 금지")
 	private String spaceRules;
 
 	// 운영시간: 1~7(월~일) 요일, HH:mm 형식
+	@NotNull
 	private List<OperationItem> operations;
 
 	// 휴무일: ISO-8601 (예: 2025-08-20T00:00:00)
+	@NotNull
 	private List<ClosedItem> closedDays;
+
+
+	//private String regionName;
+	//private String categoryName;
+	//private String imageUrl;
 
 	@Getter
 	@Setter
@@ -53,19 +92,28 @@ public class SpaceCreateRequest {
 
 		// "HH:mm" 형식만 허용
 		@JsonFormat(pattern = "HH:mm")
+		@Schema(type = "string", example = "09:00")
 		private LocalTime from;       // isOpen=true면 필수
 
 		@JsonFormat(pattern = "HH:mm")
+		@Schema(type = "string", example = "18:00")
 		private LocalTime to;       // isOpen=true면 필수
 
+		@NotNull
+		@Schema(example = "true")
 		private Boolean isOpen;    // true/false
 	}
 
 	@Getter
 	@Setter
 	public static class ClosedItem {
-		private LocalDateTime from;      // "2025-08-25T00:00:00"
-		private LocalDateTime to;        // "2025-08-25T23:59:59"
+		@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+		@Schema(type = "string", example = "2025-09-15T00:00:00")
+		private LocalDateTime from;
+
+		@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+		@Schema(type = "string", example = "2025-09-15T23:59:59")
+		private LocalDateTime to;
 	}
 
 	// 월~일 7개/중복 없음/시간 정합성 검증 (@AssertTrue 커스텀 검증)

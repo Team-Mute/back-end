@@ -10,6 +10,9 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -27,47 +30,53 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/spaces-admin")
 @RequiredArgsConstructor
 public class SpaceController {
-
 	private final SpaceService spaceService;
 	private final S3Uploader s3Uploader;
 
 	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
 	@GetMapping("/regions")
+	@Operation(summary = "지점 리스트 조회")
 	public List<RegionListItem> getRegions() {
 		return spaceService.getAllRegions();
 	}
 
 	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
 	@GetMapping("/categories")
+	@Operation(summary = "카테고리 리스트 조회")
 	public List<CategoryListItem> getCategories() {
 		return spaceService.getAllCategories();
 	}
 
 	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
 	@GetMapping("/tags")
+	@Operation(summary = "태그(편의시설) 조회")
 	public List<TagListItem> getTags() {
 		return spaceService.getAllTags();
 	}
 
 	// 지역 아이디로 건물 주소 조회
 	@GetMapping("locations/{regionId}")
+	@Operation(summary = "지점 아이디로 주소 조회")
 	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
 		return spaceService.getLocationByRegionId(regionId);
 	}
 
 	// 공간 전체 조회
 	@GetMapping
+	@Operation(summary = "공간 리스트 조회")
 	public List<SpaceListResponse> getAllSpaces() {
 		return spaceService.getAllSpaces();
 	}
 
 	// 특정 공간 조회
 	@GetMapping("/{spaceId}")
+	@Operation(summary = "공간 단건 조회")
 	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
 		try {
 			return ResponseEntity.ok(spaceService.getSpaceById(spaceId));
@@ -76,20 +85,31 @@ public class SpaceController {
 		}
 	}
 
+	private final ObjectMapper objectMapper; // ObjectMapper 주입
+
 	// 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@Operation(summary = "공간 등록")
 	public ResponseEntity<?> upload(
-		@RequestPart("space") @Valid SpaceCreateRequest request,
+		@Parameter(
+			name = "space",
+			description = "공간 정보 (JSON 문자열)",
+			required = true,
+			schema = @Schema(implementation = SpaceCreateRequest.class)
+		)
+		@RequestPart("space") String spaceJson,
 		@RequestPart("images") List<MultipartFile> images
 	) {
 		try {
-			// 이미지가 없을 경우 예외 처리
+			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
+			SpaceCreateRequest request = objectMapper.readValue(spaceJson, SpaceCreateRequest.class);
+
 			boolean noUsableFiles = (images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
 			if (noUsableFiles) {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
 			}
 
-			List<String> urls = s3Uploader.uploadAll(images, "spaces"); // throws IOException 버전
+			List<String> urls = s3Uploader.uploadAll(images, "spaces");
 			Integer id = spaceService.createWithImages(request, urls);
 
 			return ResponseEntity.ok(Map.of(
@@ -105,12 +125,22 @@ public class SpaceController {
 
 	// 공간 수정
 	@PutMapping(value = "/{spaceId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@Operation(summary = "공간 수정")
 	public ResponseEntity<?> update(
 		@PathVariable Integer spaceId,
-		@RequestPart("space") @Valid SpaceCreateRequest request,
+		@Parameter(
+			name = "space",
+			description = "공간 정보 (JSON 문자열)",
+			required = true,
+			schema = @Schema(implementation = SpaceCreateRequest.class)
+		)
+		@RequestPart("space") @Valid String spaceJson,
 		@RequestPart(value = "images", required = false) List<MultipartFile> images
 	) {
 		try {
+			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
+			SpaceCreateRequest request = objectMapper.readValue(spaceJson, SpaceCreateRequest.class);
+
 			// 이미지가 없을 경우 예외 처리
 			boolean noUsableFiles = (images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
 
@@ -137,6 +167,7 @@ public class SpaceController {
 
 	// 공간 삭제
 	@DeleteMapping("/{spaceId}")
+	@Operation(summary = "공간 삭제")
 	public ResponseEntity<DeleteSpaceResponse> delete(@PathVariable Integer spaceId) {
 		spaceService.deleteSpace(spaceId);
 		return ResponseEntity.ok(new DeleteSpaceResponse(
@@ -147,6 +178,7 @@ public class SpaceController {
 
 	// 공간 복제 (기존 공간을 기준으로 새 공간 생성)
 	@PostMapping("/clone/{spaceId}")
+	@Operation(summary = "공간 복사")
 	public ResponseEntity<SpaceDatailResponse> clone(@PathVariable Integer spaceId) {
 		SpaceDatailResponse result = spaceService.cloneSpace(spaceId);
 		return ResponseEntity.ok(result);
