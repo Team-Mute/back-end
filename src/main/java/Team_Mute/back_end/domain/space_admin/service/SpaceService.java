@@ -1,18 +1,9 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.NoSuchElementException;
-
-import org.springframework.beans.BeanUtils;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
+import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
+import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
@@ -39,6 +30,16 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.NoSuchElementException;
+import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class SpaceService {
 
@@ -53,6 +54,22 @@ public class SpaceService {
 	private final SpaceOperationRepository spaceOperationRepository;
 	private final SpaceClosedDayRepository spaceClosedDayRepository;
 	private final SpaceLocationRepository spaceLocationRepository;
+	private final UserRepository userRepository;
+
+	// 공간 등록 및 수정 시, 이름으로 userId 결정
+	public Long resolveUserIdByUserName(String userName) {
+		String name = (userName == null) ? "" : userName.trim();
+		if (name.isEmpty()) {
+			throw new IllegalArgumentException("담당자명이 비어 있습니다.");
+		}
+
+		List<User> matches = userRepository.findByUserName(name);
+		if (matches.isEmpty()) {
+			throw new IllegalArgumentException("담당자명이 회원정보에 없습니다: " + name);
+		}
+
+		return matches.get(0).getUserId();
+	}
 
 	public SpaceService(
 		SpaceRepository spaceRepository,
@@ -65,7 +82,8 @@ public class SpaceService {
 		S3Deleter s3Deleter,
 		SpaceOperationRepository spaceOperationRepository,
 		SpaceClosedDayRepository spaceClosedDayRepository,
-		SpaceLocationRepository spaceLocationRepository
+		SpaceLocationRepository spaceLocationRepository,
+		UserRepository userRepository
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
@@ -78,6 +96,7 @@ public class SpaceService {
 		this.spaceOperationRepository = spaceOperationRepository;
 		this.spaceClosedDayRepository = spaceClosedDayRepository;
 		this.spaceLocationRepository = spaceLocationRepository;
+		this.userRepository = userRepository;
 	}
 
 	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
@@ -148,11 +167,14 @@ public class SpaceService {
 		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
 
+		// 담당자명
+		Long matchUserId = resolveUserIdByUserName(req.getUserName());
+
 		// 4. 공간 저장
 		Space space = Space.builder()
 			.categoryId(category.getCategoryId())
 			.regionId(region.getRegionId())
-			.userId(req.getUserId())
+			.userId(matchUserId)
 			.spaceName(req.getSpaceName())
 			.locationId(location.getLocationId())
 			.spaceDescription(req.getSpaceDescription())
@@ -234,8 +256,8 @@ public class SpaceService {
 	// 공간 수정
 	@Transactional
 	public void updateWithImages(Integer spaceId,
-		SpaceCreateRequest req,
-		java.util.List<String> urls) {
+								 SpaceCreateRequest req,
+								 java.util.List<String> urls) {
 
 		// 1) 대상 조회
 		Space space = spaceRepository.findById(spaceId)
@@ -282,10 +304,13 @@ public class SpaceService {
 			}
 		}
 
+		// 담당자명
+		Long matchUserId = resolveUserIdByUserName(req.getUserName());
+
 		// 7) 본문 필드 “전체 교체”
 		space.setCategoryId(category.getCategoryId());
 		space.setRegionId(region.getRegionId());
-		space.setUserId(req.getUserId());
+		space.setUserId(matchUserId);
 		space.setSpaceName(req.getSpaceName());
 		space.setLocationId(location.getLocationId());
 		space.setSpaceDescription(req.getSpaceDescription());
