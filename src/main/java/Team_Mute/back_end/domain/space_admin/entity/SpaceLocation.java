@@ -12,28 +12,31 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "tb_admin_region")
+@Table(name = "tb_locations")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class AdminRegion {
-
+public class SpaceLocation {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "region_id")
+	@Column(name = "location_id")
+	private Integer locationId;
+
+	@Column(name = "region_id", nullable = false)
 	private Integer regionId;
 
-	@Column(name = "region_name", nullable = false, length = 50)
-	private String regionName;
+	@Column(name = "location_name", nullable = false, length = 150)
+	private String locationName;
 
-	@Column(name = "reg_date")
-	private LocalDateTime regDate;
+	@Column(name = "address_road", nullable = false, length = 200)
+	private String addressRoad;
 
-	@Column(name = "upd_date")
-	private LocalDateTime updDate;
+	@Column(name = "postal_code", length = 20)
+	private String postalCode;
+
+	@Column(name = "is_active", nullable = false)
+	private Boolean isActive = true;
 }

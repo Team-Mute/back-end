@@ -4,25 +4,20 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 @JsonPropertyOrder({
-	"spaceId", "spaceName", "regionName", "categoryName", "addressRoad", "userId",
-	"spaceCapacity", "spaceDescription", "spaceImageUrl", "detailImageUrls",
+	"spaceId", "spaceName", "region", "category", "location", "userId",
+	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "detailImageUrls",
 	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "operations", "closedDays",
 	"regDate", "updDate"
 })
-public interface SpaceListResponse {
+public interface SpaceDatailResponse {
 	Integer getSpaceId();
-
-	String getRegionName();
-
-	String getCategoryName();
-
-	String getAddressRoad();
 
 	Integer getUserId();
 
 	String getSpaceName();
 
 	Integer getSpaceCapacity();
+
 
 	String getSpaceDescription();
 
@@ -47,4 +42,13 @@ public interface SpaceListResponse {
 	java.time.LocalDateTime getRegDate();
 
 	java.time.LocalDateTime getUpdDate();
+
+	@JsonRawValue
+	String getRegion();   // JSON text: {"regionId":1,"regionName":"명동"}
+
+	@JsonRawValue
+	String getCategory(); // JSON text: {"categoryId":1,"categoryName":"미팅룸"}
+
+	@JsonRawValue
+	String getLocation(); // JSON text: {"locationId":1,"addressRoad":"..."}
 }
