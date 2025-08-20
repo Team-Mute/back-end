@@ -1,32 +1,10 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
-import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
-import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
-import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +18,22 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Tag(name = "공간 관리 API", description = "관리자 공간 관리 관련 API 명세")
 @RestController
 @RequestMapping("/api/spaces-admin")
@@ -48,35 +42,6 @@ public class SpaceController {
 	private final SpaceService spaceService;
 	private final S3Uploader s3Uploader;
 
-	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
-	@GetMapping("/regions")
-	@Operation(summary = "지점 리스트 조회")
-	public List<RegionListItem> getRegions() {
-		return spaceService.getAllRegions();
-	}
-
-	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
-	@GetMapping("/categories")
-	@Operation(summary = "카테고리 리스트 조회")
-	public List<CategoryListItem> getCategories() {
-		return spaceService.getAllCategories();
-	}
-
-	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
-	@GetMapping("/tags")
-	@Operation(summary = "태그(편의시설) 조회")
-	public List<TagListItem> getTags() {
-		return spaceService.getAllTags();
-	}
-
-	// 지역 아이디로 건물 주소 조회
-	@GetMapping("locations/{regionId}")
-	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
-	@Operation(summary = "지점 아이디로 주소 조회")
-	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
-		return spaceService.getLocationByRegionId(regionId);
-	}
-
 	// 공간 전체 조회
 	@GetMapping
 	@Operation(summary = "공간 리스트 조회")
@@ -84,8 +49,16 @@ public class SpaceController {
 		return spaceService.getAllSpaces();
 	}
 
+	// 지역별 공간 조회
+	@GetMapping("/region/{regionId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
+	@Operation(summary = "지역별 공간 리스트 조회")
+	public List<SpaceListResponse> getAllSpacesByRegion(@PathVariable Integer regionId) {
+		return spaceService.getAllSpacesByRegion(regionId);
+	}
+
 	// 특정 공간 조회
-	@GetMapping("/{spaceId}")
+	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
 	@Operation(summary = "공간 단건 조회")
 	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {

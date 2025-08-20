@@ -56,10 +56,8 @@ public class SpaceCreateRequest {
 	@Schema(example = "[\"TV\",\"화이트보드\",\"WIFI\"]")
 	private List<String> tagNames;
 
-	@NotNull
-	@Min(1)
-	@Schema(example = "1")
-	private Integer userId;
+	@Schema(example = "홍길동")
+	private String userName;
 
 	@Size(max = 5000) // 길이 여유
 	@Schema(example = "웹 신청 후 관리자 승인")
