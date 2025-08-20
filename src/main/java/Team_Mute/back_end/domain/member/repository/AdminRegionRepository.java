@@ -12,5 +12,7 @@ public interface AdminRegionRepository extends JpaRepository<AdminRegion, Intege
 
 	Optional<AdminRegion> findByRegionName(String regionName);
 
+	Optional<AdminRegion> findByRegionId(Integer regionId);
+
 	boolean existsByRegionName(String regionName);
 }

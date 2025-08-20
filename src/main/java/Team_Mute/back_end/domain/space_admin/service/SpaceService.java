@@ -1,5 +1,18 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import Team_Mute.back_end.domain.member.entity.AdminRegion;
+import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
@@ -7,7 +20,6 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
-import Team_Mute.back_end.domain.space_admin.entity.AdminRegion;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceClosedDay;
@@ -16,7 +28,6 @@ import Team_Mute.back_end.domain.space_admin.entity.SpaceLocation;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceOperation;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTagMap;
-import Team_Mute.back_end.domain.space_admin.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceCategoryRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceClosedDayRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceImageRepository;
@@ -27,16 +38,6 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.NoSuchElementException;
-import org.springframework.beans.BeanUtils;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SpaceService {
@@ -233,8 +234,8 @@ public class SpaceService {
 	// 공간 수정
 	@Transactional
 	public void updateWithImages(Integer spaceId,
-								 SpaceCreateRequest req,
-								 java.util.List<String> urls) {
+		SpaceCreateRequest req,
+		java.util.List<String> urls) {
 
 		// 1) 대상 조회
 		Space space = spaceRepository.findById(spaceId)
@@ -280,7 +281,6 @@ public class SpaceService {
 				throw new IllegalArgumentException("이미지는 최소 1장은 필요합니다.");
 			}
 		}
-
 
 		// 7) 본문 필드 “전체 교체”
 		space.setCategoryId(category.getCategoryId());
