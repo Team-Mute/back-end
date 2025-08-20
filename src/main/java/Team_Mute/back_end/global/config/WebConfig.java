@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.member.config;
+package Team_Mute.back_end.global.config;
 
 import java.util.List;
 
@@ -16,7 +16,11 @@ public class WebConfig {
 		CorsConfiguration config = new CorsConfiguration();
 
 		config.setAllowedOriginPatterns(List.of(
-			"https://localhost:3000"
+			"https://localhost:3000",
+			"http://localhost:3000",
+			"https://shinhan-reservation-app.vercel.app",
+			"https://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/",
+			"http://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/"
 		));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
