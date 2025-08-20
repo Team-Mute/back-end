@@ -114,7 +114,7 @@ public class AdminAuthController {
 			.secure(true)
 			.path(RT_COOKIE_PATH)
 			.maxAge(Duration.ofSeconds(maxAgeSeconds))
-			.sameSite("Lax")
+			.sameSite("None")
 			.build();
 		res.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 	}
