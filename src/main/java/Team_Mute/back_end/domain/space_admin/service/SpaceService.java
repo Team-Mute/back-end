@@ -139,6 +139,11 @@ public class SpaceService {
 		return spaceRepository.findAllWithNames();
 	}
 
+	// 지역별 공간 전체 조회
+	public List<SpaceListResponse> getAllSpacesByRegion(Integer regionId) {
+		return spaceRepository.findAllWithRegion(regionId);
+	}
+
 	// 특정 공간 조회
 	public SpaceDatailResponse getSpaceById(Integer spaceId) {
 		return spaceRepository.findDetailWithNames(spaceId)

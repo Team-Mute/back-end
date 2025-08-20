@@ -1,23 +1,5 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
@@ -39,6 +21,22 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Tag(name = "공간 관리 API", description = "관리자 공간 관리 관련 API 명세")
 @RestController
@@ -84,8 +82,16 @@ public class SpaceController {
 		return spaceService.getAllSpaces();
 	}
 
+	// 지역별 공간 조회
+	@GetMapping("/region/{regionId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
+	@Operation(summary = "지역별 공간 리스트 조회")
+	public List<SpaceListResponse> getAllSpacesByRegion(@PathVariable Integer regionId) {
+		return spaceService.getAllSpacesByRegion(regionId);
+	}
+
 	// 특정 공간 조회
-	@GetMapping("/{spaceId}")
+	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
 	@Operation(summary = "공간 단건 조회")
 	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
