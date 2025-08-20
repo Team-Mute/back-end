@@ -2,9 +2,7 @@ package Team_Mute.back_end.global;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -109,20 +107,6 @@ public class GlobalExceptionHandler {
 			HttpStatus.INTERNAL_SERVER_ERROR.value()
 		);
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-	}
-
-	// DTO(@Valid) 검증 실패
-	@ExceptionHandler(MethodArgumentNotValidException.class)
-	public ResponseEntity<?> handleValidation(MethodArgumentNotValidException ex) {
-		var errors = ex.getBindingResult().getFieldErrors().stream()
-			.collect(Collectors.groupingBy(
-				FieldError::getField,
-				Collectors.mapping(DefaultMessageSourceResolvable::getDefaultMessage, Collectors.toList())
-			));
-		return ResponseEntity.badRequest().body(Map.of(
-			"message", "요청 검증 실패",
-			"errors", errors
-		));
 	}
 
 	// LocalTime/Enum 등 역직렬화 실패 (포장 X)
