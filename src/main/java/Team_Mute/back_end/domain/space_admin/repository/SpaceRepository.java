@@ -121,7 +121,14 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 			      'addressRoad', l.address_road
 			  ), '{}'::json
 		  ) AS location,
-		  s.user_id            AS userId,
+		  /* 담당자명 */
+		  COALESCE(
+		  (
+			  SELECT user_name
+			  FROM tb_users
+			  WHERE user_id = s.user_id
+		  ), '알 수 없음'
+		        ) AS userName,
 		  s.space_capacity     AS spaceCapacity,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
