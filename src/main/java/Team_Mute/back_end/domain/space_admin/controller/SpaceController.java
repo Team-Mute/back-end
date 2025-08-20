@@ -1,14 +1,10 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
-import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
-import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
-import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
-import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,35 +41,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class SpaceController {
 	private final SpaceService spaceService;
 	private final S3Uploader s3Uploader;
-
-	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
-	@GetMapping("/regions")
-	@Operation(summary = "지점 리스트 조회")
-	public List<RegionListItem> getRegions() {
-		return spaceService.getAllRegions();
-	}
-
-	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
-	@GetMapping("/categories")
-	@Operation(summary = "카테고리 리스트 조회")
-	public List<CategoryListItem> getCategories() {
-		return spaceService.getAllCategories();
-	}
-
-	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
-	@GetMapping("/tags")
-	@Operation(summary = "태그(편의시설) 조회")
-	public List<TagListItem> getTags() {
-		return spaceService.getAllTags();
-	}
-
-	// 지역 아이디로 건물 주소 조회
-	@GetMapping("locations/{regionId}")
-	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
-	@Operation(summary = "지점 아이디로 주소 조회")
-	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
-		return spaceService.getLocationByRegionId(regionId);
-	}
 
 	// 공간 전체 조회
 	@GetMapping

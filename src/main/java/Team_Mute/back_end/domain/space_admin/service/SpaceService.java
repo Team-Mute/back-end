@@ -4,13 +4,9 @@ import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
-import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
-import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
-import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
-import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceClosedDay;
@@ -36,7 +32,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,41 +92,6 @@ public class SpaceService {
 		this.spaceClosedDayRepository = spaceClosedDayRepository;
 		this.spaceLocationRepository = spaceLocationRepository;
 		this.userRepository = userRepository;
-	}
-
-	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
-	public List<RegionListItem> getAllRegions() {
-		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "regionId"))
-			.stream()
-			.map(element -> new RegionListItem(element.getRegionId(), element.getRegionName()))
-			.toList();
-	}
-
-	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
-	public List<CategoryListItem> getAllCategories() {
-		return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "categoryId"))
-			.stream()
-			.map(element -> new CategoryListItem(element.getCategoryId(), element.getCategoryName()))
-			.toList();
-	}
-
-	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
-	public List<TagListItem> getAllTags() {
-		return tagRepository.findAll(Sort.by(Sort.Direction.ASC, "tagId"))
-			.stream()
-			.map(element -> new TagListItem(element.getTagId(), element.getTagName()))
-			.toList();
-	}
-
-	// 지역 아이디로 주소 조회(공간 등록 및 수정할 시 사용)
-	public List<LocationListItem> getLocationByRegionId(Integer regionId) {
-		return spaceLocationRepository.findByRegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
-			.map(element -> new LocationListItem(
-				element.getLocationId(),
-				element.getLocationName(),
-				element.getAddressRoad(),
-				element.getPostalCode()
-			)).toList();
 	}
 
 	// 공간 전체 조회
