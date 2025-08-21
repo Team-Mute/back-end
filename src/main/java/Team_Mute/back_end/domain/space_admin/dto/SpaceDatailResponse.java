@@ -18,7 +18,6 @@ public interface SpaceDatailResponse {
 
 	Integer getSpaceCapacity();
 
-
 	String getSpaceDescription();
 
 	String getSpaceImageUrl();
