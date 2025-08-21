@@ -1,0 +1,83 @@
+package Team_Mute.back_end.domain.space_admin.controller;
+
+import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
+import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
+import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
+import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
+import Team_Mute.back_end.domain.space_admin.service.SpaceCommonDataService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Tag(name = "공간 관련 공통 API", description = "공간 관련 공통 API 명세")
+@RestController
+@RequestMapping("/api/spaces")
+@RequiredArgsConstructor
+public class SpaceCommonDataController {
+	private final SpaceCommonDataService spaceCommonDataService;
+
+	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	@GetMapping("/regions")
+	@Operation(summary = "지역 리스트 조회", description = "토큰을 확인하여 지역 리스트를 조회합니다.")
+	public List<RegionListItem> getRegions() {
+		return spaceCommonDataService.getAllRegions();
+	}
+
+	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	@GetMapping("/categories")
+	@Operation(summary = "카테고리 리스트 조회", description = "토큰을 확인하여 카테고리 리스트를 조회합니다.")
+	public List<CategoryListItem> getCategories() {
+		return spaceCommonDataService.getAllCategories();
+	}
+
+	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	@GetMapping("/tags")
+	@Operation(summary = "태그(편의시설) 조회", description = "토큰을 확인하여 태그 리스트를 조회합니다.")
+	public List<TagListItem> getTags() {
+		return spaceCommonDataService.getAllTags();
+	}
+
+	// 지역 아이디로 건물 주소 조회
+	@GetMapping("locations/{regionId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
+	@Operation(summary = "지역 아이디로 주소 조회", description = "토큰을 확인하여 주소를 조회합니다.")
+	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
+		return spaceCommonDataService.getLocationByRegionId(regionId);
+	}
+
+	// 태그(편의시설) 추가
+	@PostMapping("/tags")
+	@Operation(summary = "태그(편의시설) 등록", description = "토큰을 확인하여 편의시설을 등록합니다.")
+	public ResponseEntity<?> createTag(@RequestParam String tagName) {
+		// 입력 파라미터 유효성 검사
+		if (tagName == null || tagName.trim().isEmpty()) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		try {
+			SpaceTag createdTag = spaceCommonDataService.createTag(tagName);
+			return ResponseEntity.status(HttpStatus.CREATED).body(createdTag);
+		} catch (IllegalArgumentException e) {
+			Map<String, String> errorResponse = new HashMap<>();
+			errorResponse.put("error", "Conflict");
+			errorResponse.put("message", "이미 존재하는 태그입니다.");
+
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+		}
+	}
+}

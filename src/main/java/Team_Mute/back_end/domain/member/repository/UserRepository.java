@@ -1,17 +1,16 @@
 package Team_Mute.back_end.domain.member.repository;
 
-import java.util.List;
-import java.util.Optional;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.entity.UserCompany;
 import Team_Mute.back_end.domain.member.entity.UserRole;
+
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -37,4 +36,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 	Optional<Integer> findTokenVerByUserId(@Param("userId") Long userId);
 
 	boolean existsByUserRole(UserRole userRole);
+
+	List<User> findByUserName(String userName);
 }

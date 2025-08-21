@@ -42,7 +42,7 @@ public class Space {
 
 	// 담당자 아이디
 	@Column(name = "user_id")
-	private Integer userId;
+	private Long userId;
 
 	// 공간 이름
 	@Column(name = "space_name", unique = true, nullable = false, length = 100)

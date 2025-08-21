@@ -1,10 +1,13 @@
 package Team_Mute.back_end.domain.space_admin.entity;
 
+import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,8 +28,10 @@ public class SpaceLocation {
 	@Column(name = "location_id")
 	private Integer locationId;
 
-	@Column(name = "region_id", nullable = false)
-	private Integer regionId;
+	@ManyToOne
+	@JoinColumn(name = "region_id", referencedColumnName = "region_id")
+	private AdminRegion adminRegion;
+
 
 	@Column(name = "location_name", nullable = false, length = 150)
 	private String locationName;
@@ -39,4 +44,9 @@ public class SpaceLocation {
 
 	@Column(name = "is_active", nullable = false)
 	private Boolean isActive = true;
+
+	// setter 추가
+	public void setAdminRegion(AdminRegion adminRegion) {
+		this.adminRegion = adminRegion;
+	}
 }
