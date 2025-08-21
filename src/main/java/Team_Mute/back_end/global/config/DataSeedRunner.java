@@ -26,18 +26,18 @@ public class DataSeedRunner implements CommandLineRunner {
 	@Transactional
 	public void run(String... args) {
 
-		// 1) 카테고리 (멱등)
+		// 1) 카테고리
 		ensureCategory("미팅룸");
 		ensureCategory("행사장");
 		ensureCategory("다목적");
 
-		// 2) 지역 (멱등)
+		// 2) 지역
 		ensureRegion("서울");
 		ensureRegion("인천");
 		ensureRegion("대구");
 		ensureRegion("대전");
 
-		// 3) 위치: region_name → region_id 매핑 + 업서트(멱등)
+		// 3) 위치: region_name → region_id 매핑 + 업서트
 		List<LocSeed> seeds = List.of(
 			new LocSeed("서울", "신한 스퀘어브릿지 서울", "서울특별시 명동10길 52 (충무로2가 65-4)", "04536", true),
 			new LocSeed("인천", "신한 스퀘어브릿지 인천", "인천 연수구 컨벤시아대로 204 (송도동 93)", "22004", true),
@@ -77,13 +77,21 @@ public class DataSeedRunner implements CommandLineRunner {
 		}
 	}
 
+	private AdminRegion getRegionByName(String regionName) {
+		var regions = em.createQuery(
+				"select r from AdminRegion r where r.regionName = :n", AdminRegion.class)
+			.setParameter("n", regionName)
+			.setMaxResults(1)
+			.getResultList();
+		return regions.isEmpty() ? null : regions.get(0);
+	}
+
 	private void upsertLocationByRegionName(LocSeed s) {
-		Integer regionId = getRegionIdByName(s.regionName);
-		if (regionId == null) {
-			// 보강: 지역이 없으면 생성 후 다시 조회
+		AdminRegion region = getRegionByName(s.regionName);
+		if (region == null) {
 			ensureRegion(s.regionName);
-			regionId = getRegionIdByName(s.regionName);
-			if (regionId == null) throw new IllegalStateException("지역 매핑 실패: " + s.regionName);
+			region = getRegionByName(s.regionName);
+			if (region == null) throw new IllegalStateException("지역 매핑 실패: " + s.regionName);
 		}
 
 		var found = em.createQuery(
@@ -94,7 +102,7 @@ public class DataSeedRunner implements CommandLineRunner {
 
 		if (found.isEmpty()) {
 			var e = new SpaceLocation();
-			e.setRegionId(regionId);            // FK 정수 매핑
+			e.setAdminRegion(region); // 엔티티 객체로 직접 매핑
 			e.setLocationName(s.locationName);
 			e.setAddressRoad(s.addressRoad);
 			e.setPostalCode(s.postalCode);
@@ -102,7 +110,7 @@ public class DataSeedRunner implements CommandLineRunner {
 			em.persist(e);
 		} else {
 			var e = found.get(0);
-			e.setRegionId(regionId);
+			e.setAdminRegion(region);
 			e.setAddressRoad(s.addressRoad);
 			e.setPostalCode(s.postalCode);
 			e.setIsActive(s.active);

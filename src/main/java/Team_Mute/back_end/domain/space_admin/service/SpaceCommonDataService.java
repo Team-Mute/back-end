@@ -62,7 +62,7 @@ public class SpaceCommonDataService {
 
 	// 지역 아이디로 주소 조회(공간 등록 및 수정할 시 사용)
 	public List<LocationListItem> getLocationByRegionId(Integer regionId) {
-		return spaceLocationRepository.findByRegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
+		return spaceLocationRepository.findByAdminRegion_RegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
 			.map(element -> new LocationListItem(
 				element.getLocationId(),
 				element.getLocationName(),

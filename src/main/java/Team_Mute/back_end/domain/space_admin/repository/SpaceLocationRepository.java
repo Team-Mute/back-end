@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SpaceLocationRepository extends JpaRepository<SpaceLocation, Integer> {
 
-    Optional<SpaceLocation> findByLocationId(Integer regionId);
+	Optional<SpaceLocation> findByLocationId(Integer regionId);
 
-    List<SpaceLocation> findByRegionIdAndIsActiveTrueOrderByLocationNameAsc(Integer regionId);
+	List<SpaceLocation> findByAdminRegion_RegionIdAndIsActiveTrueOrderByLocationNameAsc(Integer regionId);
 }
