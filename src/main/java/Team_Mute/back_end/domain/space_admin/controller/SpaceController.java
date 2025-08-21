@@ -44,7 +44,7 @@ public class SpaceController {
 
 	// 공간 전체 조회
 	@GetMapping
-	@Operation(summary = "공간 리스트 조회")
+	@Operation(summary = "공간 리스트 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
 	public List<SpaceListResponse> getAllSpaces() {
 		return spaceService.getAllSpaces();
 	}
@@ -52,7 +52,7 @@ public class SpaceController {
 	// 지역별 공간 조회
 	@GetMapping("/region/{regionId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
-	@Operation(summary = "지역별 공간 리스트 조회")
+	@Operation(summary = "지역별 공간 리스트 조회", description = "토큰을 확인하여 지역별 공간 리스트를 조회합니다.")
 	public List<SpaceListResponse> getAllSpacesByRegion(@PathVariable Integer regionId) {
 		return spaceService.getAllSpacesByRegion(regionId);
 	}
@@ -60,7 +60,7 @@ public class SpaceController {
 	// 특정 공간 조회
 	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
-	@Operation(summary = "공간 단건 조회")
+	@Operation(summary = "공간 단건 조회", description = "토큰을 확인하여 공간을 조회합니다.")
 	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
 		try {
 			return ResponseEntity.ok(spaceService.getSpaceById(spaceId));
@@ -85,7 +85,8 @@ public class SpaceController {
 					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
 				}
 			)
-		)
+		),
+		description = "토큰을 확인하여 공간 등록을 진행합니다."
 	)
 	public ResponseEntity<?> upload(
 		@RequestPart("space") String spaceJson,
@@ -129,7 +130,8 @@ public class SpaceController {
 					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
 				}
 			)
-		)
+		),
+		description = "토큰을 확인하여 공간 수정을 진행합니다."
 	)
 	public ResponseEntity<?> update(
 		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
@@ -169,7 +171,7 @@ public class SpaceController {
 	// 공간 삭제
 	@DeleteMapping("/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "삭제할 공간 ID", required = true)
-	@Operation(summary = "공간 삭제")
+	@Operation(summary = "공간 삭제", description = "토큰을 확인하여 공간 삭제를 진행합니다.")
 	public ResponseEntity<DeleteSpaceResponse> delete(@PathVariable Integer spaceId) {
 		spaceService.deleteSpace(spaceId);
 		return ResponseEntity.ok(new DeleteSpaceResponse(
@@ -181,7 +183,7 @@ public class SpaceController {
 	// 공간 복사 (기존 공간을 기준으로 새 공간 생성)
 	@PostMapping("/copy/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "복사할 공간 ID", required = true)
-	@Operation(summary = "공간 복사")
+	@Operation(summary = "공간 복사", description = "토큰을 확인하여 공간 복사를 진행합니다.")
 	public ResponseEntity<SpaceDatailResponse> clone(@PathVariable Integer spaceId) {
 		SpaceDatailResponse result = spaceService.cloneSpace(spaceId);
 		return ResponseEntity.ok(result);
