@@ -1,5 +1,6 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
+import Team_Mute.back_end.domain.space_admin.dto.AdminRegionDto;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
@@ -17,12 +18,14 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+@Slf4j
 @Tag(name = "공간 관리 API", description = "관리자 공간 관리 관련 API 명세")
 @RestController
 @RequestMapping("/api/spaces-admin")
@@ -42,15 +46,23 @@ public class SpaceController {
 	private final SpaceService spaceService;
 	private final S3Uploader s3Uploader;
 
+	// 관리자 담당 지역 조회
+	@GetMapping("/regions")
+	public ResponseEntity<List<AdminRegionDto>> getAdminInfo(Authentication authentication) {
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+		List<AdminRegionDto> regions = spaceService.getAdminRegion(adminId);
+		return ResponseEntity.ok(regions);
+	}
+
 	// 공간 전체 조회
-	@GetMapping
+	@GetMapping("/list")
 	@Operation(summary = "공간 리스트 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
 	public List<SpaceListResponse> getAllSpaces() {
 		return spaceService.getAllSpaces();
 	}
 
 	// 지역별 공간 조회
-	@GetMapping("/region/{regionId}")
+	@GetMapping("/list/{regionId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
 	@Operation(summary = "지역별 공간 리스트 조회", description = "토큰을 확인하여 지역별 공간 리스트를 조회합니다.")
 	public List<SpaceListResponse> getAllSpacesByRegion(@PathVariable Integer regionId) {
