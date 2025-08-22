@@ -2,10 +2,12 @@ package Team_Mute.back_end.domain.space_admin.controller;
 
 import Team_Mute.back_end.domain.space_admin.dto.AdminRegionDto;
 import Team_Mute.back_end.domain.space_admin.dto.DeleteSpaceResponse;
+import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
+import Team_Mute.back_end.domain.space_admin.repository.BoardRepository;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +25,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,6 +37,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -45,20 +51,29 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class SpaceController {
 	private final SpaceService spaceService;
 	private final S3Uploader s3Uploader;
+	private final BoardRepository boardRepository;
 
 	// 관리자 담당 지역 조회
 	@GetMapping("/regions")
-	public ResponseEntity<List<AdminRegionDto>> getAdminInfo(Authentication authentication) {
+	public ResponseEntity<List<AdminRegionDto>> getAdminRegion(Authentication authentication) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 		List<AdminRegionDto> regions = spaceService.getAdminRegion(adminId);
 		return ResponseEntity.ok(regions);
 	}
 
-	// 공간 전체 조회
+	// 공간 전체 조회 (페이징 적용)
 	@GetMapping("/list")
-	@Operation(summary = "공간 리스트 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
-	public List<SpaceListResponse> getAllSpaces() {
-		return spaceService.getAllSpaces();
+	public ResponseEntity<PagedResponse<SpaceListResponse>> getAllSpaces(
+		@RequestParam(defaultValue = "1") int page,
+		@RequestParam(defaultValue = "6") int size) {
+
+		// Pageable 객체 생성
+		Pageable pageable = (Pageable) PageRequest.of(page, size);
+
+		Page<SpaceListResponse> spacePage = spaceService.getAllSpaces(pageable);
+		PagedResponse<SpaceListResponse> response = new PagedResponse<>(spacePage);
+
+		return ResponseEntity.ok(response);
 	}
 
 	// 지역별 공간 조회

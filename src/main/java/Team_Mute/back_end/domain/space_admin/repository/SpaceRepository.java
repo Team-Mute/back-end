@@ -7,6 +7,8 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -37,11 +39,11 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 
 		   FROM tb_spaces s
 		   JOIN tb_admin_region     r ON r.region_id   = s.region_id
-		   ORDER BY s.reg_date DESC
+		   ORDER BY s.region_id ASC, s.reg_date DESC
 		""",
 		countQuery = "SELECT COUNT(*) FROM tb_spaces",
 		nativeQuery = true)
-	List<SpaceListResponse> findAllWithNames();
+	Page<SpaceListResponse> findAllWithNames(Pageable pageable);
 
 	// 지역별 공간 리스트 조회
 	@Query(value = """

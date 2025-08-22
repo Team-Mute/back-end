@@ -37,6 +37,8 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -127,9 +129,9 @@ public class SpaceService {
 		return new ArrayList<>();
 	}
 
-	// 공간 전체 조회
-	public List<SpaceListResponse> getAllSpaces() {
-		return spaceRepository.findAllWithNames();
+	// 공간 전체 조회 (페이징 적용)
+	public Page<SpaceListResponse> getAllSpaces(Pageable pageable) { // This `Pageable` is the Spring one
+		return spaceRepository.findAllWithNames(pageable);
 	}
 
 	// 지역별 공간 전체 조회
