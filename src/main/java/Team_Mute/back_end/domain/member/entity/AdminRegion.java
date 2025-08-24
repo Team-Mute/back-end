@@ -44,7 +44,7 @@ public class AdminRegion {
 	private LocalDateTime updDate;
 
 	@OneToMany(mappedBy = "adminRegion", fetch = FetchType.LAZY)
-	private List<User> users;
+	private List<Admin> admin;
 
 	public AdminRegion(String regionName) {
 		this.regionName = regionName;

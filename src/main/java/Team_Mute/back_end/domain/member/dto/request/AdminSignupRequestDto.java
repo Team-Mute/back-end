@@ -14,7 +14,6 @@ public class AdminSignupRequestDto {
 	@Max(value = 2, message = "역할 ID는 0 또는 1 또는 2여야 합니다.")
 	private Integer roleId;
 
-	@NotBlank(message = "지역 이름은 필수 입력 값입니다.")
 	private String regionName;
 
 	@NotBlank(message = "이메일은 필수 입력 값입니다.")

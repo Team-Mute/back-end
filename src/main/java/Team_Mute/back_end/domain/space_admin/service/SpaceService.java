@@ -1,9 +1,26 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
+import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.space_admin.dto.AdminRegionDto;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
@@ -29,20 +46,6 @@ import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-import org.springframework.beans.BeanUtils;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 @Slf4j
 @Service
 public class SpaceService {
@@ -58,7 +61,7 @@ public class SpaceService {
 	private final SpaceClosedDayRepository spaceClosedDayRepository;
 	private final SpaceLocationRepository spaceLocationRepository;
 	private final UserRepository userRepository;
-
+	private final AdminRepository adminRepository;
 
 	// 공간 등록 및 수정 시, 이름으로 userId 결정
 	public Long resolveUserIdByUserName(String userName) {
@@ -87,7 +90,7 @@ public class SpaceService {
 		SpaceOperationRepository spaceOperationRepository,
 		SpaceClosedDayRepository spaceClosedDayRepository,
 		SpaceLocationRepository spaceLocationRepository,
-		UserRepository userRepository
+		UserRepository userRepository, AdminRepository adminRepository
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
@@ -101,12 +104,13 @@ public class SpaceService {
 		this.spaceClosedDayRepository = spaceClosedDayRepository;
 		this.spaceLocationRepository = spaceLocationRepository;
 		this.userRepository = userRepository;
+		this.adminRepository = adminRepository;
 	}
 
 	// 관리자 담당 지역 조회
 	@Transactional(readOnly = true)
 	public List<AdminRegionDto> getAdminRegion(Long adminId) {
-		User admin = userRepository.findById(adminId)
+		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(UserNotFoundException::new);
 
 		Integer roleId = admin.getUserRole().getRoleId();
@@ -256,8 +260,8 @@ public class SpaceService {
 	// 공간 수정
 	@Transactional
 	public void updateWithImages(Integer spaceId,
-								 SpaceCreateRequest req,
-								 java.util.List<String> urls) {
+		SpaceCreateRequest req,
+		java.util.List<String> urls) {
 
 		// 1) 대상 조회
 		Space space = spaceRepository.findById(spaceId)

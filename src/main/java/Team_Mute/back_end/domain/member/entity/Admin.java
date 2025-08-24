@@ -20,29 +20,29 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "tb_users")
+@Table(name = "tb_admins")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class Admin {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	@Column(name = "user_id")
-	private Long userId;
+	@Column(name = "admin_id")
+	private Long adminId;
 
-	@Column(name = "user_email", length = 100, nullable = false, unique = true)
-	private String userEmail;
+	@Column(name = "admin_email", length = 100, nullable = false, unique = true)
+	private String adminEmail;
 
-	@Column(name = "user_name", length = 50, nullable = false)
-	private String userName;
+	@Column(name = "admin_name", length = 50, nullable = false)
+	private String adminName;
 
-	@Column(name = "user_phone", length = 20, nullable = false)
-	private String userPhone;
+	@Column(name = "admin_phone", length = 20, nullable = false)
+	private String adminPhone;
 
-	@Column(name = "user_pwd", length = 255, nullable = false)
-	private String userPwd;
+	@Column(name = "admin_pwd", length = 255, nullable = false)
+	private String adminPwd;
 
 	@CreationTimestamp
 	@Column(name = "reg_date")
@@ -52,15 +52,6 @@ public class User {
 	@Column(name = "upd_date")
 	private LocalDateTime updDate;
 
-	@Column(name = "agree_email")
-	private Boolean agreeEmail;
-
-	@Column(name = "agree_sms")
-	private Boolean agreeSms;
-
-	@Column(name = "agree_location")
-	private Boolean agreeLocation;
-
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_id")
 	private UserRole userRole;
@@ -68,6 +59,10 @@ public class User {
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "company_id")
 	private UserCompany userCompany;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "region_id")
+	private AdminRegion adminRegion;
 
 	@Column(name = "token_ver", nullable = false)
 	private Integer tokenVer = 1;

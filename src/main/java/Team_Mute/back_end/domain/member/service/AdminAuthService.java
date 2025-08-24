@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import Team_Mute.back_end.domain.member.entity.User;
+import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.jwt.IdGenerator;
 import Team_Mute.back_end.domain.member.jwt.JwtConfig;
 import Team_Mute.back_end.domain.member.jwt.JwtService;
@@ -30,24 +30,30 @@ public class AdminAuthService {
 	private final SessionStore store;
 	private final JwtConfig props;
 	private final ObjectMapper om = new ObjectMapper();
-	private final UserService userService;
+	private final AdminService userService;
 
 	private static final String ADMIN_AUDIENCE = "admin-service";
 
-	public TokenPair login(User admin) {
+	public TokenPair login(Admin admin) {
 		String sid = IdGenerator.newSid();
-		String userId = admin.getUserId().toString();
+		String userId = admin.getAdminId().toString();
+		Integer regionId;
 
 		Map<String, Object> accessTokenClaims = new HashMap<>();
 		accessTokenClaims.put("roleId", admin.getUserRole().getRoleId());
-		accessTokenClaims.put("regionId", admin.getAdminRegion().getRegionId());
+		if (admin.getAdminRegion() == null) {
+			regionId = -1;
+		} else {
+			regionId = admin.getAdminRegion().getRegionId();
+		}
+		accessTokenClaims.put("regionId", regionId);
 		accessTokenClaims.put("tokenVer", admin.getTokenVer());
 		accessTokenClaims.put("sid", sid);
 
 		String at = jwt.createAccessToken(IdGenerator.newJtiAT(), ADMIN_AUDIENCE, userId, accessTokenClaims);
 
 		Map<String, Object> refreshTokenClaims = new HashMap<>();
-		refreshTokenClaims.put("regionId", admin.getAdminRegion().getRegionId());
+		refreshTokenClaims.put("regionId", regionId);
 		refreshTokenClaims.put("tokenVer", admin.getTokenVer());
 		refreshTokenClaims.put("sid", sid);
 
