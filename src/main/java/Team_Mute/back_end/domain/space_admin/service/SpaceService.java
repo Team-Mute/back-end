@@ -2,8 +2,10 @@ package Team_Mute.back_end.domain.space_admin.service;
 
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.entity.User;
+import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
+import Team_Mute.back_end.domain.space_admin.dto.AdminRegionDto;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
@@ -25,19 +27,25 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class SpaceService {
-
 	private final SpaceRepository spaceRepository;
 	private final SpaceCategoryRepository categoryRepository;
 	private final AdminRegionRepository regionRepository;
@@ -50,6 +58,7 @@ public class SpaceService {
 	private final SpaceClosedDayRepository spaceClosedDayRepository;
 	private final SpaceLocationRepository spaceLocationRepository;
 	private final UserRepository userRepository;
+
 
 	// 공간 등록 및 수정 시, 이름으로 userId 결정
 	public Long resolveUserIdByUserName(String userName) {
@@ -94,9 +103,35 @@ public class SpaceService {
 		this.userRepository = userRepository;
 	}
 
-	// 공간 전체 조회
-	public List<SpaceListResponse> getAllSpaces() {
-		return spaceRepository.findAllWithNames();
+	// 관리자 담당 지역 조회
+	@Transactional(readOnly = true)
+	public List<AdminRegionDto> getAdminRegion(Long adminId) {
+		User admin = userRepository.findById(adminId)
+			.orElseThrow(UserNotFoundException::new);
+
+		Integer roleId = admin.getUserRole().getRoleId();
+
+		if (roleId.equals(0) || roleId.equals(1)) { // Master, Approver (roleId 0 또는 1)
+			return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "regionId"))
+				.stream()
+				.map(AdminRegionDto::fromEntity)
+				.collect(Collectors.toList());
+		} else if (roleId.equals(2)) { // Manager (roleId 2)
+			AdminRegion adminRegion = admin.getAdminRegion();
+			List<AdminRegionDto> regions = new ArrayList<>();
+			if (adminRegion != null) {
+				regions.add(AdminRegionDto.fromEntity(adminRegion));
+			}
+			return regions;
+		}
+
+		// 그 외 역할은 빈 리스트 반환
+		return new ArrayList<>();
+	}
+
+	// 공간 전체 조회 (페이징 적용)
+	public Page<SpaceListResponse> getAllSpaces(Pageable pageable) { // This `Pageable` is the Spring one
+		return spaceRepository.findAllWithNames(pageable);
 	}
 
 	// 지역별 공간 전체 조회
@@ -567,5 +602,20 @@ public class SpaceService {
 			}
 			n++;
 		}
+	}
+
+	// 태그(편의시설) 추가
+	public SpaceTag createTag(String tagName) {
+		// 중복 태그 검증
+		if (tagRepository.findByTagName(tagName).isPresent()) {
+			throw new IllegalArgumentException("이미 존재하는 태그입니다.");
+		}
+
+		SpaceTag newTag = SpaceTag.builder()
+			.tagName(tagName)
+			.regDate(LocalDateTime.now())
+			.build();
+
+		return tagRepository.save(newTag);
 	}
 }
