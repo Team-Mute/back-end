@@ -7,6 +7,7 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateRequest;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.repository.BoardRepository;
 import Team_Mute.back_end.domain.space_admin.service.SpaceService;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
@@ -22,12 +23,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -55,6 +58,7 @@ public class SpaceController {
 
 	// 관리자 담당 지역 조회
 	@GetMapping("/regions")
+	@Operation(summary = "관리자 담당 지역 조회", description = "토큰을 확인하여 담당 지역을 조회합니다.")
 	public ResponseEntity<List<AdminRegionDto>> getAdminRegion(Authentication authentication) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 		List<AdminRegionDto> regions = spaceService.getAdminRegion(adminId);
@@ -63,6 +67,7 @@ public class SpaceController {
 
 	// 공간 전체 조회 (페이징 적용)
 	@GetMapping("/list")
+	@Operation(summary = "공간 전체 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
 	public ResponseEntity<PagedResponse<SpaceListResponse>> getAllSpaces(
 		@RequestParam(defaultValue = "1") int page,
 		@RequestParam(defaultValue = "6") int size) {
@@ -214,5 +219,26 @@ public class SpaceController {
 	public ResponseEntity<SpaceDatailResponse> clone(@PathVariable Integer spaceId) {
 		SpaceDatailResponse result = spaceService.cloneSpace(spaceId);
 		return ResponseEntity.ok(result);
+	}
+
+	// 태그(편의시설) 추가
+	@PostMapping("/tags")
+	@Operation(summary = "태그(편의시설) 등록", description = "토큰을 확인하여 편의시설을 등록합니다.")
+	public ResponseEntity<?> createTag(@RequestParam String tagName) {
+		// 입력 파라미터 유효성 검사
+		if (tagName == null || tagName.trim().isEmpty()) {
+			return ResponseEntity.badRequest().build();
+		}
+
+		try {
+			SpaceTag createdTag = spaceService.createTag(tagName);
+			return ResponseEntity.status(HttpStatus.CREATED).body(createdTag);
+		} catch (IllegalArgumentException e) {
+			Map<String, String> errorResponse = new HashMap<>();
+			errorResponse.put("error", "Conflict");
+			errorResponse.put("message", "이미 존재하는 태그입니다.");
+
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+		}
 	}
 }

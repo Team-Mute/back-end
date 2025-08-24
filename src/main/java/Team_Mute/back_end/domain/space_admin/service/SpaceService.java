@@ -603,4 +603,19 @@ public class SpaceService {
 			n++;
 		}
 	}
+
+	// 태그(편의시설) 추가
+	public SpaceTag createTag(String tagName) {
+		// 중복 태그 검증
+		if (tagRepository.findByTagName(tagName).isPresent()) {
+			throw new IllegalArgumentException("이미 존재하는 태그입니다.");
+		}
+
+		SpaceTag newTag = SpaceTag.builder()
+			.tagName(tagName)
+			.regDate(LocalDateTime.now())
+			.build();
+
+		return tagRepository.save(newTag);
+	}
 }

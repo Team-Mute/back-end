@@ -5,13 +5,11 @@ import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
 import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
 import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
 import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
-import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceCategoryRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceLocationRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -71,20 +69,5 @@ public class SpaceCommonDataService {
 				element.getAddressRoad(),
 				element.getPostalCode()
 			)).toList();
-	}
-
-	// 태그(편의시설) 추가
-	public SpaceTag createTag(String tagName) {
-		// 중복 태그 검증
-		if (tagRepository.findByTagName(tagName).isPresent()) {
-			throw new IllegalArgumentException("이미 존재하는 태그입니다.");
-		}
-
-		SpaceTag newTag = SpaceTag.builder()
-			.tagName(tagName)
-			.regDate(LocalDateTime.now())
-			.build();
-
-		return tagRepository.save(newTag);
 	}
 }
