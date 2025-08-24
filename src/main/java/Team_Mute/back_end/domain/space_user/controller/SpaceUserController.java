@@ -3,12 +3,16 @@ package Team_Mute.back_end.domain.space_user.controller;
 import Team_Mute.back_end.domain.space_user.dto.SpaceUserResponseDto;
 import Team_Mute.back_end.domain.space_user.service.SpaceUserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SpaceUserController {
 	private final SpaceUserService spaceUserService;
 
+	// 공간 검색
 	@GetMapping
 	@Operation(summary = "공간 검색", description = "지역/카테고리/인원/편의시설(tagNames AND)로 필터링. 파라미터 없으면 전체")
 	public ResponseEntity<List<SpaceUserResponseDto>> searchSpaces(
@@ -31,5 +36,17 @@ public class SpaceUserController {
 		return ResponseEntity.ok(
 			spaceUserService.searchSpaces(regionId, categoryId, people, tagNames)
 		);
+	}
+
+	// 특정 공간 상세 정보 조회
+	@GetMapping("/detail/{spaceId}")
+	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
+	@Operation(summary = "공간 단건 조회", description = "토큰을 확인하여 공간을 조회합니다.")
+	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
+		try {
+			return ResponseEntity.ok(spaceUserService.getSpaceById(spaceId));
+		} catch (NoSuchElementException e) {
+			return ResponseEntity.status(404).body(java.util.Map.of("message", "공간을 찾을 수 없습니다."));
+		}
 	}
 }
