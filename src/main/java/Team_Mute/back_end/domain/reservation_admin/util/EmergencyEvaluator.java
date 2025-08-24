@@ -1,6 +1,6 @@
 package Team_Mute.back_end.domain.reservation_admin.util;
 
-import Team_Mute.back_end.domain.reservation_admin.entity.Reservation;
+import Team_Mute.back_end.domain.reservation.entity.Reservation;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmergencyEvaluator {
 
-	// 승인 대기 상태만 긴급 후보 
+	// 승인 대기 상태만 긴급 후보
 	private static final Set<String> PENDING_STATUS = Set.of("1차 승인 대기", "2차 승인 대기");
 	// 임박/오래대기 기준(영업일)
 	private static final int THRESHOLD = 5;

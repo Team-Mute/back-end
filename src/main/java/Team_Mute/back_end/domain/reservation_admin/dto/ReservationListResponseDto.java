@@ -1,12 +1,12 @@
 package Team_Mute.back_end.domain.reservation_admin.dto;
 
-import Team_Mute.back_end.domain.reservation_admin.entity.Reservation;
+import Team_Mute.back_end.domain.reservation.entity.Reservation;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public class ReservationListResponseDto {
-	public Integer reservationId;
+	public Long reservationId;
 	public String reservationStatusName;
 	public String spaceName;
 	public String userName;
