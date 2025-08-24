@@ -42,4 +42,7 @@ public class UserCompany {
 
 	@OneToMany(mappedBy = "userCompany", fetch = FetchType.LAZY)
 	private List<User> users;
+
+	@OneToMany(mappedBy = "userCompany", fetch = FetchType.LAZY)
+	private List<Admin> admin;
 }
