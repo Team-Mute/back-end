@@ -20,6 +20,9 @@ import Team_Mute.back_end.domain.member.exception.CompanyNotFoundException;
 import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
 import Team_Mute.back_end.domain.member.exception.ExternalApiException;
 import Team_Mute.back_end.domain.member.exception.UserRegistrationException;
+import Team_Mute.back_end.domain.reservation.exception.ForbiddenAccessException;
+import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
+import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
 import Team_Mute.back_end.domain.smsAuth.exception.InvalidVerificationException;
 import Team_Mute.back_end.domain.smsAuth.exception.SmsSendingFailedException;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,26 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+	@ExceptionHandler(ForbiddenAccessException.class)
+	public ResponseEntity<ErrorResponseDto> handleForbiddenAccess(ForbiddenAccessException e) {
+		log.error("Forbidden Access error: {}", e.getMessage());
+		ErrorResponseDto errorResponse = new ErrorResponseDto(e.getMessage(), HttpStatus.FORBIDDEN.value());
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+	}
+
+	@ExceptionHandler(InvalidInputValueException.class)
+	public ResponseEntity<ErrorResponseDto> handleInvalidInputValue(InvalidInputValueException e) {
+		log.error("Invalid Input Value error: {}", e.getMessage());
+		ErrorResponseDto errorResponse = new ErrorResponseDto(e.getMessage(), HttpStatus.BAD_REQUEST.value());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+	}
+
+	@ExceptionHandler(ResourceNotFoundException.class)
+	public ResponseEntity<ErrorResponseDto> handleResourceNotFound(ResourceNotFoundException e) {
+		log.error("Resource Not Found error: {}", e.getMessage());
+		ErrorResponseDto errorResponse = new ErrorResponseDto(e.getMessage(), HttpStatus.NOT_FOUND.value());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+	}
 
 	@ExceptionHandler(SmsSendingFailedException.class)
 	public ResponseEntity<ErrorResponseDto> handleSmsSendingFailed(SmsSendingFailedException e) {
