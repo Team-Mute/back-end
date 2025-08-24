@@ -1,0 +1,44 @@
+package Team_Mute.back_end.domain.reservation_admin.dto;
+
+import Team_Mute.back_end.domain.reservation_admin.entity.Reservation;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+public class ReservationListResponseDto {
+	public Integer reservationId;
+	public String reservationStatusName;
+	public String spaceName;
+	public String userName;
+	public Integer reservationHeadcount;
+	public LocalDateTime reservationFrom;
+	public LocalDateTime reservationTo;
+	public LocalDateTime regDate;
+	public boolean isShinhan;
+	public boolean isEmergency;
+	public List<PrevisitItemResponseDto> previsits;
+
+	public static ReservationListResponseDto from(
+		Reservation r,
+		String statusName,
+		String spaceName,
+		String userName,
+		boolean isShinhan,
+		boolean isEmergency,
+		List<PrevisitItemResponseDto> previsitDtos
+	) {
+		ReservationListResponseDto res = new ReservationListResponseDto();
+		res.reservationId = r.getReservationId();
+		res.reservationStatusName = statusName;
+		res.spaceName = spaceName;
+		res.userName = userName;
+		res.reservationHeadcount = r.getReservationHeadcount();
+		res.reservationFrom = r.getReservationFrom();
+		res.reservationTo = r.getReservationTo();
+		res.regDate = r.getRegDate();
+		res.previsits = previsitDtos;
+		res.isShinhan = isShinhan;
+		res.isEmergency = isEmergency;
+		return res;
+	}
+}
