@@ -1,23 +1,7 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.BeanUtils;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
-import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
@@ -46,6 +30,20 @@ import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 @Slf4j
 @Service
 public class SpaceService {
@@ -64,18 +62,18 @@ public class SpaceService {
 	private final AdminRepository adminRepository;
 
 	// 공간 등록 및 수정 시, 이름으로 userId 결정
-	public Long resolveUserIdByUserName(String userName) {
-		String name = (userName == null) ? "" : userName.trim();
+	public Long resolveUserIdByUserName(String adminName) {
+		String name = (adminName == null) ? "" : adminName.trim();
 		if (name.isEmpty()) {
 			throw new IllegalArgumentException("담당자명이 비어 있습니다.");
 		}
 
-		List<User> matches = userRepository.findByUserName(name);
+		List<Admin> matches = adminRepository.findByAdminName(name);
 		if (matches.isEmpty()) {
-			throw new IllegalArgumentException("담당자명이 회원정보에 없습니다: " + name);
+			throw new IllegalArgumentException("존재하지 않는 담당자 이름입니다: " + name);
 		}
 
-		return matches.get(0).getUserId();
+		return matches.get(0).getAdminId();
 	}
 
 	public SpaceService(
@@ -172,7 +170,7 @@ public class SpaceService {
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
 
 		// 담당자명
-		Long matchUserId = resolveUserIdByUserName(req.getUserName());
+		Long matchUserId = resolveUserIdByUserName(req.getAdminName());
 
 		// 4. 공간 저장
 		Space space = Space.builder()
@@ -260,8 +258,8 @@ public class SpaceService {
 	// 공간 수정
 	@Transactional
 	public void updateWithImages(Integer spaceId,
-		SpaceCreateRequest req,
-		java.util.List<String> urls) {
+								 SpaceCreateRequest req,
+								 java.util.List<String> urls) {
 
 		// 1) 대상 조회
 		Space space = spaceRepository.findById(spaceId)
@@ -309,7 +307,7 @@ public class SpaceService {
 		}
 
 		// 담당자명
-		Long matchUserId = resolveUserIdByUserName(req.getUserName());
+		Long matchUserId = resolveUserIdByUserName(req.getAdminName());
 
 		// 7) 본문 필드 “전체 교체”
 		space.setCategoryId(category.getCategoryId());
