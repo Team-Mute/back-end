@@ -2,6 +2,7 @@ package Team_Mute.back_end.global;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -9,7 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -20,6 +23,7 @@ import Team_Mute.back_end.domain.member.exception.CompanyNotFoundException;
 import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
 import Team_Mute.back_end.domain.member.exception.ExternalApiException;
 import Team_Mute.back_end.domain.member.exception.UserRegistrationException;
+import Team_Mute.back_end.domain.previsit.exception.PrevisitAlreadyExistsException;
 import Team_Mute.back_end.domain.reservation.exception.ForbiddenAccessException;
 import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
 import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
@@ -31,6 +35,40 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	public ResponseEntity<ErrorResponseDto> handleHttpRequestMethodNotSupported(
+		HttpRequestMethodNotSupportedException e) {
+		log.error("Method Not Allowed: {} {} - Supported methods are {}", e.getMethod(), e.getLocalizedMessage(),
+			e.getSupportedMethods());
+
+		String supportedMethods = String.join(", ", Objects.requireNonNull(e.getSupportedMethods()));
+		String message = String.format("해당 경로는 %s 메서드를 지원하지 않습니다. (지원하는 메서드: %s)", e.getMethod(), supportedMethods);
+
+		ErrorResponseDto errorResponse = new ErrorResponseDto(message, HttpStatus.METHOD_NOT_ALLOWED.value());
+
+		// HTTP 405 응답 시에는 헤더에 'Allow'를 포함해주는 것이 표준입니다.
+		return ResponseEntity
+			.status(HttpStatus.METHOD_NOT_ALLOWED)
+			.header("Allow", supportedMethods)
+			.body(errorResponse);
+	}
+
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ErrorResponseDto> handleMissingParams(MissingServletRequestParameterException e) {
+		String name = e.getParameterName();
+		log.error("Required request parameter '{}' is not present", name);
+		String message = String.format("필수 파라미터인 '%s'를 포함해야 합니다.", name);
+		ErrorResponseDto errorResponse = new ErrorResponseDto(message, HttpStatus.BAD_REQUEST.value());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+	}
+
+	@ExceptionHandler(PrevisitAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponseDto> handlePrevisitAlreadyExists(PrevisitAlreadyExistsException e) {
+		log.error("Previsit already exists error: {}", e.getMessage());
+		ErrorResponseDto errorResponse = new ErrorResponseDto(e.getMessage(), HttpStatus.CONFLICT.value());
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+	}
+
 	@ExceptionHandler(ForbiddenAccessException.class)
 	public ResponseEntity<ErrorResponseDto> handleForbiddenAccess(ForbiddenAccessException e) {
 		log.error("Forbidden Access error: {}", e.getMessage());
