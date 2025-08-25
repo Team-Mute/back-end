@@ -43,6 +43,9 @@ public class UserRole {
 	@OneToMany(mappedBy = "userRole", fetch = FetchType.LAZY)
 	private List<User> users;
 
+	@OneToMany(mappedBy = "userRole", fetch = FetchType.LAZY)
+	private List<Admin> admin;
+
 	public UserRole(String roleName) {
 		this.roleName = roleName;
 	}

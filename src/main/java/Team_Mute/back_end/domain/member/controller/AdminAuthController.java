@@ -18,9 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import Team_Mute.back_end.domain.member.dto.request.AdminLoginDto;
-import Team_Mute.back_end.domain.member.entity.User;
+import Team_Mute.back_end.domain.member.dto.response.AdminRefreshResponseDto;
+import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.jwt.TokenPair;
-import Team_Mute.back_end.domain.member.repository.UserRepository;
+import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.member.service.AdminAuthService;
 import Team_Mute.back_end.domain.member.service.AuthService;
 import Team_Mute.back_end.domain.member.service.PasswordService;
@@ -39,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AdminAuthController {
 
 	private final AdminAuthService adminAuthService;
-	private final UserRepository userRepository;
+	private final AdminRepository adminRepository;
 	private final PasswordService passwordService;
 	private final AuthService userAuthService;
 
@@ -53,7 +54,7 @@ public class AdminAuthController {
 	@PostMapping("/login")
 	public ResponseEntity<AdminLoginDto.Response> login(@Valid @RequestBody AdminLoginDto.Request req,
 		HttpServletResponse res) {
-		User admin = userRepository.findByUserEmail(req.email())
+		Admin admin = adminRepository.findByAdminEmail(req.email())
 			.orElse(null);
 
 		final List<Integer> ADMIN_ROLES = Arrays.asList(0, 1, 2);
@@ -62,7 +63,7 @@ public class AdminAuthController {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 
-		if (!passwordService.matches(req.password(), admin.getUserPwd())) {
+		if (!passwordService.matches(req.password(), admin.getAdminPwd())) {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
 		}
 
@@ -70,12 +71,17 @@ public class AdminAuthController {
 
 		addRefreshCookie(res, pair.refreshToken(), (int)rtTtlSeconds);
 
-		return ResponseEntity.ok(new AdminLoginDto.Response(pair.accessToken()));
+		AdminLoginDto.Response responseBody = new AdminLoginDto.Response(
+			pair.accessToken(),
+			admin.getUserRole().getRoleId()
+		);
+
+		return ResponseEntity.ok(responseBody);
 	}
 
 	@Operation(summary = "관리자 토큰 재발급", description = "토큰을 확인하여 로테이션 전략에 기반하여 토큰을 재발급합니다.")
 	@PostMapping("/refresh")
-	public ResponseEntity<AdminLoginDto.Response> refresh(
+	public ResponseEntity<AdminRefreshResponseDto> refresh(
 		@CookieValue(name = RT_COOKIE_NAME, required = false) String refreshToken,
 		HttpServletResponse res
 	) {
@@ -87,7 +93,9 @@ public class AdminAuthController {
 		TokenPair pair = adminAuthService.refresh(refreshToken);
 		addRefreshCookie(res, pair.refreshToken(), (int)rtTtlSeconds);
 
-		return ResponseEntity.ok(new AdminLoginDto.Response(pair.accessToken()));
+		AdminRefreshResponseDto responseBody = new AdminRefreshResponseDto(pair.accessToken());
+
+		return ResponseEntity.ok(responseBody);
 	}
 
 	@Operation(summary = "관리자 로그아웃", description = "토큰을 확인하여 해당 관리자를 로그아웃합니다.")

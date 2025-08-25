@@ -18,7 +18,8 @@ import Team_Mute.back_end.domain.member.dto.request.AdminPasswordUpdateRequest;
 import Team_Mute.back_end.domain.member.dto.request.AdminRoleUpdateRequest;
 import Team_Mute.back_end.domain.member.dto.request.AdminSignupRequestDto;
 import Team_Mute.back_end.domain.member.dto.response.AdminInfoResponse;
-import Team_Mute.back_end.domain.member.service.UserService;
+import Team_Mute.back_end.domain.member.dto.response.AdminSignupResponseDto;
+import Team_Mute.back_end.domain.member.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,14 +33,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AdminController {
 
-	private final UserService userService;
+	private final AdminService userService;
 
 	@Operation(summary = "관리자 회원가입", description = "마스터 관리자 권한으로 관리자 계정을 생성합니다.")
 	@PostMapping("/signup")
-	public ResponseEntity<String> adminSignUp(@Valid @RequestBody AdminSignupRequestDto requestDto) {
+	public ResponseEntity<AdminSignupResponseDto> adminSignUp(@Valid @RequestBody AdminSignupRequestDto requestDto) {
 		log.info("관리자용 회원가입 API 호출: email={}", requestDto.getUserEmail());
-		userService.adminSignUp(requestDto);
-		return ResponseEntity.status(HttpStatus.CREATED).body("회원가입 성공");
+		AdminSignupResponseDto responseDto = userService.adminSignUp(requestDto);
+		return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
 	}
 
 	@Operation(summary = "관리자 정보 조회", description = "토큰을 확인하여 관리자 정보를 조회합니다.")
@@ -90,5 +91,4 @@ public class AdminController {
 		userService.updateAdminRole(authentication, requestDto);
 		return ResponseEntity.ok("회원 권한이 성공적으로 수정되었습니다.");
 	}
-
 }

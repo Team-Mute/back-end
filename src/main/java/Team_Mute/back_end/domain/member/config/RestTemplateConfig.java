@@ -15,18 +15,10 @@ public class RestTemplateConfig {
 	@Bean
 	public RestTemplate restTemplate() {
 		RestTemplate restTemplate = new RestTemplate();
-
-		// 메시지 컨버터 리스트 생성
 		List<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
-
-		// JSON 컨버터 추가 (기본)
 		messageConverters.add(new MappingJackson2HttpMessageConverter());
-		// XML 컨버터 추가
 		messageConverters.add(new MappingJackson2XmlHttpMessageConverter());
-
-		// RestTemplate에 설정
 		restTemplate.setMessageConverters(messageConverters);
-
 		return restTemplate;
 	}
 }
