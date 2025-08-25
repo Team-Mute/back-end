@@ -29,11 +29,11 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		     /* 담당자명 */
 			  COALESCE(
 			  (
-				  SELECT user_name
-				  FROM tb_users
-				  WHERE user_id = s.user_id
+				  SELECT admin_name
+				  FROM tb_admins
+				  WHERE admin_id = s.user_id
 			  ), '알 수 없음'
-		        ) AS userName,
+		        ) AS adminName,
 		     s.space_image_url    AS spaceImageUrl,
 		     s.space_is_available AS spaceIsAvailable
 
@@ -54,11 +54,11 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		     /* 담당자명 */
 			  COALESCE(
 			  (
-				  SELECT user_name
-				  FROM tb_users
-				  WHERE user_id = s.user_id
+				  SELECT admin_name
+				  FROM tb_admins
+				  WHERE admin_id = s.user_id
 			  ), '알 수 없음'
-		        ) AS userName,
+		        ) AS adminName,
 		     s.space_image_url    AS spaceImageUrl,
 		     s.space_is_available AS spaceIsAvailable
 
@@ -102,16 +102,16 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		  /* 담당자명 */
 		  COALESCE(
 		  (
-			  SELECT user_name
-			  FROM tb_users
-			  WHERE user_id = s.user_id
+			  SELECT admin_name
+			  FROM tb_admins
+			  WHERE admin_id = s.user_id
 		  ), '알 수 없음'
-		        ) AS userName,
+		        ) AS adminName,
 		  s.space_capacity     AS spaceCapacity,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
 		  s.space_is_available AS spaceIsAvailable,
-		  s.reservation_way    AS  reservationWay,
+		  s.reservation_way    AS reservationWay,
 		  s.space_rules        AS spaceRules,
 		  /* 상세 이미지 */
 			 COALESCE((
