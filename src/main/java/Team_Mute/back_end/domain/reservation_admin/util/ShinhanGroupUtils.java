@@ -33,14 +33,14 @@ public final class ShinhanGroupUtils {
 	}
 
 	// 다건 사용자에 대해 userId -> isShinhan 맵을 생성 (배치 조회 패턴)
-	public static Map<Integer, Boolean> buildIsShinhanByUserId(List<User> users,
-															   Map<Integer, String> companyNameById) {
+	public static Map<Long, Boolean> buildIsShinhanByUserId(List<User> users,
+															Map<Integer, String> companyNameById) {
 		if (users == null || users.isEmpty()) return Collections.emptyMap();
-		Map<Integer, Boolean> result = new HashMap<>(users.size());
+		Map<Long, Boolean> result = new HashMap<>(users.size());
 		for (User u : users) {
 			if (u == null) continue;
-			Integer cid = ((u.getUserCompany() != null) ? u.getUserCompany().getCompanyId() : null);
-			result.put(Math.toIntExact(u.getUserId()), isShinhanByCompanyId(cid, companyNameById));
+			Integer cid = (u.getUserCompany() != null) ? u.getUserCompany().getCompanyId() : null;
+			result.put(u.getUserId(), isShinhanByCompanyId(cid, companyNameById));
 		}
 		return result;
 	}

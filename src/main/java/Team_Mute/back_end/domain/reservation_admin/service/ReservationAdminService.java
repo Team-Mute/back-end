@@ -280,7 +280,7 @@ public class ReservationAdminService {
 			.collect(Collectors.toMap(UserCompany::getCompanyId, UserCompany::getCompanyName));
 
 		// userId -> isShinhan 맵
-		Map<Integer, Boolean> isShinhanByUserId =
+		Map<Long, Boolean> isShinhanByUserId =
 			ShinhanGroupUtils.buildIsShinhanByUserId(users, companyNameById);
 
 		// DTO 변환
