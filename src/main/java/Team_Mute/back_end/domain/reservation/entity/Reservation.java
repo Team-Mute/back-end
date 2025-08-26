@@ -57,7 +57,8 @@ public class Reservation {
 	private ReservationStatus reservationStatus;
 
 	@OneToMany(mappedBy = "reservation", cascade = CascadeType.REMOVE, orphanRemoval = true)
-	private List<PrevisitReservation> previsitReservations;
+	@Builder.Default
+	private List<PrevisitReservation> previsitReservations = new ArrayList<>();
 
 	@Column(name = "reservation_headcount", nullable = false)
 	private Integer reservationHeadcount;

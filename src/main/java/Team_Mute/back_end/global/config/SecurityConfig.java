@@ -33,7 +33,9 @@ public class SecurityConfig {
 					"/api/admin/reset-password", "/v3/api-docs/**",
 					"/swagger-ui/**",
 					"/swagger-resources/**",
-					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh")
+					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh",
+					"/api/reservations/available-dates", "/api/reservations/available-times")
+
 				.permitAll()
 				.requestMatchers("/api/admin/signup")
 				.hasAnyRole("0")
