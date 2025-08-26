@@ -1,12 +1,5 @@
 package Team_Mute.back_end.domain.reservation.entity;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
@@ -27,6 +20,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "tb_reservations")
@@ -87,7 +86,7 @@ public class Reservation {
 
 	// 수정 메서드 (내용 동일)
 	public void updateDetails(Space space, ReservationStatus status, Integer headcount, LocalDateTime from,
-		LocalDateTime to, String purpose, List<String> attachment) {
+							  LocalDateTime to, String purpose, List<String> attachment) {
 		this.space = space;
 		this.reservationStatus = status;
 		this.reservationHeadcount = headcount;
@@ -95,5 +94,99 @@ public class Reservation {
 		this.reservationTo = to;
 		this.reservationPurpose = purpose;
 		this.reservationAttachment = attachment;
+	}
+
+	// getters/setters
+	public Long getReservationId() {
+		return reservationId;
+	}
+
+	public Space getSpaceId() {
+		return space;
+	}
+
+	public void setSpaceId(Space space) {
+		this.space = space;
+	}
+
+	public User getUserId() {
+		return user;
+	}
+
+	public void setUserId(User user) {
+		this.user = user;
+	}
+
+	public ReservationStatus getReservationStatusId() {
+		return reservationStatus;
+	}
+
+	public void setReservationStatusId(ReservationStatus reservationStatusId) {
+		this.reservationStatus = reservationStatusId;
+	}
+
+	public Integer getReservationHeadcount() {
+		return reservationHeadcount;
+	}
+
+	public void setReservationHeadcount(Integer reservationHeadcount) {
+		this.reservationHeadcount = reservationHeadcount;
+	}
+
+	public LocalDateTime getReservationFrom() {
+		return reservationFrom;
+	}
+
+	public void setReservationFrom(LocalDateTime reservationFrom) {
+		this.reservationFrom = reservationFrom;
+	}
+
+	public LocalDateTime getReservationTo() {
+		return reservationTo;
+	}
+
+	public void setReservationTo(LocalDateTime reservationTo) {
+		this.reservationTo = reservationTo;
+	}
+
+	public String getReservationPurpose() {
+		return reservationPurpose;
+	}
+
+	public void setReservationPurpose(String reservationPurpose) {
+		this.reservationPurpose = reservationPurpose;
+	}
+
+	public List<String> getReservationAttachment() {
+		return reservationAttachment;
+	}
+
+	public void setReservationAttachment(List<String> reservationAttachment) {
+		this.reservationAttachment = reservationAttachment;
+	}
+
+	public String getOrderId() {
+		return orderId;
+	}
+
+	public void setOrderId(String orderId) {
+		this.orderId = orderId;
+	}
+
+
+	public LocalDateTime getRegDate() {
+		return regDate;
+	}
+
+	public void setRegDate(LocalDateTime regDate) {
+		this.regDate = regDate;
+	}
+
+	public LocalDateTime getUpdDate() {
+		return updDate;
+	}
+
+	public void setUpdDate(LocalDateTime updDate) {
+		this.updDate = updDate;
 	}
 }

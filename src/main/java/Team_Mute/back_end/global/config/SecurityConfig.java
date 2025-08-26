@@ -34,12 +34,11 @@ public class SecurityConfig {
 					"/swagger-ui/**",
 					"/swagger-resources/**",
 					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh",
-					"/api/reservations/available-dates", "/api/reservations/available-times")
-
+					"/api/reservations/available-dates", "/api/reservations/available-times", "/api/spaces/**", "/api/spaces-user/**")
 				.permitAll()
 				.requestMatchers("/api/admin/signup")
 				.hasAnyRole("0")
-				.requestMatchers("/api/admin/**", "/api/admin/account/**", "/api/spaces-admin/**")
+				.requestMatchers("/api/admin/**", "/api/admin/account/**", "/api/spaces-admin/**", "/api/reservations-admin/**")
 				.hasAnyRole("0", "1", "2")
 				.requestMatchers("/api/previsit/**")
 				.hasRole("3")

@@ -1,10 +1,5 @@
 package Team_Mute.back_end.domain.previsit.entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,6 +12,10 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Getter
 @Setter
@@ -49,4 +48,57 @@ public class PrevisitReservation {
 	@UpdateTimestamp
 	@Column(name = "upd_date")
 	private LocalDateTime updDate;
+
+	// getters/setters
+	public Long getPrevisitId() {
+		return id;
+	}
+
+	public Reservation getReservation() {
+		return reservation;
+	}
+
+	public void setReservation(Reservation r) {
+		this.reservation = r;
+	}
+
+	public Long getReservationStatusId() {
+		return reservationStatusId;
+	}
+
+	public void setReservationStatusId(Long v) {
+		this.reservationStatusId = v;
+	}
+
+	public LocalDateTime getPrevisitFrom() {
+		return previsitFrom;
+	}
+
+	public void setPrevisitFrom(LocalDateTime v) {
+		this.previsitFrom = v;
+	}
+
+	public LocalDateTime getPrevisitTo() {
+		return previsitTo;
+	}
+
+	public void setPrevisitTo(LocalDateTime v) {
+		this.previsitTo = v;
+	}
+
+	public LocalDateTime getRegDate() {
+		return regDate;
+	}
+
+	public void setRegDate(LocalDateTime v) {
+		this.regDate = v;
+	}
+
+	public LocalDateTime getUpdDate() {
+		return updDate;
+	}
+
+	public void setUpdDate(LocalDateTime v) {
+		this.updDate = v;
+	}
 }

@@ -1,23 +1,5 @@
 package Team_Mute.back_end.global;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindException;
-import org.springframework.validation.FieldError;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingServletRequestParameterException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
-
 import Team_Mute.back_end.domain.member.dto.response.ErrorResponseDto;
 import Team_Mute.back_end.domain.member.exception.CompanyNotFoundException;
 import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
@@ -30,6 +12,23 @@ import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException
 import Team_Mute.back_end.domain.smsAuth.exception.InvalidVerificationException;
 import Team_Mute.back_end.domain.smsAuth.exception.SmsSendingFailedException;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
@@ -138,7 +137,7 @@ public class GlobalExceptionHandler {
 
 		Map<String, String> errors = new HashMap<>();
 		ex.getBindingResult().getAllErrors().forEach((error) -> {
-			String fieldName = ((FieldError)error).getField();
+			String fieldName = ((FieldError) error).getField();
 			String errorMessage = error.getDefaultMessage();
 			errors.put(fieldName, errorMessage);
 		});
@@ -151,7 +150,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Map<String, String>> handleBindException(BindException ex) {
 		Map<String, String> errors = new HashMap<>();
 		ex.getBindingResult().getAllErrors().forEach((error) -> {
-			String fieldName = ((FieldError)error).getField();
+			String fieldName = ((FieldError) error).getField();
 			String errorMessage = error.getDefaultMessage();
 			errors.put(fieldName, errorMessage);
 		});
@@ -208,5 +207,11 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<?> handleIllegalArgument(IllegalArgumentException ex) {
 		return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
+	}
+
+	// 서비스 계층의 비즈니스 로직(예외 발생)과 HTTP 응답(클라이언트에게 전달)을 자연스럽게 연결해주는 "다리" 역할
+	@ExceptionHandler(ResponseStatusException.class)
+	public ResponseEntity<String> handleResponseStatusException(ResponseStatusException ex) {
+		return new ResponseEntity<>(ex.getReason(), ex.getStatusCode());
 	}
 }
