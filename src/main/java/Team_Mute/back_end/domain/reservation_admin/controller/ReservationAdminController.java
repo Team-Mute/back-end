@@ -3,6 +3,7 @@ package Team_Mute.back_end.domain.reservation_admin.controller;
 import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetailResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.service.ReservationAdminService;
 import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
@@ -85,5 +86,12 @@ public class ReservationAdminController {
 		Page<ReservationListResponseDto> reservationPage = reservationAdminService.getAllReservations(pageable);
 		PagedResponse<ReservationListResponseDto> response = new PagedResponse<>(reservationPage);
 		return ResponseEntity.ok(response);
+	}
+
+	// 예약 상세 조회
+	@GetMapping("/detail/{reservationId}")
+	@Operation(summary = "예약 상세 조회", description = "토큰을 확인하여 예약 상세를 조회합니다.")
+	public ResponseEntity<ReservationDetailResponseDto> getById(@PathVariable Long reservationId) {
+		return ResponseEntity.ok(reservationAdminService.getByReservationId(reservationId));
 	}
 }
