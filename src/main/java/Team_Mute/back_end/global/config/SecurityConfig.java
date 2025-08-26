@@ -1,9 +1,5 @@
 package Team_Mute.back_end.global.config;
 
-import Team_Mute.back_end.domain.member.jwt.JwtService;
-import Team_Mute.back_end.domain.member.session.SessionStore;
-import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -13,6 +9,10 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import Team_Mute.back_end.domain.member.jwt.JwtService;
+import Team_Mute.back_end.domain.member.session.SessionStore;
+import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -33,7 +33,8 @@ public class SecurityConfig {
 					"/api/admin/reset-password", "/v3/api-docs/**",
 					"/swagger-ui/**",
 					"/swagger-resources/**",
-					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh", "/api/spaces/**", "/api/spaces-user/**")
+					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh",
+					"/api/reservations/available-dates", "/api/reservations/available-times", "/api/spaces/**", "/api/spaces-user/**")
 				.permitAll()
 				.requestMatchers("/api/admin/signup")
 				.hasAnyRole("0")

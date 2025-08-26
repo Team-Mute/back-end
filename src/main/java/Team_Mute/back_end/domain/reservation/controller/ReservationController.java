@@ -1,5 +1,7 @@
 package Team_Mute.back_end.domain.reservation.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,18 +16,45 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import Team_Mute.back_end.domain.reservation.dto.request.AvailableDateRequest;
+import Team_Mute.back_end.domain.reservation.dto.request.AvailableTimeRequest;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
+import Team_Mute.back_end.domain.reservation.dto.response.AvailableDateResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationResponseDto;
+import Team_Mute.back_end.domain.reservation.service.ReservationScheduleService;
 import Team_Mute.back_end.domain.reservation.service.ReservationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/reservation")
+@RequestMapping("/api/reservations")
 @RequiredArgsConstructor
 public class ReservationController {
 
 	private final ReservationService reservationService;
+	private final ReservationScheduleService reservationScheduleService;
+
+	@PostMapping("/available-times")
+	public ResponseEntity<AvailableTimeResponse> getAvailableTimes(@Valid @RequestBody AvailableTimeRequest request) {
+		List<AvailableTimeResponse.TimeSlot> availableTimes = reservationScheduleService.getAvailableTimes(
+			request.getYear(),
+			request.getMonth(),
+			request.getDay(),
+			request.getSpaceId()
+		);
+		return ResponseEntity.ok(new AvailableTimeResponse(availableTimes));
+	}
+
+	@PostMapping("/available-dates")
+	public ResponseEntity<AvailableDateResponse> getAvailableDates(@Valid @RequestBody AvailableDateRequest request) {
+		List<Integer> availableDays = reservationScheduleService.getAvailableDays(
+			request.getYear(),
+			request.getMonth(),
+			request.getSpaceId()
+		);
+		return ResponseEntity.ok(new AvailableDateResponse(availableDays));
+	}
 
 	// 1. 예약 생성
 	@PostMapping
