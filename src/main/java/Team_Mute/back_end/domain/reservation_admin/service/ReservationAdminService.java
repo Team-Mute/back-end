@@ -12,6 +12,8 @@ import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.BulkApproveItemResultDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.BulkApproveResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.PrevisitItemResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetailResponseDto;
@@ -31,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,7 +49,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional(readOnly = true)
 public class ReservationAdminService {
-
+	private final ReservationApprovalTxService approvalTxService;
 	private final AdminReservationRepository adminReservationRepository;
 	private final AdminPrevisitReservationRepository adminPrevisitRepository;
 	private final AdminReservationStatusRepository adminStatusRepository;
@@ -66,6 +67,7 @@ public class ReservationAdminService {
 	private static final String STATUS_FINAL_APPROVED = "최종 승인 완료";
 
 	public ReservationAdminService(
+		ReservationApprovalTxService approvalTxService,
 		AdminReservationRepository adminReservationRepository,
 		AdminPrevisitReservationRepository adminPrevisitRepository,
 		AdminReservationStatusRepository adminStatusRepository,
@@ -77,6 +79,7 @@ public class ReservationAdminService {
 		ReservationDetailRepository reservationDetailRepository,
 		EmergencyEvaluator emergencyEvaluator
 	) {
+		this.approvalTxService = approvalTxService;
 		this.adminReservationRepository = adminReservationRepository;
 		this.adminPrevisitRepository = adminPrevisitRepository;
 		this.adminStatusRepository = adminStatusRepository;
@@ -87,18 +90,6 @@ public class ReservationAdminService {
 		this.reservationLogRepository = reservationLogRepository;
 		this.reservationDetailRepository = reservationDetailRepository;
 		this.emergencyEvaluator = emergencyEvaluator;
-	}
-
-	// name -> id 캐시 (간단 캐시)
-	private final Map<String, Long> statusIdCache = new HashMap<>();
-
-	private Long statusId(String name) {
-		return statusIdCache.computeIfAbsent(name, key ->
-			adminStatusRepository.findByReservationStatusName(key)
-				.map(ReservationStatus::getReservationStatusId)
-				.orElseThrow(() -> new ResponseStatusException(
-					HttpStatus.BAD_REQUEST, "Unknown reservation status: " + key))
-		);
 	}
 
 	// 승인 가능 여부 계산 -> 예약 관리 리스트에서 일괄 승인 시 체크박스 선택 가능 여부 출력을 위함
@@ -116,92 +107,52 @@ public class ReservationAdminService {
 		return false;
 	}
 
-	// ================== 1차 승인 ==================
-	@Transactional
-	public ApproveResponseDto approveFirst(Long adminId, Long reservationId) {
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
-
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
-
-		Reservation r = adminReservationRepository.findById(reservationId)
-			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
-
-		Long fromStatusId = r.getReservationStatusId().getReservationStatusId();
-		String fromStatus = adminStatusRepository.findById(fromStatusId)
-			.map(ReservationStatus::getReservationStatusName).orElse("UNKNOWN");
-
-		// 허용 전이: FIRST_PENDING -> SECOND_PENDING
-		if (!STATUS_FIRST_PENDING.equals(fromStatus)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-				"Cannot approve first step from status: " + fromStatus);
+	// 에러 메세지
+	private String toClientMessage(Exception ex) {
+		if (ex instanceof org.springframework.web.server.ResponseStatusException rse) {
+			return rse.getReason() != null ? rse.getReason() : rse.getMessage();
 		}
-
-		if (roleId.equals(1L) || roleId.equals(2L)) { // 1차 승인자 2차 승인자 모두 승인 가능
-			ReservationStatus toStatus = adminStatusRepository.findById(statusId(STATUS_SECOND_PENDING))
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Status not found"));
-
-			// 예약 테이블 상태 변경
-			r.setReservationStatusId(toStatus);
-			r.setUpdDate(LocalDateTime.now());
-
-			// 사전답사 테이블 상태 변경
-			if (r.getPrevisitReservations() != null) {
-				for (PrevisitReservation previsit : r.getPrevisitReservations()) {
-					previsit.setReservationStatusId(toStatus.getReservationStatusId());
-					previsit.setUpdDate(LocalDateTime.now());
-				}
-				adminPrevisitRepository.saveAll(r.getPrevisitReservations());
-			}
-		} else {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");
-		}
-
-		return new ApproveResponseDto(reservationId, fromStatus, STATUS_SECOND_PENDING, LocalDateTime.now(), "1차 승인 완료");
+		return ex.getMessage();
 	}
 
-	// ================== 2차 승인 ==================
-	@Transactional
-	public ApproveResponseDto approveSecond(Long adminId, Long reservationId) {
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
+	// ===== 1차 일괄 승인 =====
+	@org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+	public BulkApproveResponseDto approveFirstBulk(Long adminId, java.util.List<Long> reservationIds) {
+		java.util.List<Long> ids = reservationIds.stream().distinct().toList(); // 중복 제거(선택)
+		BulkApproveResponseDto resp = new BulkApproveResponseDto();
+		resp.setTotal(ids.size());
 
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
-
-		Reservation r = adminReservationRepository.findById(reservationId)
-			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
-
-		Long fromStatusId = r.getReservationStatusId().getReservationStatusId();
-		String fromStatus = adminStatusRepository.findById(fromStatusId)
-			.map(ReservationStatus::getReservationStatusName).orElse("UNKNOWN");
-
-		// 허용 전이: FIRST_PENDING or SECOND_PENDING -> FINAL_APPROVED
-		if (!STATUS_FIRST_PENDING.equals(fromStatus) && !STATUS_SECOND_PENDING.equals(fromStatus)) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-				"Cannot approve second step from status: " + fromStatus);
-		}
-
-		if (roleId.equals(1L)) { // 2차 승인자만 승인 가능
-			ReservationStatus toStatus = adminStatusRepository.findById(statusId(STATUS_FINAL_APPROVED))
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Status not found"));
-
-			// 예약 테이블 상태 변경
-			r.setReservationStatusId(toStatus);
-			r.setUpdDate(LocalDateTime.now());
-
-			// 사전답사 테이블 상태 변경
-			if (r.getPrevisitReservations() != null) {
-				for (PrevisitReservation previsit : r.getPrevisitReservations()) {
-					previsit.setReservationStatusId(toStatus.getReservationStatusId());
-					previsit.setUpdDate(LocalDateTime.now());
-				}
-				adminPrevisitRepository.saveAll(r.getPrevisitReservations());
+		for (Long id : ids) {
+			try {
+				ApproveResponseDto r = approvalTxService.approveFirstTx(adminId, id); // ← Tx 전용 서비스 호출
+				resp.add(new BulkApproveItemResultDto(id, true, r.getMessage()));
+				resp.setSuccessCount(resp.getSuccessCount() + 1);
+			} catch (Exception ex) {
+				resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
+				resp.setFailureCount(resp.getFailureCount() + 1);
 			}
-		} else {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");
 		}
+		return resp;
+	}
 
-		return new ApproveResponseDto(reservationId, fromStatus, STATUS_FINAL_APPROVED, LocalDateTime.now(), "2차 승인 완료");
+	// ===== 2차 일괄 승인 =====
+	@org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+	public BulkApproveResponseDto approveSecondBulk(Long adminId, java.util.List<Long> reservationIds) {
+		java.util.List<Long> ids = reservationIds.stream().distinct().toList();
+		BulkApproveResponseDto resp = new BulkApproveResponseDto();
+		resp.setTotal(ids.size());
+
+		for (Long id : ids) {
+			try {
+				ApproveResponseDto r = approvalTxService.approveSecondTx(adminId, id); // ← Tx 전용 서비스 호출
+				resp.add(new BulkApproveItemResultDto(id, true, r.getMessage()));
+				resp.setSuccessCount(resp.getSuccessCount() + 1);
+			} catch (Exception ex) {
+				resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
+				resp.setFailureCount(resp.getFailureCount() + 1);
+			}
+		}
+		return resp;
 	}
 
 	//  ================== 예약 반려 ==================

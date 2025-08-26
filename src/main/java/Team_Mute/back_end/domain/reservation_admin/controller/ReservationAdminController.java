@@ -1,7 +1,8 @@
 package Team_Mute.back_end.domain.reservation_admin.controller;
 
+import Team_Mute.back_end.domain.reservation_admin.dto.request.BulkApproveRequestDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.BulkApproveResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetailResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
@@ -30,26 +31,60 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReservationAdminController {
 	private final ReservationAdminService reservationAdminService;
 
+	// 다중 승인 에러 처리
+	private org.springframework.http.HttpStatus resolveBulkStatus(BulkApproveResponseDto resp) {
+		if (resp.getFailureCount() == 0) {
+			return org.springframework.http.HttpStatus.OK; // 전부 성공
+		}
+
+		if (resp.getSuccessCount() == 0) { // 전부 실패
+			boolean hasForbidden = resp.getResults().stream()
+				.anyMatch(r -> !r.isSuccess() && "승인 권한이 없습니다.".equals(r.getMessage()));
+			boolean hasNotFound = resp.getResults().stream()
+				.anyMatch(r -> !r.isSuccess() && r.getMessage() != null &&
+					(r.getMessage().contains("not found") || r.getMessage().contains("존재하지")));
+			boolean hasStateConflict = resp.getResults().stream()
+				.anyMatch(r -> !r.isSuccess() && r.getMessage() != null &&
+					(r.getMessage().contains("이미 처리 완료") || r.getMessage().contains("상태")));
+
+			if (hasForbidden) return org.springframework.http.HttpStatus.FORBIDDEN;      // 403 권한 문제
+			if (hasNotFound) return org.springframework.http.HttpStatus.NOT_FOUND;      // 404 리소스 없음
+			if (hasStateConflict) return org.springframework.http.HttpStatus.CONFLICT;     // 409 상태/전이 충돌
+			return org.springframework.http.HttpStatus.BAD_REQUEST;                         // 400 그 외 전부 실패
+		}
+
+		// 일부 성공 일부 실패 → 부분 성공
+		return org.springframework.http.HttpStatus.MULTI_STATUS; // 207
+	}
+
 	public ReservationAdminController(ReservationAdminService reservationService) {
 		this.reservationAdminService = reservationService;
 	}
 
 	// 1차 승인
-	@PostMapping("/approve/first/{reservationId}")
-	@Operation(summary = "1차 승인", description = "토큰을 확인하여 1차 승인을 진행합니다.")
-	public ResponseEntity<ApproveResponseDto> approveFirst(Authentication authentication, @PathVariable Long reservationId) {
+	@PostMapping("/approve/first")
+	@Operation(summary = "1차 승인(단건 or 일괄)", description = "토큰을 확인하여 1차 승인을 진행합니다.")
+	public ResponseEntity<BulkApproveResponseDto> approveFirstBulk(
+		Authentication authentication,
+		@org.springframework.web.bind.annotation.RequestBody BulkApproveRequestDto request
+	) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+		BulkApproveResponseDto resp = reservationAdminService.approveFirstBulk(adminId, request.getReservationIds());
 
-		return ResponseEntity.ok(reservationAdminService.approveFirst(adminId, reservationId));
+		return ResponseEntity.status(resolveBulkStatus(resp)).body(resp);
 	}
 
 	// 2차 승인
-	@PostMapping("/approve/second/{reservationId}")
-	@Operation(summary = "2차 승인", description = "토큰을 확인하여 2차 승인을 진행합니다.")
-	public ResponseEntity<ApproveResponseDto> approveSecond(Authentication authentication, @PathVariable Long reservationId) {
+	@PostMapping("/approve/second")
+	@Operation(summary = "2차 승인(단건 or 일괄)", description = "토큰을 확인하여 2차 승인을 진행합니다.")
+	public ResponseEntity<BulkApproveResponseDto> approveSecondBulk(
+		Authentication authentication,
+		@org.springframework.web.bind.annotation.RequestBody BulkApproveRequestDto request
+	) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+		BulkApproveResponseDto resp = reservationAdminService.approveSecondBulk(adminId, request.getReservationIds());
 
-		return ResponseEntity.ok(reservationAdminService.approveSecond(adminId, reservationId));
+		return ResponseEntity.status(resolveBulkStatus(resp)).body(resp);
 	}
 
 	// 예약 반려
