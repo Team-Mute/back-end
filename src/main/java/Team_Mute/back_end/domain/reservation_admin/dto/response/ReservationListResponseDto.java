@@ -6,42 +6,45 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public class ReservationListResponseDto {
-	public Long reservationId;
-	public String reservationStatusName;
-	public String spaceName;
-	public String userName;
-	public Integer reservationHeadcount;
-	public LocalDateTime reservationFrom;
-	public LocalDateTime reservationTo;
-	public LocalDateTime regDate;
-	public boolean isShinhan;
-	public boolean isEmergency;
-	public boolean isApprovable;
-	public List<PrevisitItemResponseDto> previsits;
+    public Long reservationId;
+    public String reservationStatusName;
+    public String spaceName;
+    public String userName;
+    public Integer reservationHeadcount;
+    public LocalDateTime reservationFrom;
+    public LocalDateTime reservationTo;
+    public LocalDateTime regDate;
+    public boolean isShinhan;
+    public boolean isEmergency;
+    public boolean isApprovable;
+    public boolean isRejectable;
+    public List<PrevisitItemResponseDto> previsits;
 
-	public static ReservationListResponseDto from(
-		Reservation r,
-		String statusName,
-		String spaceName,
-		String userName,
-		boolean isShinhan,
-		boolean isEmergency,
-		boolean isApprovable,
-		List<PrevisitItemResponseDto> previsitDtos
-	) {
-		ReservationListResponseDto res = new ReservationListResponseDto();
-		res.reservationId = r.getReservationId();
-		res.reservationStatusName = statusName;
-		res.spaceName = spaceName;
-		res.userName = userName;
-		res.reservationHeadcount = r.getReservationHeadcount();
-		res.reservationFrom = r.getReservationFrom();
-		res.reservationTo = r.getReservationTo();
-		res.regDate = r.getRegDate();
-		res.previsits = previsitDtos;
-		res.isShinhan = isShinhan;
-		res.isEmergency = isEmergency;
-		res.isApprovable = isApprovable;
-		return res;
-	}
+    public static ReservationListResponseDto from(
+            Reservation r,
+            String statusName,
+            String spaceName,
+            String userName,
+            boolean isShinhan,
+            boolean isEmergency,
+            boolean isApprovable,
+            boolean isRejectable,
+            List<PrevisitItemResponseDto> previsitDtos
+    ) {
+        ReservationListResponseDto res = new ReservationListResponseDto();
+        res.reservationId = r.getReservationId();
+        res.reservationStatusName = statusName;
+        res.spaceName = spaceName;
+        res.userName = userName;
+        res.reservationHeadcount = r.getReservationHeadcount();
+        res.reservationFrom = r.getReservationFrom();
+        res.reservationTo = r.getReservationTo();
+        res.regDate = r.getRegDate();
+        res.previsits = previsitDtos;
+        res.isShinhan = isShinhan;
+        res.isEmergency = isEmergency;
+        res.isApprovable = isApprovable;
+        res.isRejectable = isRejectable;
+        return res;
+    }
 }

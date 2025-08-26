@@ -45,6 +45,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isApprovableFor;
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isRejectableFor;
+
 @Slf4j
 @Service
 @Transactional(readOnly = true)
@@ -60,11 +63,6 @@ public class ReservationAdminService {
 	private final ReservationLogRepository reservationLogRepository;
 	private final ReservationDetailRepository reservationDetailRepository;
 	private final EmergencyEvaluator emergencyEvaluator;
-
-	// ================== 상태 이름 상수 ==================
-	private static final String STATUS_FIRST_PENDING = "1차 승인 대기";
-	private static final String STATUS_SECOND_PENDING = "2차 승인 대기";
-	private static final String STATUS_FINAL_APPROVED = "최종 승인 완료";
 
 	public ReservationAdminService(
 		ReservationApprovalTxService approvalTxService,
@@ -92,22 +90,7 @@ public class ReservationAdminService {
 		this.emergencyEvaluator = emergencyEvaluator;
 	}
 
-	// 승인 가능 여부 계산 -> 예약 관리 리스트에서 일괄 승인 시 체크박스 선택 가능 여부 출력을 위함
-	private static final Long ROLE_SECOND_APPROVER = 1L; // 2차 승인자: 1,2차 승인 가능
-	private static final Long ROLE_FIRST_APPROVER = 2L; // 1차 승인자: 1차만 가능
-
-	private boolean isApprovableFor(Long roleId, String statusName) {
-		if (ROLE_FIRST_APPROVER.equals(roleId)) {
-			// 1차 승인자 → FIRST_PENDING만 체크 가능
-			return STATUS_FIRST_PENDING.equals(statusName);
-		} else if (ROLE_SECOND_APPROVER.equals(roleId)) {
-			// 2차 승인자 → FIRST_PENDING, SECOND_PENDING 모두 체크 가능
-			return STATUS_FIRST_PENDING.equals(statusName) || STATUS_SECOND_PENDING.equals(statusName);
-		}
-		return false;
-	}
-
-	// 에러 메세지
+	// 일괄 승인 에러 메세지
 	private String toClientMessage(Exception ex) {
 		if (ex instanceof org.springframework.web.server.ResponseStatusException rse) {
 			return rse.getReason() != null ? rse.getReason() : rse.getMessage();
@@ -156,7 +139,7 @@ public class ReservationAdminService {
 	}
 
 	//  ================== 예약 반려 ==================
-	private static final Long REJECTED_STATUS_ID = 4L;
+	public static final Long REJECTED_STATUS_ID = 4L; // 반려 상태
 
 	@Transactional
 	public RejectResponseDto rejectReservation(Long adminId, Long reservationId, RejectRequestDto requestDto) {
@@ -165,7 +148,7 @@ public class ReservationAdminService {
 
 		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
 
-		if (roleId.equals(0L) || roleId.equals(1L) || roleId.equals(1L)) {
+		if (roleId.equals(1L) || roleId.equals(1L)) {
 			// 예약 엔티티 조회
 			Reservation reservation = adminReservationRepository.findById(reservationId)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
@@ -185,7 +168,7 @@ public class ReservationAdminService {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "사용자에 의해 취소된 예약입니다.");
 			}
 			String rejectionReason = requestDto.getRejectionReason();
-			log.info("디버그: 받은 반려 사유 -> '{}'", rejectionReason);
+
 			if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반려 사유는 필수 입력 항목입니다.");
 			}
@@ -224,7 +207,7 @@ public class ReservationAdminService {
 				"반려 완료"
 			);
 		} else {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "반려 권한이 없습니다.");
 		}
 	}
 
@@ -320,7 +303,9 @@ public class ReservationAdminService {
 				boolean isShinhan = isShinhanByUserId.getOrDefault(uid, false);
 				boolean isEmergency = emergencyEvaluator.isEmergency(r, statusName);
 				boolean isApprovable = isApprovableFor(roleId, statusName);
-				return ReservationListResponseDto.from(r, statusName, spaceName, userName, isShinhan, isEmergency, isApprovable, previsitDtos);
+				boolean isRejectable = isRejectableFor(roleId, statusName);
+
+				return ReservationListResponseDto.from(r, statusName, spaceName, userName, isShinhan, isEmergency, isApprovable, isRejectable, previsitDtos);
 			})
 			.toList();
 
@@ -328,7 +313,7 @@ public class ReservationAdminService {
 	}
 
 	// ================== 예약 상세 조회 ==================
-	public ReservationDetailResponseDto getByReservationId(Long reservationId) {
+	public ReservationDetailResponseDto getByReservationId(Long adminId, Long reservationId) {
 		Reservation r = reservationDetailRepository.findById(reservationId)
 			.orElseThrow(() -> new IllegalArgumentException("Reservation not found: " + reservationId));
 
@@ -355,9 +340,19 @@ public class ReservationAdminService {
 		);
 
 		// --- Status 매핑
-		String status = (r.getReservationStatusId() != null)
+		String statusName = (r.getReservationStatusId() != null)
 			? r.getReservationStatusId().getReservationStatusName()
 			: null;
+
+		// --- 승인 가능 여부(승인 버튼 활성화 여부) ---
+		// 관리자 권한
+		Admin admin = adminRepository.findById(adminId)
+			.orElseThrow(UserNotFoundException::new);
+		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+		boolean isApprovable = isApprovableFor(roleId, statusName);
+
+		// 반려 가능 여부(반려 버튼 활성화 여부)
+		boolean isRejectable = isRejectableFor(roleId, statusName);
 
 		return new ReservationDetailResponseDto(
 			r.getReservationId(),
@@ -368,7 +363,9 @@ public class ReservationAdminService {
 			r.getReservationFrom(),
 			r.getReservationTo(),
 			r.getOrderId(),
-			status
+			statusName,
+			isApprovable,
+			isRejectable
 		);
 	}
 }

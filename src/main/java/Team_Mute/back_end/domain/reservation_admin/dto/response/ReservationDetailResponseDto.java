@@ -11,6 +11,8 @@ public record ReservationDetailResponseDto(
 	LocalDateTime reservationFrom,
 	LocalDateTime reservationTo,
 	String orderId,
-	String reservationStatusName
+	String reservationStatusName,
+	boolean isApprovable,
+	boolean isRejectable
 ) {
 }

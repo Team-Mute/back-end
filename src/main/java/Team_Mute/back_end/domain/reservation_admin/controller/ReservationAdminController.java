@@ -127,7 +127,9 @@ public class ReservationAdminController {
 	// 예약 상세 조회
 	@GetMapping("/detail/{reservationId}")
 	@Operation(summary = "예약 상세 조회", description = "토큰을 확인하여 예약 상세를 조회합니다.")
-	public ResponseEntity<ReservationDetailResponseDto> getById(@PathVariable Long reservationId) {
-		return ResponseEntity.ok(reservationAdminService.getByReservationId(reservationId));
+	public ResponseEntity<ReservationDetailResponseDto> getById(Authentication authentication, @PathVariable Long reservationId) {
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+		return ResponseEntity.ok(reservationAdminService.getByReservationId(adminId, reservationId));
 	}
 }
