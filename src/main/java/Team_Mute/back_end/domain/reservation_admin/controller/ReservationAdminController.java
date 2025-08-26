@@ -1,9 +1,9 @@
 package Team_Mute.back_end.domain.reservation_admin.controller;
 
-import Team_Mute.back_end.domain.reservation_admin.dto.ApproveResponseDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.RejectRequestDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.RejectResponseDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.ReservationListResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.service.ReservationAdminService;
 import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
