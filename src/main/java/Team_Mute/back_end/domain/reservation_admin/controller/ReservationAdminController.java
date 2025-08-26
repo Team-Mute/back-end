@@ -5,6 +5,7 @@ import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.BulkApproveResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetailResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationFilterOptionsResponse;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.service.ReservationAdminService;
 import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
@@ -131,5 +132,12 @@ public class ReservationAdminController {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 
 		return ResponseEntity.ok(reservationAdminService.getByReservationId(adminId, reservationId));
+	}
+
+	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
+	@GetMapping("/filter/options")
+	@Operation(summary = "예약 관리 필터", description = "토큰을 확인하여 예약 관리 필터를 조회합니다.")
+	public ResponseEntity<ReservationFilterOptionsResponse> getFilterOptions() {
+		return ResponseEntity.ok(reservationAdminService.getFilterOptions());
 	}
 }

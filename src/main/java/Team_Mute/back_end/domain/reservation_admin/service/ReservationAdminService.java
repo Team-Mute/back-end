@@ -17,6 +17,7 @@ import Team_Mute.back_end.domain.reservation_admin.dto.response.BulkApproveRespo
 import Team_Mute.back_end.domain.reservation_admin.dto.response.PrevisitItemResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetailResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationFilterOptionsResponse;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.UserSummaryDto;
 import Team_Mute.back_end.domain.reservation_admin.entity.ReservationLog;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -367,5 +369,33 @@ public class ReservationAdminService {
 			isApprovable,
 			isRejectable
 		);
+	}
+
+	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
+	public ReservationFilterOptionsResponse getFilterOptions() {
+		// 1) 상태: DB에서 정렬 조회 후 매핑
+		List<ReservationFilterOptionsResponse.StatusOptionDto> statuses = adminStatusRepository
+			.findAll(Sort.by(Sort.Direction.ASC, "reservationStatusId"))
+			.stream()
+			.map(this::toStatusOption)
+			.collect(Collectors.toList());
+
+		// 2) flags: 하드코딩(요구사항)
+		List<ReservationFilterOptionsResponse.FlagOptionDto> flags = List.of(
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("그룹사").build(),
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급").build()
+		);
+
+		return ReservationFilterOptionsResponse.builder()
+			.statuses(statuses)
+			.flags(flags)
+			.build();
+	}
+
+	private ReservationFilterOptionsResponse.StatusOptionDto toStatusOption(ReservationStatus status) {
+		return ReservationFilterOptionsResponse.StatusOptionDto.builder()
+			.id(status.getReservationStatusId())
+			.label(status.getReservationStatusName())
+			.build();
 	}
 }
