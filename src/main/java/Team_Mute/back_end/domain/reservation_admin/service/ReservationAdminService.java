@@ -10,15 +10,18 @@ import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
-import Team_Mute.back_end.domain.reservation_admin.dto.ApproveResponseDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.PrevisitItemResponseDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.RejectRequestDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.RejectResponseDto;
-import Team_Mute.back_end.domain.reservation_admin.dto.ReservationListResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.PrevisitItemResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.RejectResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetailResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.UserSummaryDto;
 import Team_Mute.back_end.domain.reservation_admin.entity.ReservationLog;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminPrevisitReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationStatusRepository;
+import Team_Mute.back_end.domain.reservation_admin.repository.ReservationDetailRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationLogRepository;
 import Team_Mute.back_end.domain.reservation_admin.util.EmergencyEvaluator;
 import Team_Mute.back_end.domain.reservation_admin.util.ShinhanGroupUtils;
@@ -54,6 +57,7 @@ public class ReservationAdminService {
 	private final AdminRepository adminRepository;
 	private final UserCompanyRepository userCompanyRepository;
 	private final ReservationLogRepository reservationLogRepository;
+	private final ReservationDetailRepository reservationDetailRepository;
 	private final EmergencyEvaluator emergencyEvaluator;
 
 	// ================== 상태 이름 상수 ==================
@@ -70,6 +74,7 @@ public class ReservationAdminService {
 		AdminRepository adminRepository,
 		UserCompanyRepository userCompanyRepository,
 		ReservationLogRepository reservationLogRepository,
+		ReservationDetailRepository reservationDetailRepository,
 		EmergencyEvaluator emergencyEvaluator
 	) {
 		this.adminReservationRepository = adminReservationRepository;
@@ -80,6 +85,7 @@ public class ReservationAdminService {
 		this.adminRepository = adminRepository;
 		this.userCompanyRepository = userCompanyRepository;
 		this.reservationLogRepository = reservationLogRepository;
+		this.reservationDetailRepository = reservationDetailRepository;
 		this.emergencyEvaluator = emergencyEvaluator;
 	}
 
@@ -347,5 +353,50 @@ public class ReservationAdminService {
 			.toList();
 
 		return new PageImpl<>(content, pageable, page.getTotalElements());
+	}
+
+	// ================== 예약 상세 조회 ==================
+	public ReservationDetailResponseDto getByReservationId(Long reservationId) {
+		Reservation r = reservationDetailRepository.findById(reservationId)
+			.orElseThrow(() -> new IllegalArgumentException("Reservation not found: " + reservationId));
+
+		// --- Space 조회: Reservation에 연관관계가 없으므로 spaceId로 별도 조회
+		Space s = null;
+		try {
+			Integer spaceId = r.getSpaceId().getSpaceId();        // <-- Reservation의 spaceId(Long) 필드명에 맞춰 수정
+			if (spaceId != null) {
+				s = spaceRepository.findById(spaceId).orElse(null);
+			}
+		} catch (Exception ignored) {
+		}
+
+		String spaceName = (s == null) ? null : s.getSpaceName();
+
+		// User 매핑
+		User u = r.getUserId();
+		var user = (u == null) ? null : new UserSummaryDto(
+			u.getUserId(),
+			u.getUserName(),
+			u.getUserEmail(),
+			u.getUserPhone(),
+			(u.getUserCompany() != null) ? u.getUserCompany().getCompanyName() : null
+		);
+
+		// --- Status 매핑
+		String status = (r.getReservationStatusId() != null)
+			? r.getReservationStatusId().getReservationStatusName()
+			: null;
+
+		return new ReservationDetailResponseDto(
+			r.getReservationId(),
+			spaceName,
+			user,
+			r.getReservationPurpose(),
+			r.getReservationHeadcount(),
+			r.getReservationFrom(),
+			r.getReservationTo(),
+			r.getOrderId(),
+			status
+		);
 	}
 }

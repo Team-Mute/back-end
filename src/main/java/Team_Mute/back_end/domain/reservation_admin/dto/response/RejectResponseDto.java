@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.reservation_admin.dto;
+package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

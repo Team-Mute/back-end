@@ -1,38 +1,44 @@
-package Team_Mute.back_end.domain.reservation_admin.dto;
+package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class ReservationResponseDto {
+public class ReservationListResponseDto {
 	public Long reservationId;
-	public String reservationStatusName;  // 사람이 읽을 수 있는 상태명
+	public String reservationStatusName;
+	public String spaceName;
+	public String userName;
 	public Integer reservationHeadcount;
 	public LocalDateTime reservationFrom;
 	public LocalDateTime reservationTo;
-	public String reservationPurpose;
-	public String reservationAttachment;
-	public String orderId;
-	public boolean canceledByUser;
-	public String cancelReason;
 	public LocalDateTime regDate;
-	public LocalDateTime updDate;
+	public boolean isShinhan;
+	public boolean isEmergency;
 	public List<PrevisitItemResponseDto> previsits;
 
-	public static ReservationResponseDto from(
+	public static ReservationListResponseDto from(
 		Reservation r,
 		String statusName,
-		java.util.List<PrevisitItemResponseDto> previsitDtos
+		String spaceName,
+		String userName,
+		boolean isShinhan,
+		boolean isEmergency,
+		List<PrevisitItemResponseDto> previsitDtos
 	) {
-		ReservationResponseDto res = new ReservationResponseDto();
+		ReservationListResponseDto res = new ReservationListResponseDto();
 		res.reservationId = r.getReservationId();
 		res.reservationStatusName = statusName;
+		res.spaceName = spaceName;
+		res.userName = userName;
 		res.reservationHeadcount = r.getReservationHeadcount();
 		res.reservationFrom = r.getReservationFrom();
 		res.reservationTo = r.getReservationTo();
 		res.regDate = r.getRegDate();
 		res.previsits = previsitDtos;
+		res.isShinhan = isShinhan;
+		res.isEmergency = isEmergency;
 		return res;
 	}
 }

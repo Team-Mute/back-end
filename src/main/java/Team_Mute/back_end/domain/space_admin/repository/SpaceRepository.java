@@ -167,4 +167,5 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		WHERE s.space_id = :spaceId
 		""", nativeQuery = true)
 	Optional<SpaceDatailResponse> findDetailWithNames(@Param("spaceId") Integer spaceId);
+
 }
