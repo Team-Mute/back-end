@@ -16,6 +16,7 @@ public class ReservationListResponseDto {
 	public LocalDateTime regDate;
 	public boolean isShinhan;
 	public boolean isEmergency;
+	public boolean isApprovable;
 	public List<PrevisitItemResponseDto> previsits;
 
 	public static ReservationListResponseDto from(
@@ -25,6 +26,7 @@ public class ReservationListResponseDto {
 		String userName,
 		boolean isShinhan,
 		boolean isEmergency,
+		boolean isApprovable,
 		List<PrevisitItemResponseDto> previsitDtos
 	) {
 		ReservationListResponseDto res = new ReservationListResponseDto();
@@ -39,6 +41,7 @@ public class ReservationListResponseDto {
 		res.previsits = previsitDtos;
 		res.isShinhan = isShinhan;
 		res.isEmergency = isEmergency;
+		res.isApprovable = isApprovable;
 		return res;
 	}
 }

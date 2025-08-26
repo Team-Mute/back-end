@@ -101,6 +101,21 @@ public class ReservationAdminService {
 		);
 	}
 
+	// 승인 가능 여부 계산 -> 예약 관리 리스트에서 일괄 승인 시 체크박스 선택 가능 여부 출력을 위함
+	private static final Long ROLE_SECOND_APPROVER = 1L; // 2차 승인자: 1,2차 승인 가능
+	private static final Long ROLE_FIRST_APPROVER = 2L; // 1차 승인자: 1차만 가능
+
+	private boolean isApprovableFor(Long roleId, String statusName) {
+		if (ROLE_FIRST_APPROVER.equals(roleId)) {
+			// 1차 승인자 → FIRST_PENDING만 체크 가능
+			return STATUS_FIRST_PENDING.equals(statusName);
+		} else if (ROLE_SECOND_APPROVER.equals(roleId)) {
+			// 2차 승인자 → FIRST_PENDING, SECOND_PENDING 모두 체크 가능
+			return STATUS_FIRST_PENDING.equals(statusName) || STATUS_SECOND_PENDING.equals(statusName);
+		}
+		return false;
+	}
+
 	// ================== 1차 승인 ==================
 	@Transactional
 	public ApproveResponseDto approveFirst(Long adminId, Long reservationId) {
@@ -119,10 +134,10 @@ public class ReservationAdminService {
 		// 허용 전이: FIRST_PENDING -> SECOND_PENDING
 		if (!STATUS_FIRST_PENDING.equals(fromStatus)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-				"Cannot approve second step from status: " + fromStatus);
+				"Cannot approve first step from status: " + fromStatus);
 		}
 
-		if (roleId.equals(0L) || roleId.equals(1L) || roleId.equals(2L)) {
+		if (roleId.equals(1L) || roleId.equals(2L)) { // 1차 승인자 2차 승인자 모두 승인 가능
 			ReservationStatus toStatus = adminStatusRepository.findById(statusId(STATUS_SECOND_PENDING))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Status not found"));
 
@@ -166,7 +181,7 @@ public class ReservationAdminService {
 				"Cannot approve second step from status: " + fromStatus);
 		}
 
-		if (roleId.equals(0L) || roleId.equals(1L)) {
+		if (roleId.equals(1L)) { // 2차 승인자만 승인 가능
 			ReservationStatus toStatus = adminStatusRepository.findById(statusId(STATUS_FINAL_APPROVED))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Status not found"));
 
@@ -189,7 +204,7 @@ public class ReservationAdminService {
 		return new ApproveResponseDto(reservationId, fromStatus, STATUS_FINAL_APPROVED, LocalDateTime.now(), "2차 승인 완료");
 	}
 
-	// 반려 상태 ID를 상수로 정의하거나, DB에서 동적으로 가져오는 메서드를 사용
+	//  ================== 예약 반려 ==================
 	private static final Long REJECTED_STATUS_ID = 4L;
 
 	@Transactional
@@ -263,7 +278,13 @@ public class ReservationAdminService {
 	}
 
 	// ================== 예약 리스트 조회 ==================
-	public Page<ReservationListResponseDto> getAllReservations(Pageable pageable) {
+	public Page<ReservationListResponseDto> getAllReservations(Long adminId, Pageable pageable) {
+		// 관리자 권한
+		Admin admin = adminRepository.findById(adminId)
+			.orElseThrow(UserNotFoundException::new);
+
+		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+
 		// 예약 페이지 로딩
 		Page<Reservation> page = adminReservationRepository.findAll(pageable);
 		List<Reservation> reservations = page.getContent();
@@ -347,8 +368,8 @@ public class ReservationAdminService {
 				Long uid = r.getUser().getUserId();
 				boolean isShinhan = isShinhanByUserId.getOrDefault(uid, false);
 				boolean isEmergency = emergencyEvaluator.isEmergency(r, statusName);
-
-				return ReservationListResponseDto.from(r, statusName, spaceName, userName, isShinhan, isEmergency, previsitDtos);
+				boolean isApprovable = isApprovableFor(roleId, statusName);
+				return ReservationListResponseDto.from(r, statusName, spaceName, userName, isShinhan, isEmergency, isApprovable, previsitDtos);
 			})
 			.toList();
 

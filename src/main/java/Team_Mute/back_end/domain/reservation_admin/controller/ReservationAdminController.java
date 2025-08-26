@@ -74,6 +74,7 @@ public class ReservationAdminController {
 	@GetMapping("/list")
 	@Operation(summary = "예약 리스트 조회", description = "토큰을 확인하여 예약 리스트를 조회합니다.")
 	public ResponseEntity<PagedResponse<ReservationListResponseDto>> getAllReservations(
+		Authentication authentication,
 		@RequestParam(defaultValue = "1") int page,
 		@RequestParam(defaultValue = "5") int size
 	) {
@@ -82,8 +83,8 @@ public class ReservationAdminController {
 			size,
 			Sort.by(Sort.Order.desc("regDate")) // 최신 등록 순
 		);
-
-		Page<ReservationListResponseDto> reservationPage = reservationAdminService.getAllReservations(pageable);
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+		Page<ReservationListResponseDto> reservationPage = reservationAdminService.getAllReservations(adminId, pageable);
 		PagedResponse<ReservationListResponseDto> response = new PagedResponse<>(reservationPage);
 		return ResponseEntity.ok(response);
 	}
