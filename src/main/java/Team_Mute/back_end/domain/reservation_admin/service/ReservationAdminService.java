@@ -29,9 +29,10 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import lombok.extern.slf4j.Slf4j;
 
+import java.text.Normalizer;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.data.domain.Page;
@@ -343,13 +344,58 @@ public class ReservationAdminService {
 
 		List<ReservationListResponseDto> filtered = stream.toList();
 
-		// 3) 페이징
-		int start = (int) pageable.getOffset();
-		int end = Math.min(start + pageable.getPageSize(), filtered.size());
-		List<ReservationListResponseDto> content =
-			(start >= filtered.size()) ? Collections.emptyList() : filtered.subList(start, end);
+		if (filtered.isEmpty()) {
+			return new PageImpl<>(List.of(), pageable, 0);
+		}
 
-		return new PageImpl<>(content, pageable, filtered.size());
+		return new PageImpl<>(filtered, pageable, filtered.size());
+	}
+
+	// ========================== 검색(예약자명/공간명) ==============================
+	public Page<ReservationListResponseDto> searchReservationsByKeyword(Long adminId, String keyword, Pageable pageable) {
+		// 1) 관리자 확인(기존 로직 그대로)
+		Admin admin = adminRepository.findById(adminId)
+			.orElseThrow(UserNotFoundException::new);
+		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+
+		// 2) 엔티티 페이지 로드 (기존 패턴 유지)
+		Page<Reservation> page = adminReservationRepository.findAll(pageable);
+		List<Reservation> reservations = page.getContent();
+
+		// 3) DTO 변환 (기존 유틸 서비스 재사용)
+		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(reservations, roleId);
+
+		// 4) 키워드 정규화 (한글 검색 품질 향상: NFC + 소문자)
+		String norm = normalizeKeyword(keyword);
+
+		// 5) 사용자명 또는 공간명 OR 매칭
+		Stream<ReservationListResponseDto> stream = allDtos.stream()
+			.filter(dto -> {
+				String user = normalizeNullable(dto.getUserName());
+				String space = normalizeNullable(dto.getSpaceName());
+				return (user.contains(norm) || space.contains(norm));
+			});
+		List<ReservationListResponseDto> filtered = stream.toList();
+
+		// 3) 페이징
+		if (filtered.isEmpty()) {
+			return new PageImpl<>(List.of(), pageable, 0);
+		}
+
+		return new PageImpl<>(filtered, pageable, filtered.size());
+	}
+
+	private String normalizeKeyword(String s) {
+		String trimmed = s == null ? "" : s.trim();
+		// 한글/악센트 문자 정규화 + 대소문자 정리
+		String nfc = Normalizer.normalize(trimmed, Normalizer.Form.NFC);
+		return nfc.toLowerCase(Locale.ROOT);
+	}
+
+	private String normalizeNullable(String s) {
+		if (s == null) return "";
+		String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
+		return nfc.toLowerCase(Locale.ROOT);
 	}
 
 }

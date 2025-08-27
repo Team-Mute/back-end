@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
@@ -161,5 +163,35 @@ public class ReservationAdminController {
 		PagedResponse<ReservationListResponseDto> response = new PagedResponse<>(data);
 
 		return ResponseEntity.ok(response);
+	}
+
+	// 예약 관리 검색 (예약자명/공간명)
+	@GetMapping("/search")
+	@Operation(
+		summary = "예약 검색(단일 키워드)",
+		description = "입력 받은 단어로 사용자명 또는 공간명에서 부분 일치(대소문자 무시)로 검색합니다."
+	)
+	public ResponseEntity<PagedResponse<ReservationListResponseDto>> searchReservationsByKeyword(
+		Authentication authentication,
+		@RequestParam(name = "keyword", required = true) String keyword,
+		@RequestParam(defaultValue = "1") int page,
+		@RequestParam(defaultValue = "5") int size
+	) {
+		String searchKeyword = (keyword == null) ? "" : keyword.trim();
+		if (searchKeyword.isBlank()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "검색어를 입력하세요.");
+		}
+
+		Pageable pageable = PageRequest.of(
+			Math.max(page - 1, 0),
+			size,
+			Sort.by(Sort.Order.desc("regDate")) // 기존 정렬 유지
+		);
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+		Page<ReservationListResponseDto> data =
+			reservationAdminService.searchReservationsByKeyword(adminId, searchKeyword, pageable);
+
+		return ResponseEntity.ok(new PagedResponse<>(data));
 	}
 }
