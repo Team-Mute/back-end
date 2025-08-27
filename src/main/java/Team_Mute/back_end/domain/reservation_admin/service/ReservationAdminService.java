@@ -25,12 +25,15 @@ import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationSt
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationDetailRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationLogRepository;
 import Team_Mute.back_end.domain.reservation_admin.util.EmergencyEvaluator;
+import Team_Mute.back_end.domain.smsAuth.exception.SmsSendingFailedException;
+import Team_Mute.back_end.domain.smsAuth.service.SmsService;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import lombok.extern.slf4j.Slf4j;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -53,6 +56,7 @@ import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprov
 public class ReservationAdminService {
 	private final ReservationApprovalTxService approvalTxService;
 	private final RservationListAllService rservationListAllService;
+	private final SmsService smsService;
 	private final AdminReservationRepository adminReservationRepository;
 	private final AdminPrevisitReservationRepository adminPrevisitRepository;
 	private final AdminReservationStatusRepository adminStatusRepository;
@@ -64,9 +68,13 @@ public class ReservationAdminService {
 	private final ReservationDetailRepository reservationDetailRepository;
 	private final EmergencyEvaluator emergencyEvaluator;
 
+	private static final Long APPROVED_FINAL_ID = 3L; // 최종 승인
+	public static final Long REJECTED_STATUS_ID = 4L; // 반려 상태 // 반려
+
 	public ReservationAdminService(
 		ReservationApprovalTxService approvalTxService,
 		RservationListAllService rservationListAllService,
+		SmsService smsService,
 		AdminReservationRepository adminReservationRepository,
 		AdminPrevisitReservationRepository adminPrevisitRepository,
 		AdminReservationStatusRepository adminStatusRepository,
@@ -80,6 +88,7 @@ public class ReservationAdminService {
 	) {
 		this.approvalTxService = approvalTxService;
 		this.rservationListAllService = rservationListAllService;
+		this.smsService = smsService;
 		this.adminReservationRepository = adminReservationRepository;
 		this.adminPrevisitRepository = adminPrevisitRepository;
 		this.adminStatusRepository = adminStatusRepository;
@@ -123,6 +132,7 @@ public class ReservationAdminService {
 	// ===== 2차 일괄 승인 =====
 	@org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
 	public BulkApproveResponseDto approveSecondBulk(Long adminId, java.util.List<Long> reservationIds) {
+		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 		java.util.List<Long> ids = reservationIds.stream().distinct().toList();
 		BulkApproveResponseDto resp = new BulkApproveResponseDto();
 		resp.setTotal(ids.size());
@@ -130,7 +140,26 @@ public class ReservationAdminService {
 		for (Long id : ids) {
 			try {
 				ApproveResponseDto r = approvalTxService.approveSecondTx(adminId, id); // ← Tx 전용 서비스 호출
-				resp.add(new BulkApproveItemResultDto(id, true, r.getMessage()));
+				// 승인 성공 시 SMS 시도 (실패해도 승인 유지)
+				String finalMsg = r.getMessage(); // "2차 승인 완료"
+				try {
+					Reservation reservation = adminReservationRepository.findById(id)
+						.orElseThrow(() -> new IllegalArgumentException("예약을 찾을 수 없습니다."));
+
+					smsService.sendSmsForReservationAdmin(
+						null,
+						reservation,
+						APPROVED_FINAL_ID,
+						null
+					);
+
+					finalMsg += " / SMS 발송 완료";
+				} catch (SmsSendingFailedException smsEx) {
+					finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
+				}
+
+				resp.add(new BulkApproveItemResultDto(id, true, finalMsg));
+
 				resp.setSuccessCount(resp.getSuccessCount() + 1);
 			} catch (Exception ex) {
 				resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
@@ -141,75 +170,100 @@ public class ReservationAdminService {
 	}
 
 	//  ================== 예약 반려 ==================
-	public static final Long REJECTED_STATUS_ID = 4L; // 반려 상태
-
 	@Transactional
 	public RejectResponseDto rejectReservation(Long adminId, Long reservationId, RejectRequestDto requestDto) {
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
+		try {
+			Admin admin = adminRepository.findById(adminId)
+				.orElseThrow(UserNotFoundException::new);
 
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+			Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
 
-		if (roleId.equals(1L) || roleId.equals(1L)) {
-			// 예약 엔티티 조회
-			Reservation reservation = adminReservationRepository.findById(reservationId)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
+			if (roleId.equals(1L) || roleId.equals(1L)) {
+				// 예약 엔티티 조회
+				Reservation reservation = adminReservationRepository.findById(reservationId)
+					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
 
-			// 이미 최종 상태인 경우 예외 처리
-			Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
+				// 이미 최종 상태인 경우 예외 처리
+				Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
 
-			// 데이터베이스의 상태 ID를 기반으로 이미 최종 상태인 경우를 확인
-			// 3: 최종 승인 완료, 4: 반려됨, 5: 사용 완료, 6: 취소됨
-			if (currentStatusId.equals(3L)) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 최종 승인 완료된 예약입니다.");
-			} else if (currentStatusId.equals(4L)) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 반려된 예약입니다.");
-			} else if (currentStatusId.equals(5L)) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 완료된 예약입니다.");
-			} else if (currentStatusId.equals(6L)) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "사용자에 의해 취소된 예약입니다.");
-			}
-			String rejectionReason = requestDto.getRejectionReason();
-
-			if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반려 사유는 필수 입력 항목입니다.");
-			}
-
-			// 반려 상태 엔티티 조회
-			ReservationStatus rejectedStatus = adminStatusRepository.findById(REJECTED_STATUS_ID)
-				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rejected status not found"));
-
-			// 예약 및 사전답사 상태 변경
-			reservation.setReservationStatusId(rejectedStatus);
-			reservation.setUpdDate(LocalDateTime.now());
-
-			if (reservation.getPrevisitReservations() != null) {
-				for (PrevisitReservation previsit : reservation.getPrevisitReservations()) {
-					previsit.setReservationStatusId(rejectedStatus.getReservationStatusId());
-					previsit.setUpdDate(LocalDateTime.now());
+				// 데이터베이스의 상태 ID를 기반으로 이미 최종 상태인 경우를 확인
+				// 3: 최종 승인 완료, 4: 반려됨, 5: 사용 완료, 6: 취소됨
+				if (currentStatusId.equals(3L)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 최종 승인 완료된 예약입니다.");
+				} else if (currentStatusId.equals(4L)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 반려된 예약입니다.");
+				} else if (currentStatusId.equals(5L)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 완료된 예약입니다.");
+				} else if (currentStatusId.equals(6L)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "사용자에 의해 취소된 예약입니다.");
 				}
-				adminPrevisitRepository.saveAll(reservation.getPrevisitReservations());
+				String rejectionReason = requestDto.getRejectionReason();
+
+				if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "반려 사유는 필수 입력 항목입니다.");
+				}
+
+				// 반려 상태 엔티티 조회
+				ReservationStatus rejectedStatus = adminStatusRepository.findById(REJECTED_STATUS_ID)
+					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rejected status not found"));
+
+				// 예약 및 사전답사 상태 변경
+				reservation.setReservationStatusId(rejectedStatus);
+				reservation.setUpdDate(LocalDateTime.now());
+
+				if (reservation.getPrevisitReservations() != null) {
+					for (PrevisitReservation previsit : reservation.getPrevisitReservations()) {
+						previsit.setReservationStatusId(rejectedStatus.getReservationStatusId());
+						previsit.setUpdDate(LocalDateTime.now());
+					}
+					adminPrevisitRepository.saveAll(reservation.getPrevisitReservations());
+				}
+
+				// 반려 사유를 로그 테이블에 저장
+				ReservationLog log = new ReservationLog();
+				log.setReservation(reservation);
+				log.setChangedStatus(rejectedStatus);
+				log.setMemo(rejectionReason);
+				log.setRegDate(LocalDateTime.now());
+
+				reservationLogRepository.save(log);
+
+				// 반려 성공 시 SMS 시도 (실패해도 반려 유지)
+				String smsMsg;
+				try {
+//					DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+//
+//					String OrderId = reservation.getOrderId();
+//					String userName = reservation.getUser().getUserName();
+//					String phoneNumber = reservation.getUser().getUserPhone();
+//					String spaceName = reservation.getSpace().getSpaceName();
+//					String reservationFrom = reservation.getReservationFrom().format(formatter);
+//					String reservationTo = reservation.getReservationTo().format(formatter);
+
+					smsService.sendSmsForReservationAdmin(
+						null,
+						reservation,
+						REJECTED_STATUS_ID,
+						rejectionReason
+					);
+					smsMsg = " + 반려 메세지 전송 완료";
+				} catch (SmsSendingFailedException smsEx) {
+					throw new RuntimeException(smsEx.getMessage(), smsEx);
+				}
+
+				return new RejectResponseDto(
+					reservation.getReservationId(),
+					reservation.getReservationStatusId().getReservationStatusName(),
+					rejectedStatus.getReservationStatusName(),
+					LocalDateTime.now(),
+					rejectionReason,
+					"반려 완료" + smsMsg
+				);
+			} else {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "반려 권한이 없습니다.");
 			}
-
-			// 반려 사유를 로그 테이블에 저장
-			ReservationLog log = new ReservationLog();
-			log.setReservation(reservation);
-			log.setChangedStatus(rejectedStatus);
-			log.setMemo(rejectionReason);
-			log.setRegDate(LocalDateTime.now());
-
-			reservationLogRepository.save(log);
-
-			return new RejectResponseDto(
-				reservation.getReservationId(),
-				reservation.getReservationStatusId().getReservationStatusName(),
-				rejectedStatus.getReservationStatusName(),
-				LocalDateTime.now(),
-				rejectionReason,
-				"반려 완료"
-			);
-		} else {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "반려 권한이 없습니다.");
+		} catch (Exception ex) {
+			throw new RuntimeException(ex.getMessage(), ex);
 		}
 	}
 
