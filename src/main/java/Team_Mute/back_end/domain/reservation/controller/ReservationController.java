@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import Team_Mute.back_end.domain.reservation.dto.request.AvailableDateRequest;
 import Team_Mute.back_end.domain.reservation.dto.request.AvailableTimeRequest;
@@ -57,10 +59,14 @@ public class ReservationController {
 	}
 
 	// 1. 예약 생성
-	@PostMapping
+	@PostMapping(consumes = {"multipart/form-data"})
 	public ResponseEntity<ReservationResponseDto> createReservation(
-		@AuthenticationPrincipal String userId, // 토큰에서 추출된 사용자 ID를 직접 받음
-		@Valid @RequestBody ReservationRequestDto requestDto) {
+		@AuthenticationPrincipal String userId,
+		@Valid @RequestPart("requestDto") ReservationRequestDto requestDto,
+		@RequestPart(value = "files", required = false) List<MultipartFile> files) {
+
+		requestDto.setReservationAttachments(files);
+
 		ReservationResponseDto responseDto = reservationService.createReservation(userId, requestDto);
 		return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
 	}
@@ -85,11 +91,16 @@ public class ReservationController {
 	}
 
 	// 4. 예약 수정
-	@PutMapping("/{reservation_id}") // 경로 변수명 복귀
+	@PutMapping(value = "/{reservation_id}", consumes = {"multipart/form-data"})
 	public ResponseEntity<ReservationResponseDto> updateReservation(
 		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId, // Long 타입으로 받음
-		@Valid @RequestBody ReservationRequestDto requestDto) {
+		@PathVariable("reservation_id") Long reservationId,
+		@Valid @RequestPart("requestDto") ReservationRequestDto requestDto,
+		@RequestPart(value = "files", required = false) List<MultipartFile> files) {
+
+		// DTO에 파일 리스트 설정
+		requestDto.setReservationAttachments(files);
+
 		ReservationResponseDto updatedReservation = reservationService.updateReservation(userId, reservationId,
 			requestDto);
 		return ResponseEntity.ok(updatedReservation);

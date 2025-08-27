@@ -2,6 +2,7 @@ package Team_Mute.back_end.domain.reservation.service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -10,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
@@ -24,6 +26,8 @@ import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
 import Team_Mute.back_end.domain.reservation.repository.ReservationStatusRepository;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
+import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
+import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -35,6 +39,8 @@ public class ReservationService {
 	private final SpaceRepository spaceRepository;
 	private final ReservationStatusRepository reservationStatusRepository;
 	private final UserRepository userRepository;
+	private final S3Uploader s3Uploader;
+	private final S3Deleter s3Deleter;
 
 	public ReservationResponseDto createReservation(String userId, ReservationRequestDto requestDto) {
 		User user = findUserById(userId);
@@ -51,10 +57,9 @@ public class ReservationService {
 			.orElseThrow(
 				() -> new ResourceNotFoundException("기본 예약 상태(ID: " + INITIAL_RESERVATION_STATUS_ID + ")를 찾을 수 없습니다."));
 
-		String orderId = generateOrderId(space.getSpaceName());
-
+		// 1. 첨부파일 정보 없이 예약 객체 먼저 생성 및 저장 (ID 확보 목적)
 		Reservation reservation = Reservation.builder()
-			.orderId(orderId)
+			.orderId(generateOrderId(space.getSpaceName()))
 			.space(space)
 			.user(user)
 			.reservationStatus(status)
@@ -62,11 +67,26 @@ public class ReservationService {
 			.reservationFrom(requestDto.getReservationFrom())
 			.reservationTo(requestDto.getReservationTo())
 			.reservationPurpose(requestDto.getReservationPurpose())
-			.reservationAttachment(requestDto.getReservationAttachment())
+			.reservationAttachment(new ArrayList<>()) // 빈 리스트로 초기화
 			.build();
 
-		Reservation savedReservation = reservationRepository.save(reservation);
-		return ReservationResponseDto.fromEntity(savedReservation);
+		Reservation savedReservation = reservationRepository.saveAndFlush(reservation); // ID를 즉시 할당받기 위해 flush
+
+		// 2. 파일 업로드 및 URL 저장
+		List<String> attachmentUrls = new ArrayList<>();
+		if (requestDto.getReservationAttachments() != null && !requestDto.getReservationAttachments().isEmpty()) {
+			// S3 디렉토리 경로: attachment/{reservation_id}/
+			String dirName = "attachment/" + savedReservation.getReservationId();
+			attachmentUrls = s3Uploader.uploadAll(requestDto.getReservationAttachments(), dirName);
+		}
+
+		// 3. 파일 URL 리스트를 예약 정보에 업데이트
+		savedReservation.setReservationAttachment(attachmentUrls);
+
+		// 변경된 내용을 최종 저장
+		Reservation finalReservation = reservationRepository.save(savedReservation);
+
+		return ReservationResponseDto.fromEntity(finalReservation);
 	}
 
 	@Transactional(readOnly = true)
@@ -99,25 +119,50 @@ public class ReservationService {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
+		// 1. 기존 S3에 저장된 첨부파일 삭제
+		List<String> oldAttachmentUrls = reservation.getReservationAttachment();
+		if (oldAttachmentUrls != null && !oldAttachmentUrls.isEmpty()) {
+			oldAttachmentUrls.forEach(s3Deleter::deleteByUrl);
+		}
+
+		// 2. 새로운 파일 업로드
+		List<String> newAttachmentUrls = new ArrayList<>();
+		List<MultipartFile> newFiles = requestDto.getReservationAttachments();
+
+		if (newFiles != null && !newFiles.isEmpty()) {
+			String dirName = "attachment/" + reservation.getReservationId();
+			newAttachmentUrls = s3Uploader.uploadAll(newFiles, dirName);
+		}
+
+		// 3. 예약 정보 업데이트 (파일 URL 포함)
 		Space space = spaceRepository.findById(requestDto.getSpaceId())
 			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
 
 		reservation.updateDetails(
 			space,
-			reservation.getReservationStatus(), // 기존 상태 유지
+			reservation.getReservationStatus(), // 상태는 기존 값 유지
 			requestDto.getReservationHeadcount(),
 			requestDto.getReservationFrom(),
 			requestDto.getReservationTo(),
 			requestDto.getReservationPurpose(),
-			requestDto.getReservationAttachment()
+			newAttachmentUrls // 새로운 파일 URL 리스트로 교체
 		);
 
-		return ReservationResponseDto.fromEntity(reservation);
+		// 변경된 예약 정보 저장 (updateDetails가 영속성 컨텍스트 내에서 동작하므로 명시적 save는 선택사항)
+		Reservation updatedReservation = reservationRepository.save(reservation);
+
+		return ReservationResponseDto.fromEntity(updatedReservation);
 	}
 
 	public void deleteReservation(String userId, Long reservationId) {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
+
+		List<String> attachmentUrls = reservation.getReservationAttachment();
+		if (attachmentUrls != null && !attachmentUrls.isEmpty()) {
+			attachmentUrls.forEach(s3Deleter::deleteByUrl);
+		}
+
 		reservationRepository.delete(reservation);
 	}
 
