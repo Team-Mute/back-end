@@ -136,8 +136,30 @@ public class ReservationAdminController {
 
 	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
 	@GetMapping("/filter/options")
-	@Operation(summary = "예약 관리 필터", description = "토큰을 확인하여 예약 관리 필터를 조회합니다.")
+	@Operation(summary = "예약 관리 필터 옵션", description = "토큰을 확인하여 예약 관리 필터를 조회합니다.")
 	public ResponseEntity<ReservationFilterOptionsResponse> getFilterOptions() {
 		return ResponseEntity.ok(reservationAdminService.getFilterOptions());
+	}
+
+	// 예약 관리 리스트 필터링
+	@GetMapping("/filter")
+	@Operation(summary = "예약 관리 리스트 필터링", description = "토큰을 확인하여 예약 관리 리스트를 필터링합니다.")
+	public ResponseEntity<PagedResponse<ReservationListResponseDto>> getFilteredReservations(
+		Authentication authentication,
+		@RequestParam("filterOption") String filterOption,
+		@RequestParam(defaultValue = "1") int page,
+		@RequestParam(defaultValue = "5") int size
+	) {
+		Pageable pageable = PageRequest.of(
+			Math.max(page - 1, 0),
+			size,
+			Sort.by(Sort.Order.desc("regDate")) // 최신 등록 순
+		);
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+		Page<ReservationListResponseDto> data = reservationAdminService.getFilteredReservations(adminId, filterOption, pageable);
+		PagedResponse<ReservationListResponseDto> response = new PagedResponse<>(data);
+
+		return ResponseEntity.ok(response);
 	}
 }

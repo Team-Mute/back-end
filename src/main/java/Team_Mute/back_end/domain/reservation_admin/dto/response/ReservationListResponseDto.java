@@ -1,10 +1,14 @@
 package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Getter
+@Setter
 public class ReservationListResponseDto {
     public Long reservationId;
     public String reservationStatusName;
@@ -46,5 +50,13 @@ public class ReservationListResponseDto {
         res.isApprovable = isApprovable;
         res.isRejectable = isRejectable;
         return res;
+    }
+
+    public Boolean getIsEmergency() {
+        return isShinhan;
+    }
+
+    public Boolean getIsShinhan() {
+        return isEmergency;
     }
 }
