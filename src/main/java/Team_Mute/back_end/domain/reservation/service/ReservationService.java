@@ -18,6 +18,7 @@ import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
 import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.RejectReasonResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationCancelResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationDetailResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationListDto;
@@ -29,6 +30,8 @@ import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueExceptio
 import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
 import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
 import Team_Mute.back_end.domain.reservation.repository.ReservationStatusRepository;
+import Team_Mute.back_end.domain.reservation_admin.entity.ReservationLog;
+import Team_Mute.back_end.domain.reservation_admin.repository.ReservationLogRepository;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
@@ -46,6 +49,7 @@ public class ReservationService {
 	private final UserRepository userRepository;
 	private final S3Uploader s3Uploader;
 	private final S3Deleter s3Deleter;
+	private final ReservationLogRepository reservationLogRepository;
 
 	public ReservationResponseDto createReservation(String userId, ReservationRequestDto requestDto) {
 		User user = findUserById(userId);
@@ -298,4 +302,27 @@ public class ReservationService {
 		}
 		return reservation;
 	}
+
+	@Transactional(readOnly = true)
+	public RejectReasonResponseDto findRejectReason(String userId, Long reservationId) {
+		// 1. 사용자 인증 및 예약 소유권 확인
+		User user = findUserById(userId);
+		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
+
+		// 2. 예약 상태가 '반려'(ID: 4)인지 확인
+		final Long REJECTED_STATUS_ID = 4L;
+		if (!reservation.getReservationStatus().getReservationStatusId().equals(REJECTED_STATUS_ID)) {
+			throw new IllegalArgumentException("반려 상태의 예약이 아닙니다.");
+		}
+
+		// 3. 해당 예약의 '반려' 상태 로그 조회
+		ReservationLog rejectLog = reservationLogRepository
+			.findTopByReservationReservationIdAndChangedStatusReservationStatusIdOrderByRegDateDesc(
+				reservationId, REJECTED_STATUS_ID)
+			.orElseThrow(() -> new ResourceNotFoundException("반려 사유를 찾을 수 없습니다."));
+
+		// 4. 로그에서 memo(반려 사유)를 추출하여 응답
+		return new RejectReasonResponseDto(rejectLog.getMemo());
+	}
+
 }
