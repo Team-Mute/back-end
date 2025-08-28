@@ -176,12 +176,20 @@ public class ReservationAdminService {
 			Admin admin = adminRepository.findById(adminId)
 				.orElseThrow(UserNotFoundException::new);
 
-			Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+			// 예약 엔티티 조회
+			Reservation reservation = adminReservationRepository.findById(reservationId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
 
-			if (roleId.equals(1L) || roleId.equals(1L)) {
-				// 예약 엔티티 조회
-				Reservation reservation = adminReservationRepository.findById(reservationId)
-					.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
+			Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+			Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
+			Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
+
+			if (roleId.equals(1L) || roleId.equals(2L)) {
+				// 1차 승인자일 경우 담당 지역만 승인 가능
+				if (roleId.equals(2L) && !reservationRegionId.equals(adminRegionId)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"해당 지역의 반려 권한이 없습니다 담당 지역인지 확인하세요");
+				}
 
 				// 이미 최종 상태인 경우 예외 처리
 				Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
@@ -231,15 +239,6 @@ public class ReservationAdminService {
 				// 반려 성공 시 SMS 시도 (실패해도 반려 유지)
 				String smsMsg;
 				try {
-//					DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-//
-//					String OrderId = reservation.getOrderId();
-//					String userName = reservation.getUser().getUserName();
-//					String phoneNumber = reservation.getUser().getUserPhone();
-//					String spaceName = reservation.getSpace().getSpaceName();
-//					String reservationFrom = reservation.getReservationFrom().format(formatter);
-//					String reservationTo = reservation.getReservationTo().format(formatter);
-
 					smsService.sendSmsForReservationAdmin(
 						null,
 						reservation,
@@ -273,12 +272,12 @@ public class ReservationAdminService {
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(UserNotFoundException::new);
 
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+		//Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
 
 		// 예약 페이지 로딩
 		Page<Reservation> page = adminReservationRepository.findAll(pageable);
 		List<Reservation> reservations = page.getContent();
-		List<ReservationListResponseDto> content = rservationListAllService.getReservationListAll(reservations, roleId);
+		List<ReservationListResponseDto> content = rservationListAllService.getReservationListAll(reservations, admin);
 
 		if (reservations.isEmpty()) {
 			return new PageImpl<>(List.of(), pageable, 0);
@@ -290,13 +289,13 @@ public class ReservationAdminService {
 
 	// ================== 예약 상세 조회 ==================
 	public ReservationDetailResponseDto getByReservationId(Long adminId, Long reservationId) {
-		Reservation r = reservationDetailRepository.findById(reservationId)
+		Reservation reservation = reservationDetailRepository.findById(reservationId)
 			.orElseThrow(() -> new IllegalArgumentException("Reservation not found: " + reservationId));
 
 		// --- Space 조회: Reservation에 연관관계가 없으므로 spaceId로 별도 조회
 		Space s = null;
 		try {
-			Integer spaceId = r.getSpaceId().getSpaceId();        // <-- Reservation의 spaceId(Long) 필드명에 맞춰 수정
+			Integer spaceId = reservation.getSpaceId().getSpaceId();        // <-- Reservation의 spaceId(Long) 필드명에 맞춰 수정
 			if (spaceId != null) {
 				s = spaceRepository.findById(spaceId).orElse(null);
 			}
@@ -306,7 +305,7 @@ public class ReservationAdminService {
 		String spaceName = (s == null) ? null : s.getSpaceName();
 
 		// User 매핑
-		User u = r.getUserId();
+		User u = reservation.getUserId();
 		var user = (u == null) ? null : new UserSummaryDto(
 			u.getUserId(),
 			u.getUserName(),
@@ -316,8 +315,8 @@ public class ReservationAdminService {
 		);
 
 		// --- Status 매핑
-		String statusName = (r.getReservationStatusId() != null)
-			? r.getReservationStatusId().getReservationStatusName()
+		String statusName = (reservation.getReservationStatusId() != null)
+			? reservation.getReservationStatusId().getReservationStatusName()
 			: null;
 
 		// --- 승인 가능 여부(승인 버튼 활성화 여부) ---
@@ -325,20 +324,24 @@ public class ReservationAdminService {
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(UserNotFoundException::new);
 		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
-		boolean isApprovable = isApprovableFor(roleId, statusName);
+
+		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
+		Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
+
+		boolean isApprovable = isApprovableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
 		// 반려 가능 여부(반려 버튼 활성화 여부)
-		boolean isRejectable = isRejectableFor(roleId, statusName);
+		boolean isRejectable = isRejectableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
 		return new ReservationDetailResponseDto(
-			r.getReservationId(),
+			reservation.getReservationId(),
 			spaceName,
 			user,
-			r.getReservationPurpose(),
-			r.getReservationHeadcount(),
-			r.getReservationFrom(),
-			r.getReservationTo(),
-			r.getOrderId(),
+			reservation.getReservationPurpose(),
+			reservation.getReservationHeadcount(),
+			reservation.getReservationFrom(),
+			reservation.getReservationTo(),
+			reservation.getOrderId(),
 			statusName,
 			isApprovable,
 			isRejectable
@@ -384,7 +387,7 @@ public class ReservationAdminService {
 		// 예약 페이지 로딩
 		Page<Reservation> page = adminReservationRepository.findAll(pageable);
 		List<Reservation> reservations = page.getContent();
-		List<ReservationListResponseDto> allData = rservationListAllService.getReservationListAll(reservations, roleId);
+		List<ReservationListResponseDto> allData = rservationListAllService.getReservationListAll(reservations, admin);
 
 		Stream<ReservationListResponseDto> stream = allData.stream();
 
@@ -417,7 +420,7 @@ public class ReservationAdminService {
 		List<Reservation> reservations = page.getContent();
 
 		// 3) DTO 변환 (기존 유틸 서비스 재사용)
-		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(reservations, roleId);
+		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(reservations, admin);
 
 		// 4) 키워드 정규화 (한글 검색 품질 향상: NFC + 소문자)
 		String norm = normalizeKeyword(keyword);
