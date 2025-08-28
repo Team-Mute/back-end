@@ -34,4 +34,14 @@ public class ReservationRequestDto {
 	private String reservationPurpose;
 
 	private List<MultipartFile> reservationAttachments;
+
+	private List<String> existingAttachments;
+
+	public List<String> getExistingAttachments() {
+		return existingAttachments;
+	}
+
+	public void setExistingAttachments(List<String> existingAttachments) {
+		this.existingAttachments = existingAttachments;
+	}
 }
