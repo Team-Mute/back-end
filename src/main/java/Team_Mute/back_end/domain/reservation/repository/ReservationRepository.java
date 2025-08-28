@@ -14,7 +14,7 @@ import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 
 @Repository
-public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+public interface ReservationRepository extends JpaRepository<Reservation, Long>, ReservationRepositoryCustom {
 	Page<Reservation> findByUser(User user, Pageable pageable);
 
 	@Query("SELECT r FROM Reservation r WHERE r.space.spaceId = :spaceId " +

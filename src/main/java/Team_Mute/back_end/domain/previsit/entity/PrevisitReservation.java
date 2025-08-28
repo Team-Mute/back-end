@@ -1,5 +1,10 @@
 package Team_Mute.back_end.domain.previsit.entity;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,10 +17,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 @Getter
 @Setter
@@ -50,6 +51,7 @@ public class PrevisitReservation {
 	private LocalDateTime updDate;
 
 	// getters/setters
+
 	public Long getPrevisitId() {
 		return id;
 	}

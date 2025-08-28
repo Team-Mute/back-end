@@ -138,7 +138,7 @@ public class AdminService {
 			.orElseThrow(UserNotFoundException::new);
 
 		String regionName = "N/A";
-		if (admin.getAdminRegion().getRegionId() != null) {
+		if (admin.getAdminRegion() != null && admin.getAdminRegion().getRegionId() != null) {
 			regionName = adminRegionRepository.findById(admin.getAdminRegion().getRegionId())
 				.map(AdminRegion::getRegionName)
 				.orElse("지역 정보 없음");
@@ -166,8 +166,10 @@ public class AdminService {
 			admin.setAdminEmail(requestDto.getUserEmail());
 		}
 
-		AdminRegion region = findOrCreateRegion(requestDto.getRegionName());
-		admin.setAdminRegion(region);
+		if (requestDto.getRegionName() != null) {
+			AdminRegion region = findOrCreateRegion(requestDto.getRegionName());
+			admin.setAdminRegion(region);
+		}
 		admin.setAdminName(requestDto.getUserName());
 		admin.setAdminPhone(requestDto.getUserPhone());
 
