@@ -4,7 +4,6 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.ec4j.editorconfig' version '0.0.3'
     id 'checkstyle'
-    id "com.ewerk.gradle.plugins.querydsl" version "1.0.10"
 }
 
 checkstyle {
@@ -12,6 +11,7 @@ checkstyle {
     configFile = file("${rootDir}/config/naver-checkstyle-rules.xml")
     configProperties = ["suppressionFile": "${rootDir}/config/naver-checkstyle-suppressions.xml"]
     toolVersion = "8.42"
+    sourceSets = [sourceSets.main]
 }
 
 compileJava.options.encoding = 'UTF-8'
@@ -87,19 +87,19 @@ dependencies {
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
 }
 
-compileJava.dependsOn(compileQuerydsl)
+def generatedDir = "build/generated/querydsl"
 
-def querydslDir = "build/generated/querydsl"
-
-querydsl {
-    jpa = true
-    querydslSourcesDir = querydslDir
-}
 sourceSets {
-    main.java.srcDir querydslDir
+    main.java.srcDirs += [generatedDir]
 }
-compileQuerydsl {
-    options.annotationProcessorPath = configurations.querydsl
+
+tasks.withType(JavaCompile) {
+    options.getGeneratedSourceOutputDirectory().set(file(generatedDir))
+}
+
+// clean 태스크가 실행될 때 생성된 디렉토리도 삭제하도록 설정
+clean {
+    delete file(generatedDir)
 }
 
 tasks.named('test') {
