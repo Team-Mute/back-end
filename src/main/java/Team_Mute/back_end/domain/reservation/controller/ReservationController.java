@@ -25,6 +25,7 @@ import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
 import Team_Mute.back_end.domain.reservation.dto.response.AvailableDateResponse;
 import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse;
 import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.RejectReasonResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationCancelResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationDetailResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationResponseDto;
@@ -135,4 +136,12 @@ public class ReservationController {
 		return ResponseEntity.ok(responseDto);
 	}
 
+	@GetMapping("/rejectMassage/{reservation_id}")
+	public ResponseEntity<RejectReasonResponseDto> getRejectReason(
+		@AuthenticationPrincipal String userId,
+		@PathVariable("reservation_id") Long reservationId) {
+
+		RejectReasonResponseDto responseDto = reservationService.findRejectReason(userId, reservationId);
+		return ResponseEntity.ok(responseDto);
+	}
 }
