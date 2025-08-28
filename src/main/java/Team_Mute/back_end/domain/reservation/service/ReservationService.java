@@ -1,13 +1,13 @@
 package Team_Mute.back_end.domain.reservation.service;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,7 +15,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
+import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
+import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.ReservationCancelResponseDto;
+import Team_Mute.back_end.domain.reservation.dto.response.ReservationDetailResponseDto;
+import Team_Mute.back_end.domain.reservation.dto.response.ReservationListDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationResponseDto;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
@@ -90,28 +95,39 @@ public class ReservationService {
 	}
 
 	@Transactional(readOnly = true)
-	public Page<ReservationResponseDto> findReservations(String userId, int currentPage, int limit) {
+	public PagedReservationResponse findReservations(String userId, String filterOption, Pageable pageable) {
 		User user = findUserById(userId);
-		Pageable pageable = PageRequest.of(currentPage - 1, limit);
-		Page<Reservation> reservationPage;
 
-		List<Integer> adminRoles = Arrays.asList(0, 1, 2);
-		if (adminRoles.contains(user.getUserRole().getRoleId())) {
-			reservationPage = reservationRepository.findAll(pageable);
-		} else if (user.getUserRole().getRoleId() == 3) {
-			reservationPage = reservationRepository.findByUser(user, pageable);
-		} else {
-			throw new ForbiddenAccessException("예약을 조회할 권한이 없습니다.");
+		// 2. 일반 사용자만 접근 가능하도록 권한 확인
+		if (user.getUserRole().getRoleId() != 3) {
+			throw new ForbiddenAccessException("일반 사용자만 접근 가능한 기능입니다.");
 		}
 
-		return reservationPage.map(ReservationResponseDto::fromEntity);
+		// 3, 4. 필터 옵션에 따라 동적 쿼리 실행
+		Page<Reservation> reservationPage = reservationRepository.findReservationsByFilter(user, filterOption,
+			pageable);
+
+		// 5. 응답 DTO로 변환
+		Page<ReservationListDto> dtoPage = reservationPage.map(ReservationListDto::fromEntity);
+
+		return PagedReservationResponse.fromPage(dtoPage);
 	}
 
 	@Transactional(readOnly = true)
-	public ReservationResponseDto findReservationById(String userId, Long reservationId) {
+	public ReservationDetailResponseDto findReservationById(String userId, Long reservationId) {
 		User user = findUserById(userId);
-		Reservation reservation = findReservationAndVerifyAccess(user, reservationId);
-		return ReservationResponseDto.fromEntity(reservation);
+
+		// 2. 일반 사용자(role_id=3)만 접근 가능하도록 권한 확인
+		if (user.getUserRole().getRoleId() != 3) {
+			throw new ForbiddenAccessException("일반 사용자만 접근 가능한 기능입니다.");
+		}
+
+		// findReservationAndVerifyAccess는 관리자 또는 소유주만 허용하므로,
+		// 일반 사용자이면서 소유주인 경우만 통과시키기 위해 findReservationAndVerifyOwnership 사용
+		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
+
+		// 새로운 DTO로 변환하여 반환
+		return ReservationDetailResponseDto.fromEntity(reservation);
 	}
 
 	public ReservationResponseDto updateReservation(String userId, Long reservationId,
@@ -119,36 +135,67 @@ public class ReservationService {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
-		// 1. 기존 S3에 저장된 첨부파일 삭제
-		List<String> oldAttachmentUrls = reservation.getReservationAttachment();
-		if (oldAttachmentUrls != null && !oldAttachmentUrls.isEmpty()) {
-			oldAttachmentUrls.forEach(s3Deleter::deleteByUrl);
+		// 1. 예약 상태 검증 (4: 반려됨, 6: 취소됨 상태일 때만 통과)
+		Long currentStatusId = reservation.getReservationStatus().getReservationStatusId();
+		List<Long> modifiableStatusIds = Arrays.asList(4L, 6L);
+
+		if (!modifiableStatusIds.contains(currentStatusId)) {
+			throw new IllegalArgumentException("반려 또는 취소된 예약만 수정할 수 있습니다.");
 		}
 
-		// 2. 새로운 파일 업로드
+		// ... (파일 처리 로직: 삭제, 업로드, 최종 목록 생성 - 이전과 동일) ...
+		// 2. 삭제할 파일 결정 및 S3에서 삭제
+		List<String> currentAttachments = new ArrayList<>(reservation.getReservationAttachment());
+		List<String> existingAttachments = requestDto.getExistingAttachments() != null ?
+			requestDto.getExistingAttachments() : new ArrayList<>();
+		currentAttachments.removeAll(existingAttachments);
+		if (!currentAttachments.isEmpty()) {
+			currentAttachments.forEach(s3Deleter::deleteByUrl);
+		}
+
+		// 3. 새로운 파일 업로드
 		List<String> newAttachmentUrls = new ArrayList<>();
 		List<MultipartFile> newFiles = requestDto.getReservationAttachments();
-
 		if (newFiles != null && !newFiles.isEmpty()) {
 			String dirName = "attachment/" + reservation.getReservationId();
 			newAttachmentUrls = s3Uploader.uploadAll(newFiles, dirName);
 		}
 
-		// 3. 예약 정보 업데이트 (파일 URL 포함)
+		// 4. 최종 파일 목록 생성
+		List<String> finalAttachmentUrls = new ArrayList<>(existingAttachments);
+		finalAttachmentUrls.addAll(newAttachmentUrls);
+
+		// 5. 예약 정보 및 상태 업데이트
 		Space space = spaceRepository.findById(requestDto.getSpaceId())
 			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
 
+		// '1차 승인 대기' 상태 객체 조회 (재사용 목적)
+		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
+		ReservationStatus initialStatus = reservationStatusRepository.findById(INITIAL_RESERVATION_STATUS_ID)
+			.orElseThrow(
+				() -> new ResourceNotFoundException("기본 예약 상태(ID: " + INITIAL_RESERVATION_STATUS_ID + ")를 찾을 수 없습니다."));
+
+		// 메인 예약 정보 업데이트
 		reservation.updateDetails(
 			space,
-			reservation.getReservationStatus(), // 상태는 기존 값 유지
+			initialStatus, // 상태를 '1차 승인 대기'로 설정
 			requestDto.getReservationHeadcount(),
 			requestDto.getReservationFrom(),
 			requestDto.getReservationTo(),
 			requestDto.getReservationPurpose(),
-			newAttachmentUrls // 새로운 파일 URL 리스트로 교체
+			finalAttachmentUrls
 		);
 
-		// 변경된 예약 정보 저장 (updateDetails가 영속성 컨텍스트 내에서 동작하므로 명시적 save는 선택사항)
+		// 6. 연결된 사전 방문(previsit)의 상태도 '1차 승인 대기'로 변경
+		List<PrevisitReservation> previsits = reservation.getPrevisitReservations();
+		if (previsits != null && !previsits.isEmpty()) {
+			for (PrevisitReservation previsit : previsits) {
+				// PrevisitReservation 엔티티에 ReservationStatus를 설정하는 setter가 있다고 가정
+				previsit.setReservationStatusId(INITIAL_RESERVATION_STATUS_ID);
+			}
+		}
+
+		// 7. 변경된 예약 정보 최종 저장
 		Reservation updatedReservation = reservationRepository.save(reservation);
 
 		return ReservationResponseDto.fromEntity(updatedReservation);
@@ -164,6 +211,47 @@ public class ReservationService {
 		}
 
 		reservationRepository.delete(reservation);
+	}
+
+	public ReservationCancelResponseDto cancelReservation(String userId, Long reservationId) {
+		// 1. 사용자 조회 및 예약 소유권 확인
+		User user = findUserById(userId);
+		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
+
+		// 2. 현재 예약 상태 및 취소 가능 여부 확인
+		ReservationStatus currentStatus = reservation.getReservationStatus();
+		Long currentStatusId = currentStatus.getReservationStatusId();
+		List<Long> cancellableStatusIds = Arrays.asList(1L, 2L, 3L, 4L); // 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
+
+		if (!cancellableStatusIds.contains(currentStatusId)) {
+			throw new IllegalArgumentException("이미 취소되었거나 이용 완료된 예약은 취소할 수 없습니다.");
+		}
+
+		// 3. '취소됨' 상태 객체 조회
+		final Long CANCELLED_STATUS_ID = 6L;
+		ReservationStatus cancelledStatus = reservationStatusRepository.findById(CANCELLED_STATUS_ID)
+			.orElseThrow(
+				() -> new ResourceNotFoundException("예약 상태 '취소됨'(ID: " + CANCELLED_STATUS_ID + ")을 찾을 수 없습니다."));
+
+		// 4. 예약 상태를 '취소됨'으로 변경
+		reservation.setReservationStatusId(cancelledStatus);
+		reservationRepository.save(reservation);
+
+		List<PrevisitReservation> previsits = reservation.getPrevisitReservations();
+		if (previsits != null && !previsits.isEmpty()) {
+			for (PrevisitReservation previsit : previsits) {
+				previsit.setReservationStatusId(CANCELLED_STATUS_ID);
+			}
+		}
+
+		// 5. 성공 응답 DTO 생성 및 반환
+		return ReservationCancelResponseDto.builder()
+			.reservationId(reservation.getReservationId())
+			.fromStatus(currentStatus.getReservationStatusName())
+			.toStatus(cancelledStatus.getReservationStatusName())
+			.approvedAt(ZonedDateTime.now())
+			.message("예약 상태 변경 성공")
+			.build();
 	}
 
 	// --- Private Helper Methods ---

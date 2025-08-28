@@ -6,7 +6,6 @@ import lombok.Getter;
 
 @Getter
 public class AdminAccountUpdateRequest {
-	@NotBlank(message = "지역 이름은 필수 입력 값입니다.")
 	private String regionName;
 
 	@NotBlank(message = "이메일은 필수 입력 값입니다.")

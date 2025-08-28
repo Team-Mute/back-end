@@ -2,7 +2,8 @@ package Team_Mute.back_end.domain.reservation.controller;
 
 import java.util.List;
 
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +24,9 @@ import Team_Mute.back_end.domain.reservation.dto.request.AvailableTimeRequest;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
 import Team_Mute.back_end.domain.reservation.dto.response.AvailableDateResponse;
 import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.ReservationCancelResponseDto;
+import Team_Mute.back_end.domain.reservation.dto.response.ReservationDetailResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationResponseDto;
 import Team_Mute.back_end.domain.reservation.service.ReservationScheduleService;
 import Team_Mute.back_end.domain.reservation.service.ReservationService;
@@ -73,20 +77,26 @@ public class ReservationController {
 
 	// 2. 예약 목록 조회 (전체 or 내 예약)
 	@GetMapping
-	public ResponseEntity<Page<ReservationResponseDto>> getReservations(
+	public ResponseEntity<PagedReservationResponse> getReservations(
 		@AuthenticationPrincipal String userId,
-		@RequestParam(defaultValue = "1") int currentPage,
-		@RequestParam(defaultValue = "10") int limit) {
-		Page<ReservationResponseDto> reservationPage = reservationService.findReservations(userId, currentPage, limit);
-		return ResponseEntity.ok(reservationPage);
+		@RequestParam(required = false) String filterOption,
+		@RequestParam(defaultValue = "1") int page,
+		@RequestParam(defaultValue = "5") int size) {
+
+		// Spring Data JPA의 Pageable은 페이지 번호를 0부터 시작하므로, 클라이언트가 보내는 1부터 시작하는 페이지 번호를 조정
+		Pageable pageable = PageRequest.of(page - 1, size);
+
+		PagedReservationResponse response = reservationService.findReservations(userId, filterOption, pageable);
+
+		return ResponseEntity.ok(response);
 	}
 
-	// 3. 개별 예약 조회
-	@GetMapping("/{reservation_id}") // 경로 변수명 복귀
-	public ResponseEntity<ReservationResponseDto> getReservationById(
+	@GetMapping("/{reservation_id}")
+	public ResponseEntity<ReservationDetailResponseDto> getReservationById(
 		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId) { // Long 타입으로 받음
-		ReservationResponseDto responseDto = reservationService.findReservationById(userId, reservationId);
+		@PathVariable("reservation_id") Long reservationId) {
+
+		ReservationDetailResponseDto responseDto = reservationService.findReservationById(userId, reservationId);
 		return ResponseEntity.ok(responseDto);
 	}
 
@@ -114,4 +124,15 @@ public class ReservationController {
 		reservationService.deleteReservation(userId, reservationId);
 		return ResponseEntity.noContent().build();
 	}
+
+	// 6. 예약 취소
+	@PostMapping("/cancel/{reservation_id}")
+	public ResponseEntity<ReservationCancelResponseDto> cancelReservation(
+		@AuthenticationPrincipal String userId,
+		@PathVariable("reservation_id") Long reservationId) {
+
+		ReservationCancelResponseDto responseDto = reservationService.cancelReservation(userId, reservationId);
+		return ResponseEntity.ok(responseDto);
+	}
+
 }
