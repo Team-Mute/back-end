@@ -380,68 +380,67 @@ public class ReservationAdminService {
 
 	// ========================== 필터링 ==============================
 	public Page<ReservationListResponseDto> getFilteredReservations(Long adminId, String filterOptions, Pageable pageable) {
-		// 관리자 권한
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
+		// 1. 가공된 전체 데이터 가져오기 (메모리에서 모든 데이터를 가공)
+		List<Reservation> allReservations = adminReservationRepository.findAll();
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		List<ReservationListResponseDto> allData = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
-
-		// 예약 페이지 로딩
-		Page<Reservation> page = adminReservationRepository.findAll(pageable);
-		List<Reservation> reservations = page.getContent();
-		List<ReservationListResponseDto> allData = rservationListAllService.getReservationListAll(reservations, admin);
-
+		// 2. 필터링 로직
 		Stream<ReservationListResponseDto> stream = allData.stream();
-
 		switch (filterOptions) {
 			case "신한 예약" -> stream = stream.filter(item -> Boolean.TRUE.equals(item.isShinhan));
 			case "긴급 예약" -> stream = stream.filter(item -> Boolean.TRUE.equals(item.isEmergency));
-			default ->
-				// 상태명 필터 (예: "1차 승인 대기", "취소됨")
-				stream = stream.filter(item -> filterOptions.equals(item.reservationStatusName));
+			default -> stream = stream.filter(item -> filterOptions.equals(item.getReservationStatusName()));
 		}
 
-		List<ReservationListResponseDto> filtered = stream.toList();
+		// 3. 필터링된 데이터 리스트 생성
+		List<ReservationListResponseDto> filteredList = stream.toList();
 
-		if (filtered.isEmpty()) {
-			return new PageImpl<>(List.of(), pageable, 0);
+		// 4. 수동으로 페이징 처리
+		int start = (int) pageable.getOffset();
+		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
+		List<ReservationListResponseDto> pagedContent;
+		if (start > filteredList.size()) {
+			pagedContent = List.of();
+		} else {
+			pagedContent = filteredList.subList(start, end);
 		}
 
-		return new PageImpl<>(filtered, pageable, filtered.size());
+		// 5. 페이징 정보가 담긴 PageImpl 반환
+		return new PageImpl<>(pagedContent, pageable, filteredList.size());
 	}
 
 	// ========================== 검색(예약자명/공간명) ==============================
 	public Page<ReservationListResponseDto> searchReservationsByKeyword(Long adminId, String keyword, Pageable pageable) {
-		// 1) 관리자 확인(기존 로직 그대로)
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+		// 1. 가공된 전체 데이터 가져오기
+		List<Reservation> allReservations = adminReservationRepository.findAll();
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		// 2) 엔티티 페이지 로드 (기존 패턴 유지)
-		Page<Reservation> page = adminReservationRepository.findAll(pageable);
-		List<Reservation> reservations = page.getContent();
-
-		// 3) DTO 변환 (기존 유틸 서비스 재사용)
-		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(reservations, admin);
-
-		// 4) 키워드 정규화 (한글 검색 품질 향상: NFC + 소문자)
+		// 2. 키워드 정규화
 		String norm = normalizeKeyword(keyword);
 
-		// 5) 사용자명 또는 공간명 OR 매칭
-		Stream<ReservationListResponseDto> stream = allDtos.stream()
+		// 3. 검색 필터링
+		List<ReservationListResponseDto> filteredList = allDtos.stream()
 			.filter(dto -> {
 				String user = normalizeNullable(dto.getUserName());
 				String space = normalizeNullable(dto.getSpaceName());
 				return (user.contains(norm) || space.contains(norm));
-			});
-		List<ReservationListResponseDto> filtered = stream.toList();
+			})
+			.toList();
 
-		// 3) 페이징
-		if (filtered.isEmpty()) {
-			return new PageImpl<>(List.of(), pageable, 0);
+		// 4. 수동으로 페이징 처리
+		int start = (int) pageable.getOffset();
+		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
+		List<ReservationListResponseDto> pagedContent;
+		if (start > filteredList.size()) {
+			pagedContent = List.of();
+		} else {
+			pagedContent = filteredList.subList(start, end);
 		}
 
-		return new PageImpl<>(filtered, pageable, filtered.size());
+		// 5. 페이징 정보가 담긴 PageImpl 반환
+		return new PageImpl<>(pagedContent, pageable, filteredList.size());
 	}
 
 	private String normalizeKeyword(String s) {
