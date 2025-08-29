@@ -62,26 +62,30 @@ public class ReservationService {
 			throw new ForbiddenAccessException("예약을 생성할 권한이 없습니다.");
 		}
 
+		final List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
+
 		Space space = spaceRepository.findById(requestDto.getSpaceId())
 			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
 
-		// 2. '본 예약' 시간이 겹치는지 확인
-		boolean isReservationOverlapping = reservationRepository.existsOverlappingReservation(
+		// '본 예약' 시간이 겹치는지 확인 (상태 필터링 적용)
+		boolean isReservationOverlapping = reservationRepository.existsOverlappingReservationWithStatus(
 			space.getSpaceId(),
 			requestDto.getReservationFrom(),
-			requestDto.getReservationTo()
+			requestDto.getReservationTo(),
+			validStatusIds // 상태 ID 리스트 전달
 		);
 
-		// 3. '사전 답사 예약' 시간이 겹치는지 확인
-		boolean isPrevisitOverlapping = previsitReservationRepository.existsOverlappingPrevisit(
+		// '사전 답사 예약' 시간이 겹치는지 확인 (상태 필터링 적용)
+		boolean isPrevisitOverlapping = previsitReservationRepository.existsOverlappingPrevisitWithStatus(
 			space.getSpaceId(),
 			requestDto.getReservationFrom(),
-			requestDto.getReservationTo()
+			requestDto.getReservationTo(),
+			validStatusIds // 상태 ID 리스트 전달
 		);
 
 		// 4. 두 예약 중 하나라도 겹치면 예외 발생
 		if (isReservationOverlapping || isPrevisitOverlapping) {
-			throw new DataIntegrityViolationException("해당 시간에는 이미 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
+			throw new DataIntegrityViolationException("해당 시간에는 확정된 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
 		}
 
 		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
@@ -157,21 +161,48 @@ public class ReservationService {
 		return ReservationDetailResponseDto.fromEntity(reservation);
 	}
 
+	@Transactional
 	public ReservationResponseDto updateReservation(String userId, Long reservationId,
 		ReservationRequestDto requestDto) {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
-		// 1. 예약 상태 검증 (4: 반려됨, 6: 취소됨 상태일 때만 통과)
+		// 1. 예약 상태 검증 (기존 로직 유지)
 		Long currentStatusId = reservation.getReservationStatus().getReservationStatusId();
-		List<Long> modifiableStatusIds = Arrays.asList(4L, 6L);
-
-		if (!modifiableStatusIds.contains(currentStatusId)) {
+		if (!Arrays.asList(4L, 6L).contains(currentStatusId)) {
 			throw new IllegalArgumentException("반려 또는 취소된 예약만 수정할 수 있습니다.");
 		}
 
-		// ... (파일 처리 로직: 삭제, 업로드, 최종 목록 생성 - 이전과 동일) ...
-		// 2. 삭제할 파일 결정 및 S3에서 삭제
+		final List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
+
+		// 2. 비관적 락을 걸어 Space 엔티티를 조회 (예약 생성 시와 동일)
+		// SpaceRepository의 findById에 @Lock(LockModeType.PESSIMISTIC_WRITE)가 적용되어 있어야 합니다.
+		Space space = spaceRepository.findById(requestDto.getSpaceId())
+			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
+
+		// 3. 자기 자신을 제외한 '본 예약' 시간이 겹치는지 확인
+		boolean isReservationOverlapping = reservationRepository.existsOverlappingReservationExcludingSelf(
+			space.getSpaceId(),
+			requestDto.getReservationFrom(),
+			requestDto.getReservationTo(),
+			validStatusIds,
+			reservationId // 자기 자신 ID를 제외하도록 전달
+		);
+
+		// 4. 자기 자신을 제외한 '사전 답사 예약' 시간이 겹치는지 확인
+		boolean isPrevisitOverlapping = previsitReservationRepository.existsOverlappingPrevisitExcludingSelf(
+			space.getSpaceId(),
+			requestDto.getReservationFrom(),
+			requestDto.getReservationTo(),
+			validStatusIds,
+			reservationId // 자기 자신 ID를 제외하도록 전달
+		);
+
+		// 5. 두 예약 중 하나라도 겹치면 예외 발생
+		if (isReservationOverlapping || isPrevisitOverlapping) {
+			throw new DataIntegrityViolationException("변경하려는 시간에는 이미 다른 확정된 예약 또는 사전 답사가 존재합니다.");
+		}
+		// 6. 파일 처리
 		List<String> currentAttachments = new ArrayList<>(reservation.getReservationAttachment());
 		List<String> existingAttachments = requestDto.getExistingAttachments() != null ?
 			requestDto.getExistingAttachments() : new ArrayList<>();
@@ -180,7 +211,6 @@ public class ReservationService {
 			currentAttachments.forEach(s3Deleter::deleteByUrl);
 		}
 
-		// 3. 새로운 파일 업로드
 		List<String> newAttachmentUrls = new ArrayList<>();
 		List<MultipartFile> newFiles = requestDto.getReservationAttachments();
 		if (newFiles != null && !newFiles.isEmpty()) {
@@ -188,24 +218,17 @@ public class ReservationService {
 			newAttachmentUrls = s3Uploader.uploadAll(newFiles, dirName);
 		}
 
-		// 4. 최종 파일 목록 생성
 		List<String> finalAttachmentUrls = new ArrayList<>(existingAttachments);
 		finalAttachmentUrls.addAll(newAttachmentUrls);
 
-		// 5. 예약 정보 및 상태 업데이트
-		Space space = spaceRepository.findById(requestDto.getSpaceId())
-			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
-
-		// '1차 승인 대기' 상태 객체 조회 (재사용 목적)
+		// 7. 예약 정보 및 상태 업데이트
 		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
 		ReservationStatus initialStatus = reservationStatusRepository.findById(INITIAL_RESERVATION_STATUS_ID)
-			.orElseThrow(
-				() -> new ResourceNotFoundException("기본 예약 상태(ID: " + INITIAL_RESERVATION_STATUS_ID + ")를 찾을 수 없습니다."));
+			.orElseThrow(() -> new ResourceNotFoundException("기본 예약 상태를 찾을 수 없습니다."));
 
-		// 메인 예약 정보 업데이트
 		reservation.updateDetails(
 			space,
-			initialStatus, // 상태를 '1차 승인 대기'로 설정
+			initialStatus,
 			requestDto.getReservationHeadcount(),
 			requestDto.getReservationFrom(),
 			requestDto.getReservationTo(),
@@ -213,16 +236,13 @@ public class ReservationService {
 			finalAttachmentUrls
 		);
 
-		// 6. 연결된 사전 방문(previsit)의 상태도 '1차 승인 대기'로 변경
 		List<PrevisitReservation> previsits = reservation.getPrevisitReservations();
 		if (previsits != null && !previsits.isEmpty()) {
 			for (PrevisitReservation previsit : previsits) {
-				// PrevisitReservation 엔티티에 ReservationStatus를 설정하는 setter가 있다고 가정
 				previsit.setReservationStatusId(INITIAL_RESERVATION_STATUS_ID);
 			}
 		}
 
-		// 7. 변경된 예약 정보 최종 저장
 		Reservation updatedReservation = reservationRepository.save(reservation);
 
 		return ReservationResponseDto.fromEntity(updatedReservation);
