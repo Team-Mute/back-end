@@ -68,8 +68,6 @@ public class RservationListAllService {
                         return isMatch;
                     })
                     .collect(Collectors.toList());
-        } else {
-            System.out.println("==== 필터링 로직에 진입하지 못했습니다. ====");
         }
 
         // 예약/사전답사에서 쓰일 상태ID 수집

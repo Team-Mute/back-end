@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -381,58 +380,51 @@ public class ReservationAdminService {
 			.build();
 	}
 
-	// ========================== 필터링 ==============================
-	public Page<ReservationListResponseDto> getFilteredReservations(Long adminId, String filterOptions, Pageable pageable) {
-		// 1. 가공된 전체 데이터 가져오기 (메모리에서 모든 데이터를 가공)
-		List<Reservation> allReservations = adminReservationRepository.findAll();
-		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
-		List<ReservationListResponseDto> allData = rservationListAllService.getReservationListAll(allReservations, admin);
-
-		// 2. 필터링 로직
-		Stream<ReservationListResponseDto> stream = allData.stream();
-		switch (filterOptions) {
-			case "신한 예약" -> stream = stream.filter(item -> Boolean.TRUE.equals(item.isShinhan));
-			case "긴급 예약" -> stream = stream.filter(item -> Boolean.TRUE.equals(item.isEmergency));
-			default -> stream = stream.filter(item -> filterOptions.equals(item.getReservationStatusName()));
-		}
-
-		// 3. 필터링된 데이터 리스트 생성
-		List<ReservationListResponseDto> filteredList = stream.toList();
-
-		// 4. 수동으로 페이징 처리
-		int start = (int) pageable.getOffset();
-		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
-		List<ReservationListResponseDto> pagedContent;
-		if (start > filteredList.size()) {
-			pagedContent = List.of();
-		} else {
-			pagedContent = filteredList.subList(start, end);
-		}
-
-		// 5. 페이징 정보가 담긴 PageImpl 반환
-		return new PageImpl<>(pagedContent, pageable, filteredList.size());
-	}
-
-	// ========================== 검색(예약자명/공간명) ==============================
-	public Page<ReservationListResponseDto> searchReservationsByKeyword(Long adminId, String keyword, Pageable pageable) {
-		// 1. 가공된 전체 데이터 가져오기
+	// ========================== 복합 검색 ==============================
+	public Page<ReservationListResponseDto> searchReservations(
+		Long adminId,
+		String keyword,
+		Integer regionId,
+		Long statusId,
+		Boolean isShinhan,
+		Boolean isEmergency,
+		Pageable pageable
+	) {
+		// 1. 가공된 전체 데이터 가져오기 (1차 승인자 필터링 포함)
 		List<Reservation> allReservations = adminReservationRepository.findAll();
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		// 2. 키워드 정규화
-		String norm = normalizeKeyword(keyword);
-
-		// 3. 검색 필터링
+		// 2. 복합 조건에 따른 필터링 (Stream API 활용)
 		List<ReservationListResponseDto> filteredList = allDtos.stream()
 			.filter(dto -> {
-				String user = normalizeNullable(dto.getUserName());
-				String space = normalizeNullable(dto.getSpaceName());
-				return (user.contains(norm) || space.contains(norm));
+				// 키워드 필터링 (키워드가 있을 경우에만 적용)
+				boolean keywordMatch = true;
+				if (keyword != null && !keyword.isBlank()) {
+					String norm = normalizeKeyword(keyword);
+					String user = normalizeNullable(dto.getUserName());
+					String space = normalizeNullable(dto.getSpaceName());
+					keywordMatch = (user.contains(norm) || space.contains(norm));
+				}
+
+				// 지역 ID 필터링 (지역 ID가 있을 경우에만 적용)
+				boolean regionMatch = (regionId == null) || (dto.getRegionId() != null && dto.getRegionId().equals(regionId));
+
+				// 상태 ID 필터링 (상태 ID가 있을 경우에만 적용)
+				boolean statusMatch = (statusId == null) || (dto.getStatusId() != null && dto.getStatusId().equals(statusId));
+
+				// 신한 예약 플래그 필터링 (플래그가 있을 경우에만 적용)
+				boolean shinhanMatch = (isShinhan == null) || (dto.getIsShinhan().equals(isShinhan));
+
+				// 긴급 예약 플래그 필터링 (플래그가 있을 경우에만 적용)
+				boolean emergencyMatch = (isEmergency == null) || (dto.getIsEmergency().equals(isEmergency));
+
+				// 모든 조건이 true일 때만 반환
+				return keywordMatch && regionMatch && statusMatch && shinhanMatch && emergencyMatch;
 			})
 			.toList();
 
-		// 4. 수동으로 페이징 처리
+		// 3. 수동으로 페이징 처리
 		int start = (int) pageable.getOffset();
 		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
 		List<ReservationListResponseDto> pagedContent;
@@ -442,7 +434,7 @@ public class ReservationAdminService {
 			pagedContent = filteredList.subList(start, end);
 		}
 
-		// 5. 페이징 정보가 담긴 PageImpl 반환
+		// 4. 페이징 정보가 담긴 PageImpl 반환
 		return new PageImpl<>(pagedContent, pageable, filteredList.size());
 	}
 
@@ -458,5 +450,6 @@ public class ReservationAdminService {
 		String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
 		return nfc.toLowerCase(Locale.ROOT);
 	}
+
 
 }
