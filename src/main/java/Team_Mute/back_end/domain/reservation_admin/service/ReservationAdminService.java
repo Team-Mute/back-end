@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -274,19 +275,24 @@ public class ReservationAdminService {
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(UserNotFoundException::new);
 
-		//Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+		// DB에서 모든 예약 데이터를 가져옴 (페이징 없이)
+		List<Reservation> allReservations = adminReservationRepository.findAll();
 
-		// 예약 페이지 로딩
-		Page<Reservation> page = adminReservationRepository.findAll(pageable);
-		List<Reservation> reservations = page.getContent();
-		List<ReservationListResponseDto> content = rservationListAllService.getReservationListAll(reservations, admin);
+		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환
+		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		if (reservations.isEmpty()) {
-			return new PageImpl<>(List.of(), pageable, 0);
+		// 수동 페이징 처리
+		int start = (int) pageable.getOffset();
+		int end = Math.min((start + pageable.getPageSize()), allContent.size());
+
+		List<ReservationListResponseDto> pagedContent;
+		if (start > allContent.size()) {
+			pagedContent = new ArrayList<>();
+		} else {
+			pagedContent = allContent.subList(start, end);
 		}
 
-
-		return new PageImpl<>(content, pageable, page.getTotalElements());
+		return new PageImpl<>(pagedContent, pageable, allContent.size());
 	}
 
 	// ================== 예약 상세 조회 ==================
@@ -350,25 +356,22 @@ public class ReservationAdminService {
 		);
 	}
 
-	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
-	public ReservationFilterOptionsResponse getFilterOptions() {
-		// 1) 상태: DB에서 정렬 조회 후 매핑
-		List<ReservationFilterOptionsResponse.StatusOptionDto> statuses = adminStatusRepository
+	// ========== 필터 옵션 조회 =========
+	// 1) 상태(statuses) 조회 메서드
+	public List<ReservationFilterOptionsResponse.StatusOptionDto> getStatusOptions() {
+		return adminStatusRepository
 			.findAll(Sort.by(Sort.Direction.ASC, "reservationStatusId"))
 			.stream()
 			.map(this::toStatusOption)
 			.collect(Collectors.toList());
+	}
 
-		// 2) flags: 하드코딩
-		List<ReservationFilterOptionsResponse.FlagOptionDto> flags = List.of(
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한 예약").build(),
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급 예약").build()
+	// 2) 플래그(flags) 조회 메서드
+	public List<ReservationFilterOptionsResponse.FlagOptionDto> getFlagOptions() {
+		return List.of(
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한").build(),
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급").build()
 		);
-
-		return ReservationFilterOptionsResponse.builder()
-			.statuses(statuses)
-			.flags(flags)
-			.build();
 	}
 
 	private ReservationFilterOptionsResponse.StatusOptionDto toStatusOption(ReservationStatus status) {

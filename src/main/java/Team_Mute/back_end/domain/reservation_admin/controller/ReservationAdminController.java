@@ -12,6 +12,7 @@ import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -136,11 +137,21 @@ public class ReservationAdminController {
 		return ResponseEntity.ok(reservationAdminService.getByReservationId(adminId, reservationId));
 	}
 
-	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
-	@GetMapping("/filter/options")
-	@Operation(summary = "예약 관리 필터 옵션", description = "토큰을 확인하여 예약 관리 필터를 조회합니다.")
-	public ResponseEntity<ReservationFilterOptionsResponse> getFilterOptions() {
-		return ResponseEntity.ok(reservationAdminService.getFilterOptions());
+	// ========== 필터 옵션 조회 =========
+	// 1) 상태 조회
+	@GetMapping("/filter-options/statuses")
+	@Operation(summary = "예약 상태 필터 옵션 조회", description = "예약 상태 필터링을 위한 드롭다운 옵션을 조회합니다.")
+	public ResponseEntity<List<ReservationFilterOptionsResponse.StatusOptionDto>> getStatusOptions() {
+		List<ReservationFilterOptionsResponse.StatusOptionDto> statuses = reservationAdminService.getStatusOptions();
+		return ResponseEntity.ok(statuses);
+	}
+
+	// 2) 긴급 및 신한 플래그 조회
+	@GetMapping("/filter-options/flags")
+	@Operation(summary = "긴급 및 신한 플래그 조회", description = "긴급/신한 예약 등 플래그 필터링을 위한 드롭다운 옵션을 조회합니다.")
+	public ResponseEntity<List<ReservationFilterOptionsResponse.FlagOptionDto>> getFlagOptions() {
+		List<ReservationFilterOptionsResponse.FlagOptionDto> flags = reservationAdminService.getFlagOptions();
+		return ResponseEntity.ok(flags);
 	}
 
 	// 예약 관리 리스트 필터링
