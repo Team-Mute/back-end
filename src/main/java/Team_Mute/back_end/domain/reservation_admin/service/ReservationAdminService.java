@@ -34,10 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -274,19 +274,24 @@ public class ReservationAdminService {
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(UserNotFoundException::new);
 
-		//Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+		// DB에서 모든 예약 데이터를 가져옴 (페이징 없이)
+		List<Reservation> allReservations = adminReservationRepository.findAll();
 
-		// 예약 페이지 로딩
-		Page<Reservation> page = adminReservationRepository.findAll(pageable);
-		List<Reservation> reservations = page.getContent();
-		List<ReservationListResponseDto> content = rservationListAllService.getReservationListAll(reservations, admin);
+		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환
+		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		if (reservations.isEmpty()) {
-			return new PageImpl<>(List.of(), pageable, 0);
+		// 수동 페이징 처리
+		int start = (int) pageable.getOffset();
+		int end = Math.min((start + pageable.getPageSize()), allContent.size());
+
+		List<ReservationListResponseDto> pagedContent;
+		if (start > allContent.size()) {
+			pagedContent = new ArrayList<>();
+		} else {
+			pagedContent = allContent.subList(start, end);
 		}
 
-
-		return new PageImpl<>(content, pageable, page.getTotalElements());
+		return new PageImpl<>(pagedContent, pageable, allContent.size());
 	}
 
 	// ================== 예약 상세 조회 ==================
@@ -350,25 +355,22 @@ public class ReservationAdminService {
 		);
 	}
 
-	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
-	public ReservationFilterOptionsResponse getFilterOptions() {
-		// 1) 상태: DB에서 정렬 조회 후 매핑
-		List<ReservationFilterOptionsResponse.StatusOptionDto> statuses = adminStatusRepository
+	// ========== 필터 옵션 조회 =========
+	// 1) 상태(statuses) 조회 메서드
+	public List<ReservationFilterOptionsResponse.StatusOptionDto> getStatusOptions() {
+		return adminStatusRepository
 			.findAll(Sort.by(Sort.Direction.ASC, "reservationStatusId"))
 			.stream()
 			.map(this::toStatusOption)
 			.collect(Collectors.toList());
+	}
 
-		// 2) flags: 하드코딩
-		List<ReservationFilterOptionsResponse.FlagOptionDto> flags = List.of(
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한 예약").build(),
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급 예약").build()
+	// 2) 플래그(flags) 조회 메서드
+	public List<ReservationFilterOptionsResponse.FlagOptionDto> getFlagOptions() {
+		return List.of(
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한").build(),
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급").build()
 		);
-
-		return ReservationFilterOptionsResponse.builder()
-			.statuses(statuses)
-			.flags(flags)
-			.build();
 	}
 
 	private ReservationFilterOptionsResponse.StatusOptionDto toStatusOption(ReservationStatus status) {
@@ -378,70 +380,62 @@ public class ReservationAdminService {
 			.build();
 	}
 
-	// ========================== 필터링 ==============================
-	public Page<ReservationListResponseDto> getFilteredReservations(Long adminId, String filterOptions, Pageable pageable) {
-		// 관리자 권한
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
+	// ========================== 복합 검색 ==============================
+	public Page<ReservationListResponseDto> searchReservations(
+		Long adminId,
+		String keyword,
+		Integer regionId,
+		Long statusId,
+		Boolean isShinhan,
+		Boolean isEmergency,
+		Pageable pageable
+	) {
+		// 1. 가공된 전체 데이터 가져오기 (1차 승인자 필터링 포함)
+		List<Reservation> allReservations = adminReservationRepository.findAll();
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
-
-		// 예약 페이지 로딩
-		Page<Reservation> page = adminReservationRepository.findAll(pageable);
-		List<Reservation> reservations = page.getContent();
-		List<ReservationListResponseDto> allData = rservationListAllService.getReservationListAll(reservations, admin);
-
-		Stream<ReservationListResponseDto> stream = allData.stream();
-
-		switch (filterOptions) {
-			case "신한 예약" -> stream = stream.filter(item -> Boolean.TRUE.equals(item.isShinhan));
-			case "긴급 예약" -> stream = stream.filter(item -> Boolean.TRUE.equals(item.isEmergency));
-			default ->
-				// 상태명 필터 (예: "1차 승인 대기", "취소됨")
-				stream = stream.filter(item -> filterOptions.equals(item.reservationStatusName));
-		}
-
-		List<ReservationListResponseDto> filtered = stream.toList();
-
-		if (filtered.isEmpty()) {
-			return new PageImpl<>(List.of(), pageable, 0);
-		}
-
-		return new PageImpl<>(filtered, pageable, filtered.size());
-	}
-
-	// ========================== 검색(예약자명/공간명) ==============================
-	public Page<ReservationListResponseDto> searchReservationsByKeyword(Long adminId, String keyword, Pageable pageable) {
-		// 1) 관리자 확인(기존 로직 그대로)
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
-
-		// 2) 엔티티 페이지 로드 (기존 패턴 유지)
-		Page<Reservation> page = adminReservationRepository.findAll(pageable);
-		List<Reservation> reservations = page.getContent();
-
-		// 3) DTO 변환 (기존 유틸 서비스 재사용)
-		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(reservations, admin);
-
-		// 4) 키워드 정규화 (한글 검색 품질 향상: NFC + 소문자)
-		String norm = normalizeKeyword(keyword);
-
-		// 5) 사용자명 또는 공간명 OR 매칭
-		Stream<ReservationListResponseDto> stream = allDtos.stream()
+		// 2. 복합 조건에 따른 필터링 (Stream API 활용)
+		List<ReservationListResponseDto> filteredList = allDtos.stream()
 			.filter(dto -> {
-				String user = normalizeNullable(dto.getUserName());
-				String space = normalizeNullable(dto.getSpaceName());
-				return (user.contains(norm) || space.contains(norm));
-			});
-		List<ReservationListResponseDto> filtered = stream.toList();
+				// 키워드 필터링 (키워드가 있을 경우에만 적용)
+				boolean keywordMatch = true;
+				if (keyword != null && !keyword.isBlank()) {
+					String norm = normalizeKeyword(keyword);
+					String user = normalizeNullable(dto.getUserName());
+					String space = normalizeNullable(dto.getSpaceName());
+					keywordMatch = (user.contains(norm) || space.contains(norm));
+				}
 
-		// 3) 페이징
-		if (filtered.isEmpty()) {
-			return new PageImpl<>(List.of(), pageable, 0);
+				// 지역 ID 필터링 (지역 ID가 있을 경우에만 적용)
+				boolean regionMatch = (regionId == null) || (dto.getRegionId() != null && dto.getRegionId().equals(regionId));
+
+				// 상태 ID 필터링 (상태 ID가 있을 경우에만 적용)
+				boolean statusMatch = (statusId == null) || (dto.getStatusId() != null && dto.getStatusId().equals(statusId));
+
+				// 신한 예약 플래그 필터링 (플래그가 있을 경우에만 적용)
+				boolean shinhanMatch = (isShinhan == null) || (dto.getIsShinhan().equals(isShinhan));
+
+				// 긴급 예약 플래그 필터링 (플래그가 있을 경우에만 적용)
+				boolean emergencyMatch = (isEmergency == null) || (dto.getIsEmergency().equals(isEmergency));
+
+				// 모든 조건이 true일 때만 반환
+				return keywordMatch && regionMatch && statusMatch && shinhanMatch && emergencyMatch;
+			})
+			.toList();
+
+		// 3. 수동으로 페이징 처리
+		int start = (int) pageable.getOffset();
+		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
+		List<ReservationListResponseDto> pagedContent;
+		if (start > filteredList.size()) {
+			pagedContent = List.of();
+		} else {
+			pagedContent = filteredList.subList(start, end);
 		}
 
-		return new PageImpl<>(filtered, pageable, filtered.size());
+		// 4. 페이징 정보가 담긴 PageImpl 반환
+		return new PageImpl<>(pagedContent, pageable, filteredList.size());
 	}
 
 	private String normalizeKeyword(String s) {
@@ -456,5 +450,6 @@ public class ReservationAdminService {
 		String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
 		return nfc.toLowerCase(Locale.ROOT);
 	}
+
 
 }
