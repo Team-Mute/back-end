@@ -1,17 +1,19 @@
 package Team_Mute.back_end.domain.space_admin.repository;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
-
-import java.util.List;
-import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 public interface SpaceRepository extends JpaRepository<Space, Integer> {
 	// 공간 등록할 경우 공간명 중복 체크
@@ -167,5 +169,9 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		WHERE s.space_id = :spaceId
 		""", nativeQuery = true)
 	Optional<SpaceDatailResponse> findDetailWithNames(@Param("spaceId") Integer spaceId);
+
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Override
+	Optional<Space> findById(Integer id);
 
 }
