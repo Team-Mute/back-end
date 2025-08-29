@@ -18,23 +18,6 @@ public interface PrevisitRepository extends JpaRepository<PrevisitReservation, L
 
 	Optional<PrevisitReservation> findByReservationReservationId(Long reservationId);
 
-	@Query("SELECT pr FROM PrevisitReservation pr JOIN pr.reservation r WHERE r.space.spaceId = :spaceId " +
-		"AND pr.previsitFrom < :endOfDay AND pr.previsitTo > :startOfDay")
-	List<PrevisitReservation> findPrevisitsBySpaceAndDay(
-		@Param("spaceId") Integer spaceId,
-		@Param("startOfDay") LocalDateTime startOfDay,
-		@Param("endOfDay") LocalDateTime endOfDay
-	);
-
-	@Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
-		"FROM PrevisitReservation p " +
-		"WHERE p.reservation.space.spaceId = :spaceId " +
-		"AND p.previsitTo > :from " +
-		"AND p.previsitFrom < :to")
-	boolean existsOverlappingPrevisit(@Param("spaceId") Integer spaceId,
-		@Param("from") LocalDateTime from,
-		@Param("to") LocalDateTime to);
-
 	@Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
 		"FROM PrevisitReservation p " +
 		"JOIN p.reservation r " + // PrevisitReservation과 Reservation을 명시적으로 조인
@@ -63,7 +46,8 @@ public interface PrevisitRepository extends JpaRepository<PrevisitReservation, L
 		@Param("to") LocalDateTime to,
 		@Param("statusIds") List<Long> statusIds,
 		@Param("excludeId") Long excludeId
-	// 쿼리에 'r.reservationStatus.id IN :statusIds' 조건 추가
+	);
+
 	@Query("SELECT pr FROM PrevisitReservation pr JOIN pr.reservation r WHERE r.space.spaceId = :spaceId " +
 		"AND r.reservationStatus.reservationStatusId IN :statusIds " + // 본 예약 상태 검증 조건 추가
 		"AND pr.previsitFrom < :endOfDay AND pr.previsitTo > :startOfDay")
