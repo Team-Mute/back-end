@@ -34,4 +34,34 @@ public interface PrevisitRepository extends JpaRepository<PrevisitReservation, L
 	boolean existsOverlappingPrevisit(@Param("spaceId") Integer spaceId,
 		@Param("from") LocalDateTime from,
 		@Param("to") LocalDateTime to);
+
+	@Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
+		"FROM PrevisitReservation p " +
+		"JOIN p.reservation r " + // PrevisitReservation과 Reservation을 명시적으로 조인
+		"WHERE r.space.spaceId = :spaceId " +
+		"AND r.reservationStatus.reservationStatusId IN :statusIds " + // <-- 연결된 본 예약의 상태 필터링
+		"AND p.previsitTo > :from " +
+		"AND p.previsitFrom < :to")
+	boolean existsOverlappingPrevisitWithStatus(
+		@Param("spaceId") Integer spaceId,
+		@Param("from") LocalDateTime from,
+		@Param("to") LocalDateTime to,
+		@Param("statusIds") List<Long> statusIds
+	);
+
+	@Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
+		"FROM PrevisitReservation p " +
+		"JOIN p.reservation r " +
+		"WHERE r.space.spaceId = :spaceId " +
+		"AND r.reservationId != :excludeId " + // <-- 자기 자신과 연결된 사전답사는 제외
+		"AND r.reservationStatus.reservationStatusId IN :statusIds " +
+		"AND p.previsitTo > :from " +
+		"AND p.previsitFrom < :to")
+	boolean existsOverlappingPrevisitExcludingSelf(
+		@Param("spaceId") Integer spaceId,
+		@Param("from") LocalDateTime from,
+		@Param("to") LocalDateTime to,
+		@Param("statusIds") List<Long> statusIds,
+		@Param("excludeId") Long excludeId
+	);
 }
