@@ -12,11 +12,11 @@ import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
@@ -136,61 +135,47 @@ public class ReservationAdminController {
 		return ResponseEntity.ok(reservationAdminService.getByReservationId(adminId, reservationId));
 	}
 
-	// 필터 옵션 조회 -> 예약 관리 필터링 드롭다운 구성을 위함
-	@GetMapping("/filter/options")
-	@Operation(summary = "예약 관리 필터 옵션", description = "토큰을 확인하여 예약 관리 필터를 조회합니다.")
-	public ResponseEntity<ReservationFilterOptionsResponse> getFilterOptions() {
-		return ResponseEntity.ok(reservationAdminService.getFilterOptions());
+	// ========== 필터 옵션 조회 =========
+	// 1) 상태 조회
+	@GetMapping("/filter-options/statuses")
+	@Operation(summary = "예약 상태 필터 옵션 조회", description = "예약 상태 필터링을 위한 드롭다운 옵션을 조회합니다.")
+	public ResponseEntity<List<ReservationFilterOptionsResponse.StatusOptionDto>> getStatusOptions() {
+		List<ReservationFilterOptionsResponse.StatusOptionDto> statuses = reservationAdminService.getStatusOptions();
+		return ResponseEntity.ok(statuses);
 	}
 
-	// 예약 관리 리스트 필터링
-	@GetMapping("/filter")
-	@Operation(summary = "예약 관리 리스트 필터링", description = "토큰을 확인하여 예약 관리 리스트를 필터링합니다.")
-	public ResponseEntity<PagedResponse<ReservationListResponseDto>> getFilteredReservations(
-		Authentication authentication,
-		@RequestParam("filterOption") String filterOption,
-		@RequestParam(defaultValue = "1") int page,
-		@RequestParam(defaultValue = "5") int size
-	) {
-		Pageable pageable = PageRequest.of(
-			Math.max(page - 1, 0),
-			size,
-			Sort.by(Sort.Order.desc("regDate")) // 최신 등록 순
-		);
-		Long adminId = Long.valueOf((String) authentication.getPrincipal());
-
-		Page<ReservationListResponseDto> data = reservationAdminService.getFilteredReservations(adminId, filterOption, pageable);
-		PagedResponse<ReservationListResponseDto> response = new PagedResponse<>(data);
-
-		return ResponseEntity.ok(response);
+	// 2) 긴급 및 신한 플래그 조회
+	@GetMapping("/filter-options/flags")
+	@Operation(summary = "긴급 및 신한 플래그 조회", description = "긴급/신한 예약 등 플래그 필터링을 위한 드롭다운 옵션을 조회합니다.")
+	public ResponseEntity<List<ReservationFilterOptionsResponse.FlagOptionDto>> getFlagOptions() {
+		List<ReservationFilterOptionsResponse.FlagOptionDto> flags = reservationAdminService.getFlagOptions();
+		return ResponseEntity.ok(flags);
 	}
 
-	// 예약 관리 검색 (예약자명/공간명)
 	@GetMapping("/search")
 	@Operation(
-		summary = "예약 검색(단일 키워드)",
-		description = "입력 받은 단어로 사용자명 또는 공간명에서 부분 일치(대소문자 무시)로 검색합니다."
+		summary = "예약 검색(복합 조건)",
+		description = "키워드와 함께 지역, 승인 상태, 플래그 등으로 복합 검색합니다."
 	)
-	public ResponseEntity<PagedResponse<ReservationListResponseDto>> searchReservationsByKeyword(
+	public ResponseEntity<PagedResponse<ReservationListResponseDto>> searchReservations(
 		Authentication authentication,
-		@RequestParam(name = "keyword", required = true) String keyword,
+		@RequestParam(name = "keyword", required = false) String keyword,
+		@RequestParam(name = "regionId", required = false) Integer regionId,
+		@RequestParam(name = "statusId", required = false) Long statusId,
+		@RequestParam(name = "isShinhan", required = false) Boolean isShinhan,
+		@RequestParam(name = "isEmergency", required = false) Boolean isEmergency,
 		@RequestParam(defaultValue = "1") int page,
 		@RequestParam(defaultValue = "5") int size
 	) {
-		String searchKeyword = (keyword == null) ? "" : keyword.trim();
-		if (searchKeyword.isBlank()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "검색어를 입력하세요.");
-		}
-
 		Pageable pageable = PageRequest.of(
 			Math.max(page - 1, 0),
 			size,
-			Sort.by(Sort.Order.desc("regDate")) // 기존 정렬 유지
+			Sort.by(Sort.Order.desc("regDate"))
 		);
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 
 		Page<ReservationListResponseDto> data =
-			reservationAdminService.searchReservationsByKeyword(adminId, searchKeyword, pageable);
+			reservationAdminService.searchReservations(adminId, keyword, regionId, statusId, isShinhan, isEmergency, pageable);
 
 		return ResponseEntity.ok(new PagedResponse<>(data));
 	}
