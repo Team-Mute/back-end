@@ -1,5 +1,6 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.entity.UserCompany;
 import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
@@ -51,7 +52,7 @@ public class RservationListAllService {
 		this.emergencyEvaluator = emergencyEvaluator;
 	}
 
-	public List<ReservationListResponseDto> getReservationListAll(List<Reservation> reservations, Long roleId) {
+	public List<ReservationListResponseDto> getReservationListAll(List<Reservation> reservations, Admin admin) {
 		// 예약/사전답사에서 쓰일 상태ID 수집
 		Set<Long> statusIds = reservations.stream()
 			.map(r -> r.getReservationStatus().getReservationStatusId())
@@ -108,12 +109,20 @@ public class RservationListAllService {
 		Map<Long, Boolean> isShinhanByUserId =
 			ShinhanGroupUtils.buildIsShinhanByUserId(users, companyNameById);
 
+		// 버튼 클릭 활성화를 위한 권한 체크
+		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+
+
 		// DTO 변환
 		List<ReservationListResponseDto> content = reservations.stream()
-			.map(r -> {
+			.map(reservation -> {
+				// 버튼 클릭 활성화를 위한 권한 체크
+				Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
+				Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
+
 				// 사전답사 DTO 변환
 				List<PrevisitItemResponseDto> previsitDtos = previsitMap
-					.getOrDefault(r.getReservationId(), Collections.emptyList())
+					.getOrDefault(reservation.getReservationId(), Collections.emptyList())
 					.stream()
 					.map(p -> PrevisitItemResponseDto.from(
 						p,
@@ -121,16 +130,16 @@ public class RservationListAllService {
 					))
 					.toList();
 
-				String statusName = statusNameById.getOrDefault(r.getReservationStatus().getReservationStatusId(), "UNKNOWN");
-				String spaceName = spaceNameById.getOrDefault(r.getSpace().getSpaceId(), null);
-				String userName = userNameById.getOrDefault(r.getUser().getUserId(), null);
-				Long uid = r.getUser().getUserId();
+				String statusName = statusNameById.getOrDefault(reservation.getReservationStatus().getReservationStatusId(), "UNKNOWN");
+				String spaceName = spaceNameById.getOrDefault(reservation.getSpace().getSpaceId(), null);
+				String userName = userNameById.getOrDefault(reservation.getUser().getUserId(), null);
+				Long uid = reservation.getUser().getUserId();
 				boolean isShinhan = isShinhanByUserId.getOrDefault(uid, false);
-				boolean isEmergency = emergencyEvaluator.isEmergency(r, statusName);
-				boolean isApprovable = isApprovableFor(roleId, statusName);
-				boolean isRejectable = isRejectableFor(roleId, statusName);
+				boolean isEmergency = emergencyEvaluator.isEmergency(reservation, statusName);
+				boolean isApprovable = isApprovableFor(reservationRegionId, adminRegionId, roleId, statusName);
+				boolean isRejectable = isRejectableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
-				return ReservationListResponseDto.from(r, statusName, spaceName, userName, isShinhan, isEmergency, isApprovable, isRejectable, previsitDtos);
+				return ReservationListResponseDto.from(reservation, statusName, spaceName, userName, isShinhan, isEmergency, isApprovable, isRejectable, previsitDtos);
 			})
 			.toList();
 

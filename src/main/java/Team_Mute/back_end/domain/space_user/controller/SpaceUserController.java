@@ -8,8 +8,10 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,13 +30,15 @@ public class SpaceUserController {
 	@GetMapping
 	@Operation(summary = "공간 검색", description = "지역/카테고리/인원/편의시설(tagNames AND)로 필터링. 파라미터 없으면 전체")
 	public ResponseEntity<List<SpaceUserResponseDto>> searchSpaces(
-		@RequestParam(required = false) Integer regionId,     // CHANGE
-		@RequestParam(required = false) Integer categoryId,   // CHANGE
-		@RequestParam(required = false) Integer people,       // CHANGE
-		@RequestParam(required = false) String[] tagNames     // CHANGE: 배열 파라미터
+		@RequestParam(required = false) Integer regionId,
+		@RequestParam(required = false) Integer categoryId,
+		@RequestParam(required = false) Integer people,
+		@RequestParam(required = false) String[] tagNames,
+		@RequestParam(name = "startDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
+		@RequestParam(name = "endDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime
 	) {
 		return ResponseEntity.ok(
-			spaceUserService.searchSpaces(regionId, categoryId, people, tagNames)
+			spaceUserService.searchSpaces(regionId, categoryId, people, tagNames, startDateTime, endDateTime)
 		);
 	}
 
