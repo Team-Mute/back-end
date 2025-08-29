@@ -34,4 +34,15 @@ public interface PrevisitRepository extends JpaRepository<PrevisitReservation, L
 	boolean existsOverlappingPrevisit(@Param("spaceId") Integer spaceId,
 		@Param("from") LocalDateTime from,
 		@Param("to") LocalDateTime to);
+
+	// 쿼리에 'r.reservationStatus.id IN :statusIds' 조건 추가
+	@Query("SELECT pr FROM PrevisitReservation pr JOIN pr.reservation r WHERE r.space.spaceId = :spaceId " +
+		"AND r.reservationStatus.reservationStatusId IN :statusIds " + // 본 예약 상태 검증 조건 추가
+		"AND pr.previsitFrom < :endOfDay AND pr.previsitTo > :startOfDay")
+	List<PrevisitReservation> findValidPrevisitsBySpaceAndDay(
+		@Param("spaceId") Integer spaceId,
+		@Param("startOfDay") LocalDateTime startOfDay,
+		@Param("endOfDay") LocalDateTime endOfDay,
+		@Param("statusIds") List<Long> statusIds // 유효한 상태 ID 목록을 파라미터로 받음
+	);
 }

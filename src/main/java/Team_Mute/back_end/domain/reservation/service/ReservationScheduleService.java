@@ -132,7 +132,8 @@ public class ReservationScheduleService {
 		}
 
 		// 2. 사전답사 예약 시간 독립적으로 조회 및 집계
-		List<PrevisitReservation> previsits = previsitRepository.findPrevisitsBySpaceAndDay(spaceId, start, end);
+		List<PrevisitReservation> previsits = previsitRepository.findValidPrevisitsBySpaceAndDay(spaceId, start, end,
+			validStatusIds);
 		for (PrevisitReservation pr : previsits) {
 			addBookedTimes(dailyBookedTimes, pr.getPrevisitFrom(), pr.getPrevisitTo(), yearMonth);
 		}
@@ -225,18 +226,19 @@ public class ReservationScheduleService {
 		LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 
 		List<LocalTime[]> bookedSlots = new ArrayList<>();
-
-		// 1. 유효한 일반 예약 시간 조회 및 추가
 		List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
+
+		// 1. 유효한 일반 예약 시간 조회 및 추가 (변경 없음)
 		List<Reservation> reservations = reservationRepository.findReservationsBySpaceAndMonth(spaceId, startOfDay,
 			endOfDay, validStatusIds);
 		for (Reservation r : reservations) {
 			addBookedSlotForDay(bookedSlots, r.getReservationFrom(), r.getReservationTo(), date);
 		}
 
-		// 2. 사전답사 예약 시간 독립적으로 조회 및 추가
-		List<PrevisitReservation> previsits = previsitRepository.findPrevisitsBySpaceAndDay(spaceId, startOfDay,
-			endOfDay);
+		// 2. '유효한 본 예약'에 연결된 사전답사 예약 시간 독립적으로 조회 및 추가
+		//    수정된 Repository 메서드 호출
+		List<PrevisitReservation> previsits = previsitRepository.findValidPrevisitsBySpaceAndDay(spaceId, startOfDay,
+			endOfDay, validStatusIds);
 		for (PrevisitReservation pr : previsits) {
 			addBookedSlotForDay(bookedSlots, pr.getPrevisitFrom(), pr.getPrevisitTo(), date);
 		}
