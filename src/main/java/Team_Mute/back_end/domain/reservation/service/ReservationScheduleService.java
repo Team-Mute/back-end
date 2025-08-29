@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
+import Team_Mute.back_end.domain.previsit.repository.PrevisitRepository;
 import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse.TimeSlot;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
@@ -41,6 +42,7 @@ public class ReservationScheduleService {
 	private final SpaceOperationRepository spaceOperationRepository;
 	private final SpaceClosedDayRepository spaceClosedDayRepository;
 	private final ReservationRepository reservationRepository;
+	private final PrevisitRepository previsitRepository;
 
 	public List<TimeSlot> getAvailableTimes(int year, int month, int day, int spaceId) {
 		LocalDate requestedDate = validateAndGetDate(year, month, day);
@@ -118,30 +120,26 @@ public class ReservationScheduleService {
 	// 3-6. 예약이 꽉 찬 날짜 제외
 	private void removeFullyBookedDays(Set<Integer> openDays, Integer spaceId, LocalDateTime start, LocalDateTime end,
 		YearMonth yearMonth) {
-		// 3-1. 유효한 예약 조회
+		// 일자별 예약 시간을 집계할 맵
+		Map<Integer, List<LocalTime[]>> dailyBookedTimes = new HashMap<>();
+
+		// 1. 일반 예약 시간 집계
 		List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
 		List<Reservation> reservations = reservationRepository.findReservationsBySpaceAndMonth(spaceId, start, end,
 			validStatusIds);
-
-		// 3-3, 3-4. 일자별 예약 시간 집계 (예약 + 사전답사)
-		Map<Integer, List<LocalTime[]>> dailyBookedTimes = new HashMap<>();
 		for (Reservation r : reservations) {
 			addBookedTimes(dailyBookedTimes, r.getReservationFrom(), r.getReservationTo(), yearMonth);
-			// 3-2. 사전답사 조회
-			for (PrevisitReservation pr : r.getPrevisitReservations()) {
-				addBookedTimes(dailyBookedTimes, pr.getPrevisitFrom(), pr.getPrevisitTo(), yearMonth);
-			}
 		}
 
-		// 3-5. 운영 시간 정보 가져오기
-		Map<DayOfWeek, SpaceOperation> operationMap = spaceOperationRepository.findBySpace_SpaceId(spaceId).stream()
-			.collect(Collectors.toMap(
-				op -> DayOfWeek.of(op.getDay()), // op.getDay()가 1~7 사이의 값이라고 가정
-				op -> op,
-				(op1, op2) -> op1 // 중복 키 발생 시 첫 번째 값 사용 (혹은 로직에 맞게 수정)
-			));
+		// 2. 사전답사 예약 시간 독립적으로 조회 및 집계
+		List<PrevisitReservation> previsits = previsitRepository.findPrevisitsBySpaceAndDay(spaceId, start, end);
+		for (PrevisitReservation pr : previsits) {
+			addBookedTimes(dailyBookedTimes, pr.getPrevisitFrom(), pr.getPrevisitTo(), yearMonth);
+		}
 
-		// 예약이 꽉 찬 날짜를 식별하여 제거
+		// 3. 운영 시간 정보 가져오기 및 꽉 찬 날짜 제거 (이후 로직은 동일)
+		Map<DayOfWeek, SpaceOperation> operationMap = getOperationMap(spaceId);
+
 		for (int day : new ArrayList<>(openDays)) {
 			LocalDate currentDate = yearMonth.atDay(day);
 			DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
@@ -226,17 +224,23 @@ public class ReservationScheduleService {
 		LocalDateTime startOfDay = date.atStartOfDay();
 		LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 
+		List<LocalTime[]> bookedSlots = new ArrayList<>();
+
+		// 1. 유효한 일반 예약 시간 조회 및 추가
 		List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
 		List<Reservation> reservations = reservationRepository.findReservationsBySpaceAndMonth(spaceId, startOfDay,
 			endOfDay, validStatusIds);
-
-		List<LocalTime[]> bookedSlots = new ArrayList<>();
 		for (Reservation r : reservations) {
 			addBookedSlotForDay(bookedSlots, r.getReservationFrom(), r.getReservationTo(), date);
-			for (PrevisitReservation pr : r.getPrevisitReservations()) {
-				addBookedSlotForDay(bookedSlots, pr.getPrevisitFrom(), pr.getPrevisitTo(), date);
-			}
 		}
+
+		// 2. 사전답사 예약 시간 독립적으로 조회 및 추가
+		List<PrevisitReservation> previsits = previsitRepository.findPrevisitsBySpaceAndDay(spaceId, startOfDay,
+			endOfDay);
+		for (PrevisitReservation pr : previsits) {
+			addBookedSlotForDay(bookedSlots, pr.getPrevisitFrom(), pr.getPrevisitTo(), date);
+		}
+
 		return bookedSlots;
 	}
 

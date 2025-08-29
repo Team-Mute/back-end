@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
+import Team_Mute.back_end.domain.previsit.repository.PrevisitRepository;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
 import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
 import Team_Mute.back_end.domain.reservation.dto.response.RejectReasonResponseDto;
@@ -50,7 +52,9 @@ public class ReservationService {
 	private final S3Uploader s3Uploader;
 	private final S3Deleter s3Deleter;
 	private final ReservationLogRepository reservationLogRepository;
+	private final PrevisitRepository previsitReservationRepository;
 
+	@Transactional
 	public ReservationResponseDto createReservation(String userId, ReservationRequestDto requestDto) {
 		User user = findUserById(userId);
 
@@ -60,6 +64,25 @@ public class ReservationService {
 
 		Space space = spaceRepository.findById(requestDto.getSpaceId())
 			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
+
+		// 2. '본 예약' 시간이 겹치는지 확인
+		boolean isReservationOverlapping = reservationRepository.existsOverlappingReservation(
+			space.getSpaceId(),
+			requestDto.getReservationFrom(),
+			requestDto.getReservationTo()
+		);
+
+		// 3. '사전 답사 예약' 시간이 겹치는지 확인
+		boolean isPrevisitOverlapping = previsitReservationRepository.existsOverlappingPrevisit(
+			space.getSpaceId(),
+			requestDto.getReservationFrom(),
+			requestDto.getReservationTo()
+		);
+
+		// 4. 두 예약 중 하나라도 겹치면 예외 발생
+		if (isReservationOverlapping || isPrevisitOverlapping) {
+			throw new DataIntegrityViolationException("해당 시간에는 이미 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
+		}
 
 		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
 		ReservationStatus status = reservationStatusRepository.findById(INITIAL_RESERVATION_STATUS_ID)
@@ -76,10 +99,10 @@ public class ReservationService {
 			.reservationFrom(requestDto.getReservationFrom())
 			.reservationTo(requestDto.getReservationTo())
 			.reservationPurpose(requestDto.getReservationPurpose())
-			.reservationAttachment(new ArrayList<>()) // 빈 리스트로 초기화
+			.reservationAttachment(new ArrayList<>())
 			.build();
 
-		Reservation savedReservation = reservationRepository.saveAndFlush(reservation); // ID를 즉시 할당받기 위해 flush
+		Reservation savedReservation = reservationRepository.save(reservation); // ID를 즉시 할당받기 위해 flush
 
 		// 2. 파일 업로드 및 URL 저장
 		List<String> attachmentUrls = new ArrayList<>();

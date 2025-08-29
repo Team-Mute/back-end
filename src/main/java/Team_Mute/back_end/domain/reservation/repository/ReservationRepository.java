@@ -26,4 +26,13 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 		@Param("endOfMonth") LocalDateTime endOfMonth,
 		@Param("statusIds") List<Long> statusIds
 	);
+
+	@Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END " +
+		"FROM Reservation r " +
+		"WHERE r.space.spaceId = :spaceId " +
+		"AND r.reservationTo > :from " +
+		"AND r.reservationFrom < :to")
+	boolean existsOverlappingReservation(@Param("spaceId") Integer spaceId,
+		@Param("from") LocalDateTime from,
+		@Param("to") LocalDateTime to);
 }
