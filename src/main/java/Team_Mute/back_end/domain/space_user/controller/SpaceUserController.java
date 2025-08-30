@@ -45,7 +45,7 @@ public class SpaceUserController {
 	// 특정 공간 상세 정보 조회
 	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
-	@Operation(summary = "공간 단건 조회", description = "토큰을 확인하여 공간을 조회합니다.")
+	@Operation(summary = "공간 단건 조회", description = "공간 아이디를 입력하여 공간을 조회합니다.")
 	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
 		try {
 			return ResponseEntity.ok(spaceUserService.getSpaceById(spaceId));
