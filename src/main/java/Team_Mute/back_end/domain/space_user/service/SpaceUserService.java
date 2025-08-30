@@ -7,7 +7,9 @@ import Team_Mute.back_end.domain.reservation.service.ReservationScheduleService;
 import Team_Mute.back_end.domain.space_user.dto.SpaceUserDtailResponseDto;
 import Team_Mute.back_end.domain.space_user.dto.SpaceUserResponseDto;
 import Team_Mute.back_end.domain.space_user.repository.SpaceUserRepository;
+import lombok.extern.slf4j.Slf4j;
 
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 public class SpaceUserService {
 	private final SpaceUserRepository spaceUserRepository;
@@ -27,7 +30,6 @@ public class SpaceUserService {
 		this.spaceUserRepository = spaceUserRepository;
 		this.reservationScheduleService = reservationScheduleService;
 	}
-
 
 	public List<SpaceUserResponseDto> searchSpaces(
 		Integer regionId,
@@ -46,36 +48,52 @@ public class SpaceUserService {
 			regionId, categoryId, safePeople, safeTags, tagCount
 		);
 
-		// 2. 날짜/시간 정보가 없으면 1차 필터링 결과 그대로 반환
-		if (startDateTime == null || endDateTime == null) {
-			return initialFilteredSpaces;
-		}
-
-		// 3. 날짜/시간 조건으로 2차 필터링
+		// 2. 날짜/시간 조건으로 2차 필터링
 		List<SpaceUserResponseDto> finalAvailableSpaces = new ArrayList<>();
-		int year = startDateTime.getYear();
-		int month = startDateTime.getMonthValue();
-		int day = startDateTime.getDayOfMonth();
-		LocalTime startTime = startDateTime.toLocalTime();
-		LocalTime endTime = endDateTime.toLocalTime();
 
-		for (SpaceUserResponseDto space : initialFilteredSpaces) {
-			try {
-				// 예약 가능 시간 보여주는 getAvailableTimes() 메서드를 활용
-				List<AvailableTimeResponse.TimeSlot> availableTimes = reservationScheduleService.getAvailableTimes(
-					year,
-					month,
-					day,
-					space.getSpaceId()
-				);
+		// 사용자가 하루 전체 시간(00:00 ~ 23:59:59)을 요청했을 경우
+		// 사용자가 하루 전체 시간(00:00 ~ 23:59:59)을 요청했을 경우
+		LocalTime requestedStartTime = startDateTime != null ? startDateTime.toLocalTime() : LocalTime.MIN;
+		LocalTime requestedEndTime = endDateTime != null ? endDateTime.toLocalTime() : LocalTime.MAX;
 
-				// 사용자가 선택한 시간대가 예약 가능한지 확인
-				if (isTimeSlotAvailable(availableTimes, startTime, endTime)) {
-					finalAvailableSpaces.add(space);
+
+		// 프론트에서 00:00:00 ~ 23:59:59로 보낼 때, 풀부킹이 아닌 공간만 필터링하는 로직
+		if (requestedStartTime.equals(LocalTime.MIN) && (requestedEndTime.equals(LocalTime.MAX) || requestedEndTime.equals(LocalTime.of(23, 59, 59)))) {
+			for (SpaceUserResponseDto space : initialFilteredSpaces) {
+				try {
+					// 해당 공간의 예약 가능한 시간 슬롯이 있는지 확인
+					List<AvailableTimeResponse.TimeSlot> availableTimeSlots = reservationScheduleService.getAvailableTimes(
+						startDateTime.getYear(),
+						startDateTime.getMonthValue(),
+						startDateTime.getDayOfMonth(),
+						space.getSpaceId()
+					);
+
+					// 예약 가능 슬롯이 하나라도 있으면 최종 목록에 추가
+					if (availableTimeSlots != null && !availableTimeSlots.isEmpty()) {
+						finalAvailableSpaces.add(space);
+					}
+				} catch (NullPointerException | DateTimeException e) {
+					throw new InvalidInputValueException("유효하지 않은 예약 시간 정보입니다. 다시 확인해 주세요.");
 				}
-			} catch (InvalidInputValueException e) {
-				// 해당 날짜가 휴무일이거나 유효하지 않은 경우, 이 공간은 건너뜀
-				continue;
+			}
+		} else {
+			// 그 외의 모든 경우(특정 시간대 요청)에는 기존의 엄격한 로직을 수행합니다.
+			for (SpaceUserResponseDto space : initialFilteredSpaces) {
+				try {
+					List<AvailableTimeResponse.TimeSlot> availableTimeSlots = reservationScheduleService.getAvailableTimes(
+						startDateTime.getYear(),
+						startDateTime.getMonthValue(),
+						startDateTime.getDayOfMonth(),
+						space.getSpaceId()
+					);
+
+					if (this.isTimeSlotFullyAvailable(availableTimeSlots, requestedStartTime, requestedEndTime)) {
+						finalAvailableSpaces.add(space);
+					}
+				} catch (NullPointerException | DateTimeException e) {
+					throw new InvalidInputValueException("유효하지 않은 예약 시간 정보입니다. 다시 확인해 주세요.");
+				}
 			}
 		}
 
@@ -83,15 +101,25 @@ public class SpaceUserService {
 	}
 
 	// 주어진 예약 가능 시간 슬롯 목록에서 특정 시간대(from, to)가 사용 가능한지 확인하는 헬퍼 메서드
-	private boolean isTimeSlotAvailable(List<AvailableTimeResponse.TimeSlot> availableTimes, LocalTime startTime, LocalTime endTime) {
-		// 시작 시간이 종료 시간보다 뒤에 있으면 유효하지 않음
-		if (startTime.isAfter(endTime)) return false;
+	private boolean isTimeSlotFullyAvailable(List<AvailableTimeResponse.TimeSlot> availableTimes, LocalTime startTime, LocalTime endTime) {
+		// 1. 요청 시간이 유효한지 확인
+		if (startTime == null || endTime == null || startTime.isAfter(endTime) || startTime.equals(endTime)) {
+			return false;
+		}
 
-		// 사용자가 선택한 시간대(startTime ~ endTime)가 예약 가능한 슬롯에 완전히 포함되는지 확인
-		return availableTimes.stream()
-			.anyMatch(slot ->
-				!startTime.isBefore(slot.getStartTime()) && !endTime.isAfter(slot.getEndTime())
-			);
+		// 2. 예약 가능 슬롯 목록이 비어있는지 확인
+		if (availableTimes == null || availableTimes.isEmpty()) {
+			return false;
+		}
+
+		// 3. 모든 예약 가능 슬롯을 순회하며 요청 시간대가 완전히 포함되는지 확인
+		for (AvailableTimeResponse.TimeSlot slot : availableTimes) {
+			if (!startTime.isBefore(slot.getStartTime()) && !endTime.isAfter(slot.getEndTime())) {
+				return true; // 요청 시간이 이 슬롯 안에 완전히 포함됨
+			}
+		}
+		
+		return false;
 	}
 
 	// 특정 공간 상세 정보 조회
