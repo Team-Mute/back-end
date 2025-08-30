@@ -34,7 +34,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 		this.store = store;
 	}
 
-	@SuppressWarnings("checkstyle:NeedBraces")
 	@Override
 	protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
 		throws ServletException, IOException {
@@ -55,35 +54,33 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 			log.info("토큰 파싱 성공. Subject(userId): {}, Audience: {}", c.getSubject(), c.getAudience());
 
 			String jti = c.getId();
+			String sid = (String)c.get("sid");
+
+			// 토큰 유효성 검사 (블랙리스트, 세션)
 			if (jti != null && store.isBlacklisted(jti)) {
 				log.warn("블랙리스트에 등록된 토큰입니다. JTI: {}", jti);
-				res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-				return;
-			}
-
-			String sid = (String)c.get("sid");
-			if (sid == null || store.getSessionJson(sid) == null) {
+				// 401 응답 대신, 인증 없이 다음 필터로 진행
+			} else if (sid == null || store.getSessionJson(sid) == null) {
 				log.warn("유효하지 않은 세션 ID입니다. SID: {}", sid);
-				res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-				return;
-			}
-
-			if (c.getAudience().contains("user-service")) {
+				// 401 응답 대신, 인증 없이 다음 필터로 진행
+			} else if (c.getAudience().contains("user-service")) {
 				processUserToken(c);
+				log.info("사용자 인증 성공. SecurityContext에 저장 완료.");
 			} else if (c.getAudience().contains("admin-service")) {
 				processAdminToken(c);
+				log.info("관리자 인증 성공. SecurityContext에 저장 완료.");
 			} else {
 				log.warn("알 수 없는 Audience 입니다: {}", c.getAudience());
-				res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-				return;
+				// 401 응답 대신, 인증 없이 다음 필터로 진행
 			}
-			log.info("사용자 인증 성공. SecurityContext에 저장 완료.");
-
 		} catch (Exception e) {
-			log.error("토큰 검증 중 예외 발생: {}", e.getMessage(), e);
-			res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			return;
+			// JWT 파싱/검증 자체에서 예외 발생 시 (예: 만료, 서명 오류 등)
+			log.error("토큰 검증 중 예외 발생: {}", e.getMessage());
+			// SecurityContext를 비워 인증되지 않은 상태로 만듬
+			SecurityContextHolder.clearContext();
 		}
+
+		// 모든 경우에 대해 다음 필터 체인을 실행
 		chain.doFilter(req, res);
 	}
 
