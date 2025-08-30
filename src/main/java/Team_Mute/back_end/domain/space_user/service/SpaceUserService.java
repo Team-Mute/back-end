@@ -51,17 +51,18 @@ public class SpaceUserService {
 		// 2. 날짜/시간 조건으로 2차 필터링
 		List<SpaceUserResponseDto> finalAvailableSpaces = new ArrayList<>();
 
-		// 사용자가 하루 전체 시간(00:00 ~ 23:59:59)을 요청했을 경우
-		// 사용자가 하루 전체 시간(00:00 ~ 23:59:59)을 요청했을 경우
-		LocalTime requestedStartTime = startDateTime != null ? startDateTime.toLocalTime() : LocalTime.MIN;
-		LocalTime requestedEndTime = endDateTime != null ? endDateTime.toLocalTime() : LocalTime.MAX;
+		// 요청된 날짜/시간 값이 없을 경우, 시간 필터링을 건너뛰고 1차 필터링된 모든 공간을 반환
+		if (startDateTime == null || endDateTime == null) {
+			return initialFilteredSpaces;
+		}
 
+		// 사용자가 하루 전체 시간(00:00 ~ 23:59:59)을 요청했을 경우
+		LocalTime requestedStartTime = startDateTime.toLocalTime();
+		LocalTime requestedEndTime = endDateTime.toLocalTime();
 
-		// 프론트에서 00:00:00 ~ 23:59:59로 보낼 때, 풀부킹이 아닌 공간만 필터링하는 로직
 		if (requestedStartTime.equals(LocalTime.MIN) && (requestedEndTime.equals(LocalTime.MAX) || requestedEndTime.equals(LocalTime.of(23, 59, 59)))) {
 			for (SpaceUserResponseDto space : initialFilteredSpaces) {
 				try {
-					// 해당 공간의 예약 가능한 시간 슬롯이 있는지 확인
 					List<AvailableTimeResponse.TimeSlot> availableTimeSlots = reservationScheduleService.getAvailableTimes(
 						startDateTime.getYear(),
 						startDateTime.getMonthValue(),
@@ -69,10 +70,12 @@ public class SpaceUserService {
 						space.getSpaceId()
 					);
 
-					// 예약 가능 슬롯이 하나라도 있으면 최종 목록에 추가
 					if (availableTimeSlots != null && !availableTimeSlots.isEmpty()) {
 						finalAvailableSpaces.add(space);
 					}
+				} catch (InvalidInputValueException e) {
+					// 선택하신 날짜가 운영일이 아니거나 휴무일일 경우, 에러 대신 건너뛰고 빈 배열을 반환
+					continue;
 				} catch (NullPointerException | DateTimeException e) {
 					throw new InvalidInputValueException("유효하지 않은 예약 시간 정보입니다. 다시 확인해 주세요.");
 				}
@@ -91,12 +94,15 @@ public class SpaceUserService {
 					if (this.isTimeSlotFullyAvailable(availableTimeSlots, requestedStartTime, requestedEndTime)) {
 						finalAvailableSpaces.add(space);
 					}
+				} catch (InvalidInputValueException e) {
+					// 선택하신 날짜가 운영일이 아니거나 휴무일일 경우, 에러 대신 건너뛰고 빈 배열을 반환
+					continue;
 				} catch (NullPointerException | DateTimeException e) {
 					throw new InvalidInputValueException("유효하지 않은 예약 시간 정보입니다. 다시 확인해 주세요.");
 				}
 			}
 		}
-
+		
 		return finalAvailableSpaces;
 	}
 
@@ -118,7 +124,7 @@ public class SpaceUserService {
 				return true; // 요청 시간이 이 슬롯 안에 완전히 포함됨
 			}
 		}
-		
+
 		return false;
 	}
 
