@@ -63,28 +63,15 @@ public class ReservationAdminController {
 		this.reservationAdminService = reservationService;
 	}
 
-	// 1차 승인
-	@PostMapping("/approve/first")
-	@Operation(summary = "1차 승인(단건 or 일괄)", description = "토큰을 확인하여 1차 승인을 진행합니다.")
-	public ResponseEntity<BulkApproveResponseDto> approveFirstBulk(
-		Authentication authentication,
-		@org.springframework.web.bind.annotation.RequestBody BulkApproveRequestDto request
-	) {
-		Long adminId = Long.valueOf((String) authentication.getPrincipal());
-		BulkApproveResponseDto resp = reservationAdminService.approveFirstBulk(adminId, request.getReservationIds());
-
-		return ResponseEntity.status(resolveBulkStatus(resp)).body(resp);
-	}
-
-	// 2차 승인
-	@PostMapping("/approve/second")
-	@Operation(summary = "2차 승인(단건 or 일괄)", description = "토큰을 확인하여 2차 승인을 진행합니다.")
+	// 1차 승인 + 2차 승인
+	@PostMapping("/approve")
+	@Operation(summary = "1차 승인 또는 2차 승인(단건 or 일괄)", description = "토큰을 확인하여 1차 승인 및 2차 승인을 진행합니다.")
 	public ResponseEntity<BulkApproveResponseDto> approveSecondBulk(
 		Authentication authentication,
 		@org.springframework.web.bind.annotation.RequestBody BulkApproveRequestDto request
 	) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
-		BulkApproveResponseDto resp = reservationAdminService.approveSecondBulk(adminId, request.getReservationIds());
+		BulkApproveResponseDto resp = reservationAdminService.approveReservation(adminId, request.getReservationIds());
 
 		return ResponseEntity.status(resolveBulkStatus(resp)).body(resp);
 	}
