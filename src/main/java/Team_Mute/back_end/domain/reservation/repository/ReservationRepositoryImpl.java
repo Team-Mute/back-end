@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 
 import Team_Mute.back_end.domain.member.entity.User;
@@ -33,14 +34,22 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in(statusIds));
 		}
 
-		List<Reservation> content = queryFactory
+		// 1. 기본 쿼리 생성
+		JPAQuery<Reservation> query = queryFactory
 			.selectFrom(reservation)
 			.where(predicate)
-			.orderBy(getOrderBySpecifier(filterOption))
-			.offset(pageable.getOffset())
-			.limit(pageable.getPageSize())
-			.fetch();
+			.orderBy(getOrderBySpecifier(filterOption));
 
+		// 2. 페이징 여부에 따라 분기 처리
+		if (pageable.isPaged()) {
+			query.offset(pageable.getOffset())
+				.limit(pageable.getPageSize());
+		}
+
+		// 3. 쿼리 실행
+		List<Reservation> content = query.fetch();
+
+		// 4. 전체 카운트 조회 (페이징과 무관하게 항상 필요)
 		Long total = queryFactory
 			.select(reservation.count())
 			.from(reservation)
@@ -63,7 +72,7 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 	}
 
 	private OrderSpecifier<?> getOrderBySpecifier(String filterOption) {
-		if ("취소" .equals(filterOption)) {
+		if ("취소".equals(filterOption)) {
 			// 6(취소됨)이 4(반려)보다 앞으로 오도록 내림차순 정렬
 			return new OrderSpecifier<>(Order.ASC, reservation.reservationStatus.reservationStatusId);
 		}
