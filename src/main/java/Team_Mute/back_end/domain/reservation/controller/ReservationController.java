@@ -81,11 +81,20 @@ public class ReservationController {
 	public ResponseEntity<PagedReservationResponse> getReservations(
 		@AuthenticationPrincipal String userId,
 		@RequestParam(required = false) String filterOption,
-		@RequestParam(defaultValue = "1") int page,
-		@RequestParam(defaultValue = "5") int size) {
+		@RequestParam(required = false) Integer page,
+		@RequestParam(required = false) Integer size) {
 
-		// Spring Data JPA의 Pageable은 페이지 번호를 0부터 시작하므로, 클라이언트가 보내는 1부터 시작하는 페이지 번호를 조정
-		Pageable pageable = PageRequest.of(page - 1, size);
+		Pageable pageable;
+
+		// page와 size 파라미터가 모두 제공되지 않은 경우
+		if (page == null && size == null) {
+			pageable = null; // 페이징 없음을 나타내기 위해 null 전달
+		} else {
+			// 하나라도 값이 있으면 기본값 적용
+			int pageNum = (page != null) ? page : 1;
+			int pageSize = (size != null) ? size : 5;
+			pageable = PageRequest.of(pageNum - 1, pageSize);
+		}
 
 		PagedReservationResponse response = reservationService.findReservations(userId, filterOption, pageable);
 

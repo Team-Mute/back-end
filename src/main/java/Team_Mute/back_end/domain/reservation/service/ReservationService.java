@@ -137,9 +137,12 @@ public class ReservationService {
 			throw new ForbiddenAccessException("일반 사용자만 접근 가능한 기능입니다.");
 		}
 
+		// pageable이 null이면 unpaged, 아니면 받은 값 사용
+		Pageable pageableToUse = (pageable != null) ? pageable : Pageable.unpaged();
+
 		// 3, 4. 필터 옵션에 따라 동적 쿼리 실행
 		Page<Reservation> reservationPage = reservationRepository.findReservationsByFilter(user, filterOption,
-			pageable);
+			pageableToUse);
 
 		// 5. 응답 DTO로 변환
 		Page<ReservationListDto> dtoPage = reservationPage.map(ReservationListDto::fromEntity);
