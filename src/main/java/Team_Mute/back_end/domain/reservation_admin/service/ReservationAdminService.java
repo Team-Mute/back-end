@@ -33,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -68,6 +67,8 @@ public class ReservationAdminService {
 	private final ReservationDetailRepository reservationDetailRepository;
 	private final EmergencyEvaluator emergencyEvaluator;
 
+	private static final Long ROLE_SECOND_APPROVER = 1L; // 2차 승인자(1,2차 가능)
+	private static final Long ROLE_FIRST_APPROVER = 2L; // 1차 승인자(1차만 가능)
 	private static final Long APPROVED_FINAL_ID = 3L; // 최종 승인
 	public static final Long REJECTED_STATUS_ID = 4L; // 반려 상태 // 반려
 
@@ -109,61 +110,61 @@ public class ReservationAdminService {
 		return ex.getMessage();
 	}
 
-	// ===== 1차 일괄 승인 =====
+	// ===== 1차 승인 + 2차 승인 =====
 	@org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
-	public BulkApproveResponseDto approveFirstBulk(Long adminId, java.util.List<Long> reservationIds) {
+	public BulkApproveResponseDto approveReservation(Long adminId, java.util.List<Long> reservationIds) {
 		java.util.List<Long> ids = reservationIds.stream().distinct().toList(); // 중복 제거(선택)
 		BulkApproveResponseDto resp = new BulkApproveResponseDto();
 		resp.setTotal(ids.size());
 
-		for (Long id : ids) {
-			try {
-				ApproveResponseDto r = approvalTxService.approveFirstTx(adminId, id); // ← Tx 전용 서비스 호출
-				resp.add(new BulkApproveItemResultDto(id, true, r.getMessage()));
-				resp.setSuccessCount(resp.getSuccessCount() + 1);
-			} catch (Exception ex) {
-				resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
-				resp.setFailureCount(resp.getFailureCount() + 1);
+		Admin admin = adminRepository.findById(adminId)
+			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Admin not found"));
+
+		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+
+		// ----- 1차 승인 -----
+		if (ROLE_FIRST_APPROVER.equals(roleId)) {
+			for (Long id : ids) {
+				try {
+					ApproveResponseDto r = approvalTxService.approveFirstTx(adminId, id); // ← Tx 전용 서비스 호출
+					resp.add(new BulkApproveItemResultDto(id, true, r.getMessage()));
+					resp.setSuccessCount(resp.getSuccessCount() + 1);
+				} catch (Exception ex) {
+					resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
+					resp.setFailureCount(resp.getFailureCount() + 1);
+				}
 			}
 		}
-		return resp;
-	}
-
-	// ===== 2차 일괄 승인 =====
-	@org.springframework.transaction.annotation.Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
-	public BulkApproveResponseDto approveSecondBulk(Long adminId, java.util.List<Long> reservationIds) {
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-		java.util.List<Long> ids = reservationIds.stream().distinct().toList();
-		BulkApproveResponseDto resp = new BulkApproveResponseDto();
-		resp.setTotal(ids.size());
-
-		for (Long id : ids) {
-			try {
-				ApproveResponseDto r = approvalTxService.approveSecondTx(adminId, id); // ← Tx 전용 서비스 호출
-				// 승인 성공 시 SMS 시도 (실패해도 승인 유지)
-				String finalMsg = r.getMessage(); // "2차 승인 완료"
+		// ----- 2차 승인 -----
+		else if (ROLE_SECOND_APPROVER.equals(roleId)) {
+			for (Long id : ids) {
 				try {
-					Reservation reservation = adminReservationRepository.findById(id)
-						.orElseThrow(() -> new IllegalArgumentException("예약을 찾을 수 없습니다."));
+					ApproveResponseDto r = approvalTxService.approveSecondTx(adminId, id); // ← Tx 전용 서비스 호출
+					// 승인 성공 시 SMS 시도 (실패해도 승인 유지)
+					String finalMsg = r.getMessage(); // "2차 승인 완료"
+					try {
+						Reservation reservation = adminReservationRepository.findById(id)
+							.orElseThrow(() -> new IllegalArgumentException("예약을 찾을 수 없습니다."));
 
-					smsService.sendSmsForReservationAdmin(
-						null,
-						reservation,
-						APPROVED_FINAL_ID,
-						null
-					);
+						smsService.sendSmsForReservationAdmin(
+							null,
+							reservation,
+							APPROVED_FINAL_ID,
+							null
+						);
 
-					finalMsg += " / SMS 발송 완료";
-				} catch (SmsSendingFailedException smsEx) {
-					finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
+						finalMsg += " / SMS 발송 완료";
+					} catch (SmsSendingFailedException smsEx) {
+						finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
+					}
+
+					resp.add(new BulkApproveItemResultDto(id, true, finalMsg));
+
+					resp.setSuccessCount(resp.getSuccessCount() + 1);
+				} catch (Exception ex) {
+					resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
+					resp.setFailureCount(resp.getFailureCount() + 1);
 				}
-
-				resp.add(new BulkApproveItemResultDto(id, true, finalMsg));
-
-				resp.setSuccessCount(resp.getSuccessCount() + 1);
-			} catch (Exception ex) {
-				resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
-				resp.setFailureCount(resp.getFailureCount() + 1);
 			}
 		}
 		return resp;
