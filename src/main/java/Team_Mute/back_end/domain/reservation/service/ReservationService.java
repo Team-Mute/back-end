@@ -1,5 +1,8 @@
 package Team_Mute.back_end.domain.reservation.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -317,7 +320,28 @@ public class ReservationService {
 	private String generateOrderId(String spaceName) {
 		LocalDateTime now = LocalDateTime.now();
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyMMddHHmmss");
-		return spaceName + "-" + now.format(formatter);
+		String spaceCode = generateSpaceCode(spaceName);
+		return spaceCode + "-" + now.format(formatter);
+	}
+
+	private String generateSpaceCode(String spaceName) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hash = digest.digest(spaceName.getBytes(StandardCharsets.UTF_8));
+			StringBuilder hexString = new StringBuilder();
+			for (byte b : hash) {
+				String hex = Integer.toHexString(0xff & b);
+				if (hex.length() == 1) {
+					hexString.append('0');
+				}
+				hexString.append(hex);
+			}
+			return hexString.toString().substring(0, 3).toUpperCase();
+		} catch (NoSuchAlgorithmException e) {
+			// "SHA-256"은 표준 알고리즘이므로 이 예외가 발생할 가능성은 거의 없습니다.
+			// 발생 시 JRE 구성 문제일 수 있으므로 RuntimeException으로 처리합니다.
+			throw new RuntimeException("Could not generate hash", e);
+		}
 	}
 
 	private Reservation findReservationAndVerifyAccess(User user, Long reservationId) {
