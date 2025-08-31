@@ -181,7 +181,6 @@ public class ReservationAdminService {
 
 		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
-		Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
 
 		// 현재 승인 상태
 		Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
@@ -189,6 +188,7 @@ public class ReservationAdminService {
 		if (roleId.equals(1L) || roleId.equals(2L)) {
 			// 1차 승인자일 경우 담당 지역만 승인 가능
 			if (roleId.equals(2L)) {
+				Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
 				if (!reservationRegionId.equals(adminRegionId)) {
 					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 						"해당 지역의 반려 권한이 없습니다 담당 지역인지 확인하세요");

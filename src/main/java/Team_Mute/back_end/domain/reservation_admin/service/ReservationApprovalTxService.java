@@ -59,7 +59,6 @@ public class ReservationApprovalTxService {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
 
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
-		Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
 
 		Long fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
 		String fromStatus = adminStatusRepository.findById(fromStatusId)
@@ -72,9 +71,12 @@ public class ReservationApprovalTxService {
 
 		if (ROLE_FIRST_APPROVER.equals(roleId) || ROLE_SECOND_APPROVER.equals(roleId)) { // 승인 권한 체크
 			// 1차 승인자일 경우 담당 지역만 승인 가능
-			if (ROLE_FIRST_APPROVER.equals(roleId) && !reservationRegionId.equals(adminRegionId)) {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					"해당 지역의 승인 권한이 없습니다 담당 지역인지 확인하세요");
+			if (ROLE_FIRST_APPROVER.equals(roleId)) {
+				Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
+				if (!reservationRegionId.equals(adminRegionId)) {
+					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+						"해당 지역의 승인 권한이 없습니다 담당 지역인지 확인하세요");
+				}
 			}
 
 			ReservationStatus toStatus = adminStatusRepository.findById(statusId(STATUS_SECOND_PENDING))
