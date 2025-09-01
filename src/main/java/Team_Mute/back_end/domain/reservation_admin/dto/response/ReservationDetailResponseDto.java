@@ -13,6 +13,7 @@ public record ReservationDetailResponseDto(
 	String orderId,
 	String reservationStatusName,
 	boolean isApprovable,
-	boolean isRejectable
+	boolean isRejectable,
+	Long statusId
 ) {
 }

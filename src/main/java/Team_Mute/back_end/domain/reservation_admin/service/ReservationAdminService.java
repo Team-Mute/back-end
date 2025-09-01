@@ -153,9 +153,9 @@ public class ReservationAdminService {
 							null
 						);
 
-						finalMsg += " / SMS 발송 완료";
+						//finalMsg += " / SMS 발송 완료";
 					} catch (SmsSendingFailedException smsEx) {
-						finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
+						//finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
 					}
 
 					resp.add(new BulkApproveItemResultDto(id, true, finalMsg));
@@ -358,7 +358,8 @@ public class ReservationAdminService {
 			reservation.getOrderId(),
 			statusName,
 			isApprovable,
-			isRejectable
+			isRejectable,
+			reservation.getReservationStatusId().getReservationStatusId()
 		);
 	}
 
@@ -457,6 +458,4 @@ public class ReservationAdminService {
 		String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
 		return nfc.toLowerCase(Locale.ROOT);
 	}
-
-
 }
