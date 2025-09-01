@@ -2,6 +2,7 @@ package Team_Mute.back_end.domain.reservation.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -63,4 +64,6 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 		@Param("statusIds") List<Long> statusIds,
 		@Param("excludeId") Long excludeId // 제외할 예약의 ID
 	);
+
+	Optional<Reservation> findByReservationId(Long reservationId);
 }
