@@ -153,9 +153,9 @@ public class ReservationAdminService {
 							null
 						);
 
-						finalMsg += " / SMS 발송 완료";
+						//finalMsg += " / SMS 발송 완료";
 					} catch (SmsSendingFailedException smsEx) {
-						finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
+						//finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
 					}
 
 					resp.add(new BulkApproveItemResultDto(id, true, finalMsg));
@@ -270,6 +270,7 @@ public class ReservationAdminService {
 	}
 
 	// ================== 예약 리스트 조회 ==================
+	@Transactional(readOnly = true)
 	public Page<ReservationListResponseDto> getAllReservations(Long adminId, Pageable pageable) {
 		// 관리자 권한
 		Admin admin = adminRepository.findById(adminId)
@@ -296,6 +297,7 @@ public class ReservationAdminService {
 	}
 
 	// ================== 예약 상세 조회 ==================
+	@Transactional
 	public ReservationDetailResponseDto getByReservationId(Long adminId, Long reservationId) {
 		Reservation reservation = reservationDetailRepository.findById(reservationId)
 			.orElseThrow(() -> new IllegalArgumentException("Reservation not found: " + reservationId));
@@ -334,7 +336,11 @@ public class ReservationAdminService {
 		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
 
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
-		Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
+		// 관리자 담당 지역 ID를 안전하게 가져오기
+		Integer adminRegionId = null;
+		if (admin.getAdminRegion() != null) {
+			adminRegionId = admin.getAdminRegion().getRegionId();
+		}
 
 		boolean isApprovable = isApprovableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
@@ -352,7 +358,8 @@ public class ReservationAdminService {
 			reservation.getOrderId(),
 			statusName,
 			isApprovable,
-			isRejectable
+			isRejectable,
+			reservation.getReservationStatusId().getReservationStatusId()
 		);
 	}
 
@@ -369,8 +376,8 @@ public class ReservationAdminService {
 	// 2) 플래그(flags) 조회 메서드
 	public List<ReservationFilterOptionsResponse.FlagOptionDto> getFlagOptions() {
 		return List.of(
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한").build(),
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급").build()
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한 예약 보기").build(),
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급 예약 보기").build()
 		);
 	}
 
@@ -451,6 +458,4 @@ public class ReservationAdminService {
 		String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
 		return nfc.toLowerCase(Locale.ROOT);
 	}
-
-
 }
