@@ -376,8 +376,8 @@ public class ReservationAdminService {
 	// 2) 플래그(flags) 조회 메서드
 	public List<ReservationFilterOptionsResponse.FlagOptionDto> getFlagOptions() {
 		return List.of(
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한").build(),
-			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급").build()
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isShinhan").label("신한 예약 보기").build(),
+			ReservationFilterOptionsResponse.FlagOptionDto.builder().key("isEmergency").label("긴급 예약 보기").build()
 		);
 	}
 
