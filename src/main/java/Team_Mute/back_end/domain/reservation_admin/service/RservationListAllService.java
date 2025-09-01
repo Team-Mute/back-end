@@ -18,6 +18,7 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -57,7 +58,22 @@ public class RservationListAllService {
 
 	public List<ReservationListResponseDto> getReservationListAll(List<Reservation> reservations, Admin admin) {
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
-		// 관리자 담당 지역 ID를 안전하게 가져오기
+		// 리스트 정렬: 관리자의 역할에 따라 정렬 기준을 동적으로 설정
+		reservations = reservations.stream()
+			.sorted(
+				// 1차 정렬: getStatusOrder 메서드를 통해 상태 우선순위 결정
+				Comparator.comparing(
+						// 람다식의 인자에 타입을 명시
+						(Reservation reservation) -> getStatusOrder(reservation.getReservationStatus().getReservationStatusId(), admin.getUserRole().getRoleId())
+					)
+					// 2차 정렬: 1차 정렬 결과가 같을 경우, 등록일(getRegDate)을 내림차순(최신순)으로 정렬
+					.thenComparing(
+						Reservation::getRegDate, Comparator.reverseOrder()
+					)
+			)
+			.collect(Collectors.toList());
+
+		// 관리자 담당 지역 ID 가져오기
 		Integer adminRegionId;
 		if (admin.getAdminRegion() != null) {
 			adminRegionId = admin.getAdminRegion().getRegionId();
@@ -166,5 +182,21 @@ public class RservationListAllService {
 			.toList();
 
 		return content;
+	}
+
+	private int getStatusOrder(Long statusId, Integer adminRole) {
+		if (adminRole.equals(ROLE_SECOND_APPROVER)) {
+			return switch (statusId.intValue()) {
+				case 2 -> 1;
+				case 1 -> 2;
+				case 3 -> 3;
+				case 4 -> 4;
+				case 5 -> 5;
+				case 6 -> 6;
+				default -> 99;
+			};
+		} else {
+			return statusId.intValue();
+		}
 	}
 }
