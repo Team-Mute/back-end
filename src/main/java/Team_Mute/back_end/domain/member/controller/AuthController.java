@@ -37,7 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
 	private static final String RT_COOKIE_NAME = "refresh_token";
-	private static final String RT_COOKIE_PATH = "/api/auth/refresh";
+	private static final String RT_COOKIE_PATH = "/";
 
 	private final AuthService auth;
 	private final JwtService jwtService;
@@ -135,7 +135,7 @@ public class AuthController {
 			.secure(true)
 			.path(RT_COOKIE_PATH)
 			.maxAge(Duration.ofSeconds(maxAgeSeconds))
-			.sameSite("Lax");
+			.sameSite("None");
 		res.addHeader(HttpHeaders.SET_COOKIE, b.build().toString());
 	}
 
@@ -145,7 +145,7 @@ public class AuthController {
 			.secure(true)
 			.path(RT_COOKIE_PATH)
 			.maxAge(Duration.ZERO)
-			.sameSite("Lax");
+			.sameSite("None");
 		res.addHeader(HttpHeaders.SET_COOKIE, b.build().toString());
 	}
 }
