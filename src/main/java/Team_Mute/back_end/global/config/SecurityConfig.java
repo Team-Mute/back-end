@@ -1,5 +1,9 @@
 package Team_Mute.back_end.global.config;
 
+import Team_Mute.back_end.domain.member.jwt.JwtService;
+import Team_Mute.back_end.domain.member.session.SessionStore;
+import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -9,10 +13,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import Team_Mute.back_end.domain.member.jwt.JwtService;
-import Team_Mute.back_end.domain.member.session.SessionStore;
-import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -40,7 +40,7 @@ public class SecurityConfig {
 				.requestMatchers("/api/admin/signup")
 				.hasAnyRole("0")
 				.requestMatchers("/api/admin/**", "/api/admin/account/**", "/api/spaces-admin/**",
-					"/api/reservations-admin/**")
+					"/api/reservations-admin/**", "/api/dashboard-admin/**")
 				.hasAnyRole("0", "1", "2")
 				.requestMatchers("/api/previsit/**")
 				.hasRole("3")

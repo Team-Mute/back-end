@@ -33,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.text.Normalizer;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -267,33 +266,6 @@ public class ReservationAdminService {
 		} else {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "반려 권한이 없습니다.");
 		}
-	}
-
-	// ================== 예약 리스트 조회 ==================
-	@Transactional(readOnly = true)
-	public Page<ReservationListResponseDto> getAllReservations(Long adminId, Pageable pageable) {
-		// 관리자 권한
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(UserNotFoundException::new);
-
-		// DB에서 모든 예약 데이터를 가져옴 (페이징 없이)
-		List<Reservation> allReservations = adminReservationRepository.findAll();
-
-		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환
-		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
-
-		// 수동 페이징 처리
-		int start = (int) pageable.getOffset();
-		int end = Math.min((start + pageable.getPageSize()), allContent.size());
-
-		List<ReservationListResponseDto> pagedContent;
-		if (start > allContent.size()) {
-			pagedContent = new ArrayList<>();
-		} else {
-			pagedContent = allContent.subList(start, end);
-		}
-
-		return new PageImpl<>(pagedContent, pageable, allContent.size());
 	}
 
 	// ================== 예약 상세 조회 ==================
