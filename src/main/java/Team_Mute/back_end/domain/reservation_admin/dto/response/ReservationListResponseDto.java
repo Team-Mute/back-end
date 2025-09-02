@@ -44,8 +44,6 @@ public class ReservationListResponseDto {
 		boolean isApprovable,
 		boolean isRejectable,
 		List<PrevisitItemResponseDto> previsitDtos
-
-
 	) {
 		return ReservationListResponseDto.builder()
 			.reservationId(r.getReservationId())
