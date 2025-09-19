@@ -15,18 +15,25 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface SpaceRepository extends JpaRepository<Space, Integer> {
-	// 공간 등록할 경우 공간명 중복 체크
+	/**
+	 * 공간 등록할 경우 공간명 중복 체크
+	 **/
 	boolean existsBySpaceName(String spaceName);
 
-	// 공간 수정할 경우 공간명 중복 체크
+	/**
+	 * 공간 수정할 경우 공간명 중복 체크
+	 **/
 	boolean existsBySpaceNameAndSpaceIdNot(String spaceName, Integer spaceId);
 
-	// 공간 리스트 조회
+	/**
+	 * 공간 리스트 조회
+	 **/
 	@Query(value = """
 		   SELECT
 		     s.space_id           AS spaceId,
 		     s.space_name         AS spaceName,
 		     r.region_name        AS regionName,
+		     s.region_id          AS regionId,
 		     /* 담당자명 */
 			  COALESCE(
 			  (
@@ -46,7 +53,37 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		nativeQuery = true)
 	Page<SpaceListResponseDto> findAllWithNames(Pageable pageable);
 
-	// 지역별 공간 리스트 조회
+	/**
+	 * 1차 승인자일 경우 담당 지역 공간 리스트만 조회
+	 **/
+	@Query(value = """
+		   SELECT
+		     s.space_id           AS spaceId,
+		     s.space_name         AS spaceName,
+		     r.region_name        AS regionName,
+		     s.region_id          AS regionId,
+		     COALESCE(
+		     (
+		        SELECT admin_name
+		        FROM tb_admins
+		        WHERE admin_id = s.user_id
+		     ), '알 수 없음'
+		        ) AS adminName,
+		     s.space_image_url    AS spaceImageUrl,
+		     s.space_is_available AS spaceIsAvailable
+		   FROM tb_spaces s
+		   JOIN tb_admin_region r ON r.region_id = s.region_id
+		   WHERE s.region_id = :adminRegionId
+		   ORDER BY s.region_id ASC, s.reg_date DESC
+		""",
+		countQuery = "SELECT COUNT(*) FROM tb_spaces WHERE region_id = :adminRegionId",
+		nativeQuery = true)
+	Page<SpaceListResponseDto> findAllByAdminRegion(Pageable pageable, @Param("adminRegionId") Integer adminRegionId);
+
+
+	/**
+	 * 지역별 공간 리스트 조회
+	 **/
 	@Query(value = """
 		   SELECT
 		     s.space_id           AS spaceId,
@@ -72,7 +109,9 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		nativeQuery = true)
 	List<SpaceListResponseDto> findAllWithRegion(@Param("regionId") Integer regionId);
 
-	// 단건 상세 + 조인
+	/**
+	 * 단건 상세 + 조인
+	 **/
 	@Query(value = """
 		SELECT
 		  s.space_id           AS spaceId,

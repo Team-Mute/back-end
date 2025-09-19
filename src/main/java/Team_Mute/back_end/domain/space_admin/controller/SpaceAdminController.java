@@ -31,6 +31,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -59,13 +60,18 @@ public class SpaceAdminController {
 	@GetMapping("/list")
 	@Operation(summary = "공간 전체 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
 	public ResponseEntity<PagedResponseDto<SpaceListResponseDto>> getAllSpaces(
+		Authentication authentication,
 		@RequestParam(defaultValue = "1") int page,
 		@RequestParam(defaultValue = "6") int size) {
 
-		// Pageable 객체 생성
-		Pageable pageable = (Pageable) PageRequest.of(page, size);
+		// 1부터 시작하는 페이지 요청을 Spring Data JPA의 0부터 시작하는 페이지로 변환
+		int adjustedPage = Math.max(0, page - 1);
 
-		Page<SpaceListResponseDto> spacePage = spaceAdminService.getAllSpaces(pageable);
+		// Pageable 객체 생성
+		Pageable pageable = PageRequest.of(adjustedPage, size);
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+		Page<SpaceListResponseDto> spacePage = spaceAdminService.getAllSpaces(pageable, adminId);
 		PagedResponseDto<SpaceListResponseDto> response = new PagedResponseDto<>(spacePage);
 
 		return ResponseEntity.ok(response);

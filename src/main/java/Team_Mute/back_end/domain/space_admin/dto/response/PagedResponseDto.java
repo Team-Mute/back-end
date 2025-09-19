@@ -18,7 +18,7 @@ public class PagedResponseDto<T> {
 		this.content = page.getContent();
 		this.totalElements = page.getTotalElements();
 		this.totalPages = page.getTotalPages();
-		this.currentPage = page.getNumber();
+		this.currentPage = page.getNumber() + 1;
 		this.pageSize = page.getSize();
 	}
 }

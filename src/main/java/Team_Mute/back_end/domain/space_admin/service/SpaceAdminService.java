@@ -2,6 +2,7 @@ package Team_Mute.back_end.domain.space_admin.service;
 
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
+import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
@@ -55,6 +56,10 @@ public class SpaceAdminService {
 	private final UserRepository userRepository;
 	private final AdminRepository adminRepository;
 
+	private static final Integer ROLE_MASTER = 0; // 마스터 관리자
+	private static final Integer ROLE_SECOND_APPROVER = 1; // 2차 승인자
+	private static final Integer ROLE_FIRST_APPROVER = 2; // 1차 승인자
+
 	/**
 	 * 공간 등록 및 수정 시, 이름으로 userId 결정
 	 **/
@@ -104,8 +109,19 @@ public class SpaceAdminService {
 	/**
 	 * 공간 전체 조회 (페이징 적용)
 	 **/
-	public Page<SpaceListResponseDto> getAllSpaces(Pageable pageable) { // This `Pageable` is the Spring one
-		return spaceRepository.findAllWithNames(pageable);
+	public Page<SpaceListResponseDto> getAllSpaces(Pageable pageable, Long adminId) { // This `Pageable` is the Spring one
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
+
+		// 1차 승인자일 경우, 담당 지역으로 필터링된 데이터 조회
+		if (adminRole.equals(ROLE_FIRST_APPROVER) && admin.getAdminRegion() != null) {
+			Integer adminRegionId = admin.getAdminRegion().getRegionId();
+			return spaceRepository.findAllByAdminRegion(pageable, adminRegionId);
+		}
+		// 그 외 관리자(전체 조회 권한)일 경우, 모든 공간 데이터 조회
+		else {
+			return spaceRepository.findAllWithNames(pageable);
+		}
 	}
 
 	/**
