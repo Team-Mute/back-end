@@ -1,5 +1,6 @@
 package Team_Mute.back_end.domain.space_admin.dto;
 
+import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -7,12 +8,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Schema(name = "SpaceCreateUpdateDoc", description = "multipart/form-data 본문")
 public class SpaceCreateUpdateDoc {
-	private SpaceCreateRequest space;      // ← 객체 타입
+	private SpaceCreateRequestDto space;      // ← 객체 타입
 	private MultipartFile[] images;        // ← 문서용은 배열 권장 (UI 인식이 안정적)
 
 	// 여기 example이 Swagger UI의 Edit Value에 기본으로 뜹니다.
 	@Schema(
-		implementation = SpaceCreateRequest.class,
+		implementation = SpaceCreateRequestDto.class,
 		description = "공간 정보(JSON)",
 		example = """
 			{
@@ -43,11 +44,11 @@ public class SpaceCreateUpdateDoc {
 			}
 			"""
 	)
-	public SpaceCreateRequest getSpace() {
+	public SpaceCreateRequestDto getSpace() {
 		return space;
 	}
 
-	public void setSpace(SpaceCreateRequest v) {
+	public void setSpace(SpaceCreateRequestDto v) {
 		this.space = v;
 	}
 

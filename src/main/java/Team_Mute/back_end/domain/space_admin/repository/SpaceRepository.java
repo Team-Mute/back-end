@@ -1,19 +1,18 @@
 package Team_Mute.back_end.domain.space_admin.repository;
 
+import Team_Mute.back_end.domain.space_admin.dto.response.SpaceDatailResponseDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
+import Team_Mute.back_end.domain.space_admin.entity.Space;
+import jakarta.persistence.LockModeType;
+
 import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import Team_Mute.back_end.domain.space_admin.dto.SpaceDatailResponse;
-import Team_Mute.back_end.domain.space_admin.dto.SpaceListResponse;
-import Team_Mute.back_end.domain.space_admin.entity.Space;
-import jakarta.persistence.LockModeType;
 
 public interface SpaceRepository extends JpaRepository<Space, Integer> {
 	// 공간 등록할 경우 공간명 중복 체크
@@ -45,7 +44,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		""",
 		countQuery = "SELECT COUNT(*) FROM tb_spaces",
 		nativeQuery = true)
-	Page<SpaceListResponse> findAllWithNames(Pageable pageable);
+	Page<SpaceListResponseDto> findAllWithNames(Pageable pageable);
 
 	// 지역별 공간 리스트 조회
 	@Query(value = """
@@ -71,7 +70,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		""",
 		countQuery = "SELECT COUNT(*) FROM tb_spaces",
 		nativeQuery = true)
-	List<SpaceListResponse> findAllWithRegion(@Param("regionId") Integer regionId);
+	List<SpaceListResponseDto> findAllWithRegion(@Param("regionId") Integer regionId);
 
 	// 단건 상세 + 조인
 	@Query(value = """
@@ -168,7 +167,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		JOIN tb_locations        l ON l.location_id = s.location_id
 		WHERE s.space_id = :spaceId
 		""", nativeQuery = true)
-	Optional<SpaceDatailResponse> findDetailWithNames(@Param("spaceId") Integer spaceId);
+	Optional<SpaceDatailResponseDto> findDetailWithNames(@Param("spaceId") Integer spaceId);
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Override

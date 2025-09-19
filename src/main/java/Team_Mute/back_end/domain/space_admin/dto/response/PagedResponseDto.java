@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.space_admin.dto;
+package Team_Mute.back_end.domain.space_admin.dto.response;
 
 import lombok.Data;
 
@@ -6,7 +6,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 
 @Data
-public class PagedResponse<T> {
+public class PagedResponseDto<T> {
 
 	private List<T> content;
 	private long totalElements;
@@ -14,7 +14,7 @@ public class PagedResponse<T> {
 	private int currentPage;
 	private int pageSize;
 
-	public PagedResponse(Page<T> page) {
+	public PagedResponseDto(Page<T> page) {
 		this.content = page.getContent();
 		this.totalElements = page.getTotalElements();
 		this.totalPages = page.getTotalPages();

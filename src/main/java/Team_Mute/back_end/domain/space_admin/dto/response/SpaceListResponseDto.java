@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.space_admin.dto;
+package Team_Mute.back_end.domain.space_admin.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 	"spaceId", "spaceName", "regionName", "adminName",
 	"spaceImageUrl", "spaceIsAvailable",
 })
-public interface SpaceListResponse {
+public interface SpaceListResponseDto {
 	Integer getSpaceId();
 
 	String getSpaceName();
