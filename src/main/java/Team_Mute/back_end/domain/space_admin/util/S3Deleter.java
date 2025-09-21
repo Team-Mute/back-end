@@ -1,8 +1,6 @@
 package Team_Mute.back_end.domain.space_admin.util;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -10,6 +8,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
@@ -60,9 +61,10 @@ public class S3Deleter {
 		try {
 			java.net.URI u = java.net.URI.create(url);
 			String path = u.getPath();
-			return java.net.URLDecoder.decode(path.substring(1), java.nio.charset.StandardCharsets.UTF_8);
+			String key = path.startsWith("/") ? path.substring(1) : path;
+			return java.net.URLDecoder.decode(key, java.nio.charset.StandardCharsets.UTF_8);
 		} catch (Exception e) {
-			throw new IllegalArgumentException("S3 URL에서 Key 추출 실패: " + url, e);
+			throw new IllegalArgumentException("URL에서 Key 추출 실패: " + url, e);
 		}
 	}
 }

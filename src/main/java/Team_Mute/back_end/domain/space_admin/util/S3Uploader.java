@@ -5,7 +5,6 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -36,6 +35,9 @@ public class S3Uploader {
 
 	@Value("${cloud.aws.region.static}")
 	private String region;
+
+	@Value("${cloud.aws.cloudfront.domain}")
+	private String cloudfrontDomain;
 
 	public String upload(MultipartFile file, String dirName) throws IOException {
 		if (file == null || file.isEmpty()) {
@@ -68,14 +70,8 @@ public class S3Uploader {
 			)
 		);
 
-		// URL 생성: 디렉터리(/)는 그대로, "파일명"만 인코딩
-		String encodedFileName = java.net.URLEncoder
-			.encode(originalName, java.nio.charset.StandardCharsets.UTF_8)
-			.replace("+", "%20"); // 공백 보정
-		String url = "https://" + bucket + ".s3." + region + ".amazonaws.com/"
-			+ dirName + "/" + timestamp + "_" + encodedFileName;
-
-		return url;
+		// URL 생성
+		return "https://" + cloudfrontDomain + "/" + urlEncode(key);
 	}
 
 	public List<String> uploadAll(List<MultipartFile> files, String dirName) {
@@ -105,32 +101,12 @@ public class S3Uploader {
 			.build();
 	}
 
-	/* 복제한 데이터 업로드 */
-	public String copyByUrl(String sourceUrl, String targetDir) {
-		if (sourceUrl == null || sourceUrl.isBlank()) {
-			throw new IllegalArgumentException("S3 sourceUrl이 비어 있습니다.");
-		}
-		String sourceKey = extractKeyFromUrl(sourceUrl);
-		String newKey = buildNewKey(targetDir, sourceKey.substring(sourceKey.lastIndexOf('/') + 1));
-
-		try (S3Client s3 = getS3Client()) {
-			CopyObjectRequest req = CopyObjectRequest.builder()
-				.copySource(bucket + "/" + urlEncode(sourceKey))
-				.destinationBucket(bucket)
-				.destinationKey(newKey)
-				//.acl(ObjectCannedACL.PUBLIC_READ) // 공개 URL 사용 중이면 그대로 유지
-				.build();
-
-			s3.copyObject(req);
-			return buildPublicUrl(newKey);
-		}
-	}
-
 	// S3 퍼블릭 URL 생성(CloudFront를 쓰지 않는 기본 케이스)
 	private String buildPublicUrl(String key) {
-		// ex) https://{bucket}.s3.{region}.amazonaws.com/{key}
 		String encKey = urlEncode(key);
-		return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + encKey;
+
+		// CloudFront URL 사용
+		return "https://" + cloudfrontDomain + "/" + encKey;
 	}
 
 	private String urlEncode(String s) {
