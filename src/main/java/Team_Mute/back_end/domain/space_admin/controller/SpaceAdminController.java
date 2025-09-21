@@ -172,7 +172,8 @@ public class SpaceAdminController {
 				schema = @Schema(implementation = SpaceCreateUpdateDoc.class),
 				encoding = {
 					@Encoding(name = "space", contentType = MediaType.APPLICATION_JSON_VALUE),
-					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE),
+					@Encoding(name = "keepUrls", contentType = MediaType.APPLICATION_JSON_VALUE) // 유지할 기존 이미지 URL 목록
 				}
 			)
 		),
@@ -182,31 +183,40 @@ public class SpaceAdminController {
 		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
 		@PathVariable Integer spaceId,
 		@RequestPart("space") @Valid String spaceJson,
-		@RequestPart(value = "images", required = false) List<MultipartFile> images
+		@RequestPart(value = "images", required = false) List<MultipartFile> images,
+		@RequestPart(value = "keepUrls", required = false) List<String> keepUrls // 유지할 기존 이미지 URL 목록
 	) {
 		try {
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
 
-			// 업로드 가능한 파일(= null 아니고 비어있지 않은 파일)만 필터링
+			// 1) 업로드 가능한 파일만 필터링
 			List<MultipartFile> usableImages = (images == null) ? List.of()
-				: images.stream()
-				.filter(f -> f != null && !f.isEmpty())
-				.toList();
+				: images.stream().filter(f -> f != null && !f.isEmpty()).toList();
 
-			// 최소/최대 개수 검증
-			if (usableImages.isEmpty()) {
-				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
+			// 2) 신규 업로드 (없으면 빈 리스트)
+			List<String> uploadedUrls = usableImages.isEmpty()
+				? List.of()
+				: s3Uploader.uploadAll(usableImages, "spaces/" + spaceId);
+
+			// 3) 최종 목록 합치기: keepUrls(순서대로 유지) + uploadedUrls(추가)
+			List<String> finalUrls = new java.util.ArrayList<>();
+			if (keepUrls != null && !keepUrls.isEmpty()) {
+				// 중복 제거: 혹시 클라가 같은 URL을 여러 번 넣었다면 한 번만
+				java.util.LinkedHashSet<String> dedup = new java.util.LinkedHashSet<>(keepUrls);
+				finalUrls.addAll(dedup);
 			}
-			if (usableImages.size() > 5) {
-				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 업로드할 수 있습니다.");
+			finalUrls.addAll(uploadedUrls);
+
+			// 4) 최대 개수 제한(선택): 예시로 5장 제한 유지
+			if (finalUrls.size() > 5) {
+				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 설정할 수 있습니다.");
 			}
 
-			List<String> urls = (images != null && !images.isEmpty())
-				? s3Uploader.uploadAll(images, "spaces/" + spaceId)
-				: null; // 이미지 변경 없으면 null
-
-			spaceAdminService.updateWithImages(spaceId, request, urls);
+			// 5) 서비스 호출: 최종 상태 선언(Declarative)
+			//    - finalUrls == null 이면 "이미지 변경 없음" 의미가 되지만,
+			//      지금은 항상 리스트를 만들었으므로 '변경 없음'은 keepUrls=현재값으로 보내면 됩니다.
+			spaceAdminService.updateWithImages(spaceId, request, finalUrls);
 
 			return ResponseEntity.ok(Map.of(
 				"message", "수정 완료",
