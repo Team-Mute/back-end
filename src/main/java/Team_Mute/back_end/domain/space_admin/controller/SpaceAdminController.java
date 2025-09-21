@@ -136,8 +136,9 @@ public class SpaceAdminController {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
 			}
 
-			List<String> urls = s3Uploader.uploadAll(images, "spaces");
-			Integer id = spaceAdminService.createWithImages(request, urls);
+			// 이미지를 'temp' 폴더에 먼저 업로드
+			List<String> tempUrls = s3Uploader.uploadAll(images, "temp");
+			Integer id = spaceAdminService.createWithImages(request, tempUrls);
 
 			return ResponseEntity.ok(Map.of(
 				"message", "등록 완료",
@@ -188,7 +189,7 @@ public class SpaceAdminController {
 			}
 
 			List<String> urls = (images != null && !images.isEmpty())
-				? s3Uploader.uploadAll(images, "spaces")
+				? s3Uploader.uploadAll(images, "spaces/" + spaceId)
 				: null; // 이미지 변경 없으면 null
 
 			spaceAdminService.updateWithImages(spaceId, request, urls);

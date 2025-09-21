@@ -5,6 +5,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -99,6 +100,27 @@ public class S3Uploader {
 				AwsBasicCredentials.create(accessKey, secretKey)
 			))
 			.build();
+	}
+
+	/* 복제한 데이터 업로드 */
+	public String copyByUrl(String sourceUrl, String targetDir) {
+		if (sourceUrl == null || sourceUrl.isBlank()) {
+			throw new IllegalArgumentException("S3 sourceUrl이 비어 있습니다.");
+		}
+		String sourceKey = extractKeyFromUrl(sourceUrl);
+		String newKey = buildNewKey(targetDir, sourceKey.substring(sourceKey.lastIndexOf('/') + 1));
+
+		try (S3Client s3 = getS3Client()) {
+			CopyObjectRequest req = CopyObjectRequest.builder()
+				.copySource(bucket + "/" + urlEncode(sourceKey))
+				.destinationBucket(bucket)
+				.destinationKey(newKey)
+				//.acl(ObjectCannedACL.PUBLIC_READ) // 공개 URL 사용 중이면 그대로 유지
+				.build();
+
+			s3.copyObject(req);
+			return buildPublicUrl(newKey);
+		}
 	}
 
 	// S3 퍼블릭 URL 생성(CloudFront를 쓰지 않는 기본 케이스)

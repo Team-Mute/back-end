@@ -31,8 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -148,9 +150,6 @@ public class SpaceAdminService {
 			throw new IllegalArgumentException("이미 존재하는 공간명입니다.");
 		}
 
-		String cover = urls.get(0);
-		java.util.List<String> details = urls.size() > 1 ? urls.subList(1, urls.size()) : java.util.List.of();
-
 		// 1. categoryId
 		SpaceCategory category = categoryRepository.findByCategoryId(req.getCategoryId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리 ID입니다: " + req.getCategoryId()));
@@ -176,15 +175,49 @@ public class SpaceAdminService {
 			.spaceDescription(req.getSpaceDescription())
 			.spaceCapacity(req.getSpaceCapacity())
 			.spaceIsAvailable(req.getSpaceIsAvailable())
-			.spaceImageUrl(cover)
+			//.spaceImageUrl(cover) // 이때 이미지 URL은 저장 X
 			.reservationWay(req.getReservationWay())
 			.spaceRules(req.getSpaceRules())
 			.regDate(LocalDateTime.now())
 			.build();
 
 		Space saved = spaceRepository.save(space);
+		Integer spaceId = saved.getSpaceId();
 
-		// 5. 태그 처리
+		// 5. 이미지 저장
+		// 임시 폴더의 이미지들을 최종 폴더('spaces/{id}')로 이동
+		String targetDir = "spaces/" + spaceId;
+		List<String> finalUrls = urls.stream()
+			.map(tempUrl -> {
+				// S3Uploader의 copyByUrl 메서드를 사용하여 이미지 복사
+				String finalUrl = s3Uploader.copyByUrl(tempUrl, targetDir);
+				// 복사된 원본 임시 파일 삭제
+				s3Deleter.deleteByUrl(tempUrl);
+				return finalUrl;
+			})
+			.collect(Collectors.toList());
+
+		// 최종 URL들을 사용하여 커버 및 상세 이미지를 DB에 저장
+		String cover = finalUrls.isEmpty() ? null : finalUrls.get(0);
+		List<String> details = finalUrls.size() > 1 ? finalUrls.subList(1, finalUrls.size()) : List.of();
+
+		saved.setSpaceImageUrl(cover);
+
+		// 상세 이미지 저장 (우선순위 1..n)
+		if (!details.isEmpty()) {
+			int p = 1;
+			List<SpaceImage> list = new ArrayList<>(details.size());
+			for (String url : details) {
+				SpaceImage si = new SpaceImage();
+				si.setSpace(saved);
+				si.setImageUrl(url);
+				si.setImagePriority(p++);
+				list.add(si);
+			}
+			spaceImageRepository.saveAll(list);
+		}
+
+		// 6. 태그 처리
 		for (String tagName : req.getTagNames()) {
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
@@ -204,21 +237,7 @@ public class SpaceAdminService {
 			tagMapRepository.save(map);
 		}
 
-		// 상세 이미지 저장 (우선순위 1..n)
-		if (!details.isEmpty()) {
-			int p = 1;
-			java.util.List<SpaceImage> list = new java.util.ArrayList<>(details.size());
-			for (String url : details) {
-				SpaceImage si = new SpaceImage();
-				si.setSpace(saved);      // FK 연결 (ManyToOne 사용 중일 때)
-				si.setImageUrl(url);
-				si.setImagePriority(p++);
-				list.add(si);
-			}
-			spaceImageRepository.saveAll(list);
-		}
-
-		// 운영시간 저장
+		// 7. 운영시간 저장
 		if (req.getOperations() != null && !req.getOperations().isEmpty()) {
 			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
 				SpaceOperation.builder()
@@ -232,7 +251,7 @@ public class SpaceAdminService {
 			spaceOperationRepository.saveAll(ops);
 		}
 
-		// 운영시간 및 휴무일 저장
+		// 8. 운영시간 및 휴무일 저장
 		if (req.getClosedDays() != null && !req.getClosedDays().isEmpty()) {
 			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME; // "2025-09-15T09:00:00"
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
