@@ -120,7 +120,7 @@ public class SpaceAdminController {
 				}
 			)
 		),
-		description = "토큰을 확인하여 공간 등록을 진행합니다."
+		description = "토큰을 확인하여 공간 등록을 진행합니다.(이미지는 최소 1장, 최대 5장)"
 	)
 	public ResponseEntity<?> upload(
 		@RequestPart("space") String spaceJson,
@@ -130,10 +130,18 @@ public class SpaceAdminController {
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
 
-			boolean noUsableFiles =
-				(images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
-			if (noUsableFiles) {
+			// 업로드 가능한 파일(= null 아니고 비어있지 않은 파일)만 필터링
+			List<MultipartFile> usableImages = (images == null) ? List.of()
+				: images.stream()
+				.filter(f -> f != null && !f.isEmpty())
+				.toList();
+
+			// 최소/최대 개수 검증
+			if (usableImages.isEmpty()) {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
+			}
+			if (usableImages.size() > 5) {
+				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 업로드할 수 있습니다.");
 			}
 
 			// 이미지를 'temp' 폴더에 먼저 업로드
@@ -168,7 +176,7 @@ public class SpaceAdminController {
 				}
 			)
 		),
-		description = "토큰을 확인하여 공간 수정을 진행합니다."
+		description = "토큰을 확인하여 공간 수정을 진행합니다.(이미지는 최소 1장, 최대 5장)"
 	)
 	public ResponseEntity<?> update(
 		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
@@ -180,12 +188,18 @@ public class SpaceAdminController {
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
 
-			// 이미지가 없을 경우 예외 처리
-			boolean noUsableFiles =
-				(images == null || images.isEmpty()) || images.stream().allMatch(f -> f == null || f.isEmpty());
+			// 업로드 가능한 파일(= null 아니고 비어있지 않은 파일)만 필터링
+			List<MultipartFile> usableImages = (images == null) ? List.of()
+				: images.stream()
+				.filter(f -> f != null && !f.isEmpty())
+				.toList();
 
-			if (noUsableFiles) {
+			// 최소/최대 개수 검증
+			if (usableImages.isEmpty()) {
 				return ResponseEntity.badRequest().body("이미지는 최소 1장은 필요합니다.");
+			}
+			if (usableImages.size() > 5) {
+				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 업로드할 수 있습니다.");
 			}
 
 			List<String> urls = (images != null && !images.isEmpty())
