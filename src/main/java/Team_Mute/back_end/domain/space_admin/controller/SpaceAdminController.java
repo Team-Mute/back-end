@@ -1,6 +1,7 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
-import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateUpdateDoc;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateDoc;
+import Team_Mute.back_end.domain.space_admin.dto.SpaceUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.DeleteSpaceResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.PagedResponseDto;
@@ -21,10 +22,15 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -113,7 +119,7 @@ public class SpaceAdminController {
 			required = true,
 			content = @Content(
 				mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-				schema = @Schema(implementation = SpaceCreateUpdateDoc.class),
+				schema = @Schema(implementation = SpaceCreateDoc.class),
 				encoding = {
 					@Encoding(name = "space", contentType = MediaType.APPLICATION_JSON_VALUE),
 					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE)
@@ -169,11 +175,11 @@ public class SpaceAdminController {
 			required = true,
 			content = @Content(
 				mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
-				schema = @Schema(implementation = SpaceCreateUpdateDoc.class),
+				schema = @Schema(implementation = SpaceUpdateDoc.class),
 				encoding = {
 					@Encoding(name = "space", contentType = MediaType.APPLICATION_JSON_VALUE),
 					@Encoding(name = "images", contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE),
-					@Encoding(name = "keepUrls", contentType = MediaType.APPLICATION_JSON_VALUE) // 유지할 기존 이미지 URL 목록
+					@Encoding(name = "keepUrlsOrder", contentType = MediaType.APPLICATION_JSON_VALUE) // 유지할 기존 이미지 URL 목록 + 순서
 				}
 			)
 		),
@@ -184,38 +190,92 @@ public class SpaceAdminController {
 		@PathVariable Integer spaceId,
 		@RequestPart("space") @Valid String spaceJson,
 		@RequestPart(value = "images", required = false) List<MultipartFile> images,
-		@RequestPart(value = "keepUrls", required = false) List<String> keepUrls // 유지할 기존 이미지 URL 목록
+		@RequestPart(value = "keepUrlsOrder", required = false) List<String> keepUrlsOrder // 유지할 기존 이미지 URL 목록 + 순서
 	) {
 		try {
-			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
+			// 0) DTO 파싱
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
 
-			// 1) 업로드 가능한 파일만 필터링
+			// 1) 파일 필터링
 			List<MultipartFile> usableImages = (images == null) ? List.of()
 				: images.stream().filter(f -> f != null && !f.isEmpty()).toList();
 
-			// 2) 신규 업로드 (없으면 빈 리스트)
+			// 2) 신규 업로드
 			List<String> uploadedUrls = usableImages.isEmpty()
 				? List.of()
 				: s3Uploader.uploadAll(usableImages, "spaces/" + spaceId);
 
-			// 3) 최종 목록 합치기: keepUrls(순서대로 유지) + uploadedUrls(추가)
-			List<String> finalUrls = new java.util.ArrayList<>();
-			if (keepUrls != null && !keepUrls.isEmpty()) {
-				// 중복 제거: 혹시 클라가 같은 URL을 여러 번 넣었다면 한 번만
-				java.util.LinkedHashSet<String> dedup = new java.util.LinkedHashSet<>(keepUrls);
-				finalUrls.addAll(dedup);
+			// 3) keepUrlsOrder 필수 사용 (없으면 400)
+			if (keepUrlsOrder == null) {
+				return ResponseEntity.badRequest().body(
+					"keepUrlsOrder는 필수입니다. 최종 순서를 JSON 배열로 보내주세요. (예: [\"기존URL\",\"new:0\",\"new:1\"])");
 			}
-			finalUrls.addAll(uploadedUrls);
 
-			// 4) 최대 개수 제한(선택): 예시로 5장 제한 유지
+			List<String> finalUrls = new ArrayList<>();
+
+			// 3-1) 빈 배열([])이면 전체 삭제 의도로 간주
+			if (keepUrlsOrder.isEmpty()) {
+				if (!uploadedUrls.isEmpty()) {
+					return ResponseEntity.badRequest().body(
+						"keepUrlsOrder가 빈 배열인데 새 이미지가 첨부되었습니다. new:i 토큰으로 순서를 명시하세요.");
+				}
+				// 전부 삭제 → 최종 목록은 빈 리스트
+			} else {
+				// 3-2) "new:i" 토큰 검증
+				Pattern p = Pattern.compile("^new:(\\d+)$");
+				Set<Integer> tokenIdx = new LinkedHashSet<>();
+
+				for (String item : keepUrlsOrder) {
+					if (item == null || item.isBlank()) continue;
+					Matcher m = p.matcher(item);
+					if (m.matches()) tokenIdx.add(Integer.parseInt(m.group(1)));
+				}
+
+				if (uploadedUrls.isEmpty()) {
+					if (!tokenIdx.isEmpty()) {
+						return ResponseEntity.badRequest().body("새 이미지가 없는데 keepUrlsOrder에 new:i 토큰이 포함되어 있습니다.");
+					}
+				} else {
+					// 토큰 인덱스 집합은 정확히 {0..n-1}와 동일해야 함
+					Set<Integer> expected = new LinkedHashSet<>();
+					for (int i = 0; i < uploadedUrls.size(); i++) expected.add(i);
+					if (!tokenIdx.equals(expected)) {
+						return ResponseEntity.badRequest().body(
+							"keepUrlsOrder의 new:i 토큰 수/인덱스가 업로드한 새 이미지 수와 일치하지 않습니다. " +
+								"(expected: new:0..new:" + (uploadedUrls.size() - 1) + ")"
+						);
+					}
+				}
+
+				// 3-3) 최종 리스트 조립 ("new:i" → 업로드 URL 치환, 나머지는 기존 URL로 간주)
+				for (String item : keepUrlsOrder) {
+					if (item == null || item.isBlank()) continue;
+					Matcher m = p.matcher(item);
+					if (m.matches()) {
+						int idx = Integer.parseInt(m.group(1));
+						if (idx < 0 || idx >= uploadedUrls.size()) {
+							return ResponseEntity.badRequest().body("잘못된 new 토큰 인덱스: " + item);
+						}
+						finalUrls.add(uploadedUrls.get(idx));
+					} else {
+						finalUrls.add(item); // 기존 URL
+					}
+				}
+
+				// (선택) 중복 방지 정책: 중복 있으면 400
+				// if (finalUrls.size() != new LinkedHashSet<>(finalUrls).size()) {
+				//     return ResponseEntity.badRequest().body("keepUrlsOrder에 중복 항목이 있습니다.");
+				// }
+
+				// (선택) 안전성: finalUrls의 "기존 URL"이 정말 이 spaceId 소유인지 DB로 검증 권장
+			}
+
+			// 4) 최대 개수 제한
 			if (finalUrls.size() > 5) {
 				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 설정할 수 있습니다.");
 			}
 
-			// 5) 서비스 호출: 최종 상태 선언(Declarative)
-			//    - finalUrls == null 이면 "이미지 변경 없음" 의미가 되지만,
-			//      지금은 항상 리스트를 만들었으므로 '변경 없음'은 keepUrls=현재값으로 보내면 됩니다.
+			// 5) 서비스 호출 (finalUrls가 곧 최종 상태/순서)
 			spaceAdminService.updateWithImages(spaceId, request, finalUrls);
 
 			return ResponseEntity.ok(Map.of(
