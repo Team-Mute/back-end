@@ -280,13 +280,6 @@ public class SpaceAdminController {
 						finalUrls.add(item); // 기존 URL
 					}
 				}
-
-				// (선택) 중복 방지 정책: 중복 있으면 400
-				// if (finalUrls.size() != new LinkedHashSet<>(finalUrls).size()) {
-				//     return ResponseEntity.badRequest().body("keepUrlsOrder에 중복 항목이 있습니다.");
-				// }
-
-				// (선택) 안전성: finalUrls의 "기존 URL"이 정말 이 spaceId 소유인지 DB로 검증 권장
 			}
 
 			// 4) 최대 개수 제한
