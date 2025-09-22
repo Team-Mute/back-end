@@ -9,6 +9,7 @@ import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.repository.BoardRepository;
 import Team_Mute.back_end.domain.space_admin.service.SpaceAdminService;
+import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -58,6 +59,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class SpaceAdminController {
 	private final SpaceAdminService spaceAdminService;
 	private final S3Uploader s3Uploader;
+	private final S3Deleter s3Deleter;
 	private final BoardRepository boardRepository;
 
 	/**
@@ -157,6 +159,15 @@ public class SpaceAdminController {
 			// 이미지를 'temp' 폴더에 먼저 업로드
 			List<String> tempUrls = s3Uploader.uploadAll(images, "temp");
 			Integer id = spaceAdminService.createWithImages(adminId, request, tempUrls);
+
+			// 모든 처리가 성공적으로 완료된 후, 임시 폴더를 삭제
+			try {
+				s3Deleter.deleteFolder("temp");
+			} catch (Exception e) {
+				// 삭제 실패 시 로그를 남기지만, 전체 프로세스를 중단시키지는 않습니다.
+				// 메인 작업(공간 등록)은 이미 성공했기 때문입니다.
+				System.err.println("임시 폴더 삭제 실패: " + e.getMessage());
+			}
 
 			return ResponseEntity.ok(Map.of(
 				"message", "등록 완료",
