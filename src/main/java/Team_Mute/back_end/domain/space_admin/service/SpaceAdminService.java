@@ -38,8 +38,10 @@ import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @Service
@@ -145,7 +147,15 @@ public class SpaceAdminService {
 	 * 공간 등록
 	 **/
 	@Transactional
-	public Integer createWithImages(SpaceCreateRequestDto req, java.util.List<String> urls) {
+	public Integer createWithImages(Long adminId, SpaceCreateRequestDto req, java.util.List<String> urls) {
+		// 관리자 권한 체크
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
+
+		if (adminRole.equals(ROLE_MASTER)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 등록 권한이 없습니다.");
+		}
+
 		if (spaceRepository.existsBySpaceName(req.getSpaceName())) {
 			throw new IllegalArgumentException("이미 존재하는 공간명입니다.");
 		}
@@ -272,9 +282,17 @@ public class SpaceAdminService {
 	 * 공간 수정
 	 **/
 	@Transactional
-	public void updateWithImages(Integer spaceId,
+	public void updateWithImages(Long adminId,
+								 Integer spaceId,
 								 SpaceCreateRequestDto req,
 								 java.util.List<String> urls) {
+		// 관리자 권한 체크
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
+
+		if (adminRole.equals(ROLE_MASTER)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 수정 권한이 없습니다.");
+		}
 
 		// 1) 대상 조회
 		Space space = spaceRepository.findById(spaceId)
@@ -477,7 +495,15 @@ public class SpaceAdminService {
 	 * 공간 삭제
 	 **/
 	@Transactional
-	public void deleteSpace(Integer spaceId) {
+	public void deleteSpace(Long adminId, Integer spaceId) {
+		// 관리자 권한 체크
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
+
+		if (adminRole.equals(ROLE_MASTER)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 삭제 권한이 없습니다.");
+		}
+
 		// 1) 존재 확인
 		Space space = spaceRepository.findById(spaceId)
 			.orElseThrow(() -> new NoSuchElementException("Space not found: " + spaceId));
@@ -506,7 +532,15 @@ public class SpaceAdminService {
 	/**
 	 * 태그(편의시설) 추가
 	 **/
-	public SpaceTag createTag(String tagName) {
+	public SpaceTag createTag(Long adminId, String tagName) {
+		// 관리자 권한 체크
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
+
+		if (adminRole.equals(ROLE_MASTER)) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리 권한이 없습니다.");
+		}
+
 		// 중복 태그 검증
 		if (tagRepository.findByTagName(tagName).isPresent()) {
 			throw new IllegalArgumentException("이미 존재하는 태그입니다.");

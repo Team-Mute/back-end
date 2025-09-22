@@ -129,10 +129,14 @@ public class SpaceAdminController {
 		description = "토큰을 확인하여 공간 등록을 진행합니다.(이미지는 최소 1장, 최대 5장)"
 	)
 	public ResponseEntity<?> upload(
+		Authentication authentication,
 		@RequestPart("space") String spaceJson,
 		@RequestPart("images") List<MultipartFile> images
 	) {
 		try {
+			// 관리자 권한 아이디
+			Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
 
@@ -152,7 +156,7 @@ public class SpaceAdminController {
 
 			// 이미지를 'temp' 폴더에 먼저 업로드
 			List<String> tempUrls = s3Uploader.uploadAll(images, "temp");
-			Integer id = spaceAdminService.createWithImages(request, tempUrls);
+			Integer id = spaceAdminService.createWithImages(adminId, request, tempUrls);
 
 			return ResponseEntity.ok(Map.of(
 				"message", "등록 완료",
@@ -186,6 +190,7 @@ public class SpaceAdminController {
 		description = "토큰을 확인하여 공간 수정을 진행합니다.(이미지는 최소 1장, 최대 5장)"
 	)
 	public ResponseEntity<?> update(
+		Authentication authentication,
 		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
 		@PathVariable Integer spaceId,
 		@RequestPart("space") @Valid String spaceJson,
@@ -193,6 +198,9 @@ public class SpaceAdminController {
 		@RequestPart(value = "keepUrlsOrder", required = false) List<String> keepUrlsOrder // 유지할 기존 이미지 URL 목록 + 순서
 	) {
 		try {
+			// 관리자 권한 아이디
+			Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
 			// 0) DTO 파싱
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
 
@@ -276,7 +284,7 @@ public class SpaceAdminController {
 			}
 
 			// 5) 서비스 호출 (finalUrls가 곧 최종 상태/순서)
-			spaceAdminService.updateWithImages(spaceId, request, finalUrls);
+			spaceAdminService.updateWithImages(adminId, spaceId, request, finalUrls);
 
 			return ResponseEntity.ok(Map.of(
 				"message", "수정 완료",
@@ -295,8 +303,11 @@ public class SpaceAdminController {
 	@DeleteMapping("/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "삭제할 공간 ID", required = true)
 	@Operation(summary = "공간 삭제", description = "토큰을 확인하여 공간 삭제를 진행합니다.")
-	public ResponseEntity<DeleteSpaceResponseDto> delete(@PathVariable Integer spaceId) {
-		spaceAdminService.deleteSpace(spaceId);
+	public ResponseEntity<DeleteSpaceResponseDto> delete(Authentication authentication, @PathVariable Integer spaceId) {
+		// 관리자 권한 아이디
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+		spaceAdminService.deleteSpace(adminId, spaceId);
 		return ResponseEntity.ok(new DeleteSpaceResponseDto(
 			"공간 삭제 완료",
 			spaceId
@@ -308,14 +319,17 @@ public class SpaceAdminController {
 	 **/
 	@PostMapping("/tags")
 	@Operation(summary = "태그(편의시설) 등록", description = "토큰을 확인하여 편의시설을 등록합니다.")
-	public ResponseEntity<?> createTag(@RequestParam String tagName) {
+	public ResponseEntity<?> createTag(Authentication authentication, @RequestParam String tagName) {
+		// 관리자 권한 아이디
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
 		// 입력 파라미터 유효성 검사
 		if (tagName == null || tagName.trim().isEmpty()) {
 			return ResponseEntity.badRequest().build();
 		}
 
 		try {
-			SpaceTag createdTag = spaceAdminService.createTag(tagName);
+			SpaceTag createdTag = spaceAdminService.createTag(adminId, tagName);
 			return ResponseEntity.status(HttpStatus.CREATED).body(createdTag);
 		} catch (IllegalArgumentException e) {
 			Map<String, String> errorResponse = new HashMap<>();
