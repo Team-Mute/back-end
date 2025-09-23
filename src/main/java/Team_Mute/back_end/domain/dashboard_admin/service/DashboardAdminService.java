@@ -1,6 +1,5 @@
 package Team_Mute.back_end.domain.dashboard_admin.service;
 
-import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCalendarResponseDto;
 import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCountResponseDto;
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
@@ -9,9 +8,7 @@ import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListR
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.service.RservationListAllService;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,9 +34,7 @@ public class DashboardAdminService {
 		this.rservationListAllService = rservationListAllService;
 	}
 
-	/**
-	 * 대시보드 카드
-	 **/
+	// 대시보드 카드
 	public ReservationCountResponseDto getReservationCounts(Long adminId) {
 		// 1. 전체 데이터 로드
 		// 이전에 말씀드린 대로, DB에 있는 모든 데이터를 메모리로 가져옵니다.
@@ -78,11 +73,9 @@ public class DashboardAdminService {
 		);
 	}
 
-	/**
-	 * 대시보드 캘린더 리스트 조회
-	 **/
+	// ================== 대시보드 캘린더 리스트 조회 ==================
 	@Transactional(readOnly = true)
-	public List<ReservationCalendarResponseDto> getAllReservations(Long adminId) {
+	public List<ReservationListResponseDto> getAllReservations(Long adminId) {
 		// 관리자 권한
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(Team_Mute.back_end.domain.member.exception.UserNotFoundException::new);
@@ -93,36 +86,11 @@ public class DashboardAdminService {
 		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환
 		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		// 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 이용 완료인 리스트만 추출 후 새로운 DTO로 변환
-		List<ReservationCalendarResponseDto> responseDtos = allContent.stream()
-			.filter(dto -> dto.getStatusId().equals(WAITING_FIRST_APPROVAL) || dto.getStatusId().equals(WAITING_SECOND_APPROVAL) || dto.getStatusId().equals(FINAL_APPROVAL) || dto.getStatusId().equals(USER_COMPLETED))
-			.map(ReservationCalendarResponseDto::from)
-			.collect(Collectors.toList());
-
-		return responseDtos;
-	}
-
-	/**
-	 * 대시보드 특정 날짜 예약 리스트 조회
-	 **/
-	@Transactional(readOnly = true)
-	public List<ReservationListResponseDto> getReservationsByDate(Long adminId, LocalDate date) {
-		// 관리자 권한
-		Admin admin = adminRepository.findById(adminId)
-			.orElseThrow(Team_Mute.back_end.domain.member.exception.UserNotFoundException::new);
-
-		// DB에서 모든 예약 데이터를 가져옴
-		List<Reservation> allReservations = adminReservationRepository.findAll();
-
-		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환
-		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
-
-		// 특정 날짜(예약 시작일 또는 종료일)에 해당하는 리스트만 추출
+		// 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 이용 완료인 리스트만 추출
 		List<ReservationListResponseDto> responseDtos = allContent.stream()
-			.filter(dto -> dto.getReservationFrom().toLocalDate().isEqual(date) || dto.getReservationTo().toLocalDate().isEqual(date))
+			.filter(dto -> dto.getStatusId().equals(WAITING_FIRST_APPROVAL) || dto.getStatusId().equals(WAITING_SECOND_APPROVAL) || dto.getStatusId().equals(FINAL_APPROVAL) || dto.getStatusId().equals(USER_COMPLETED))
 			.toList();
 
 		return responseDtos;
 	}
-
 }
