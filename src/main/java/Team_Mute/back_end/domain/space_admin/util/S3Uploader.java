@@ -37,6 +37,9 @@ public class S3Uploader {
 	@Value("${cloud.aws.region.static}")
 	private String region;
 
+	@Value("${cloud.aws.cloudfront.domain}")
+	private String cloudfrontDomain;
+
 	public String upload(MultipartFile file, String dirName) throws IOException {
 		if (file == null || file.isEmpty()) {
 			throw new IllegalArgumentException("업로드할 파일이 없습니다.");
@@ -68,14 +71,8 @@ public class S3Uploader {
 			)
 		);
 
-		// URL 생성: 디렉터리(/)는 그대로, "파일명"만 인코딩
-		String encodedFileName = java.net.URLEncoder
-			.encode(originalName, java.nio.charset.StandardCharsets.UTF_8)
-			.replace("+", "%20"); // 공백 보정
-		String url = "https://" + bucket + ".s3." + region + ".amazonaws.com/"
-			+ dirName + "/" + timestamp + "_" + encodedFileName;
-
-		return url;
+		// URL 생성
+		return "https://" + cloudfrontDomain + "/" + urlEncode(key);
 	}
 
 	public List<String> uploadAll(List<MultipartFile> files, String dirName) {
@@ -128,9 +125,10 @@ public class S3Uploader {
 
 	// S3 퍼블릭 URL 생성(CloudFront를 쓰지 않는 기본 케이스)
 	private String buildPublicUrl(String key) {
-		// ex) https://{bucket}.s3.{region}.amazonaws.com/{key}
 		String encKey = urlEncode(key);
-		return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + encKey;
+
+		// CloudFront URL 사용
+		return "https://" + cloudfrontDomain + "/" + encKey;
 	}
 
 	private String urlEncode(String s) {

@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.space_admin.dto;
+package Team_Mute.back_end.domain.space_admin.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 @Getter
 @Setter
 @Schema(description = "공간 등록 JSON")
-public class SpaceCreateRequest {
+public class SpaceCreateRequestDto {
 	@NotBlank
 	@Schema(example = "공간명")
 	private String spaceName;

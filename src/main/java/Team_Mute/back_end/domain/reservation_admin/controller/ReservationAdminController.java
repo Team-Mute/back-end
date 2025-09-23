@@ -8,7 +8,7 @@ import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetai
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationFilterOptionsResponse;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.service.ReservationAdminService;
-import Team_Mute.back_end.domain.space_admin.dto.PagedResponse;
+import Team_Mute.back_end.domain.space_admin.dto.response.PagedResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 
@@ -125,7 +125,7 @@ public class ReservationAdminController {
 		summary = "예약 검색(복합 조건)",
 		description = "키워드와 함께 지역, 승인 상태, 플래그 등으로 복합 검색합니다."
 	)
-	public ResponseEntity<PagedResponse<ReservationListResponseDto>> searchReservations(
+	public ResponseEntity<PagedResponseDto<ReservationListResponseDto>> searchReservations(
 		Authentication authentication,
 		@RequestParam(name = "keyword", required = false) String keyword,
 		@RequestParam(name = "regionId", required = false) Integer regionId,
@@ -145,6 +145,6 @@ public class ReservationAdminController {
 		Page<ReservationListResponseDto> data =
 			reservationAdminService.searchReservations(adminId, keyword, regionId, statusId, isShinhan, isEmergency, pageable);
 
-		return ResponseEntity.ok(new PagedResponse<>(data));
+		return ResponseEntity.ok(new PagedResponseDto<>(data));
 	}
 }
