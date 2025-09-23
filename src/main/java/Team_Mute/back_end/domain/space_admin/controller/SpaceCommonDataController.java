@@ -1,9 +1,9 @@
 package Team_Mute.back_end.domain.space_admin.controller;
 
-import Team_Mute.back_end.domain.space_admin.dto.CategoryListItem;
-import Team_Mute.back_end.domain.space_admin.dto.LocationListItem;
-import Team_Mute.back_end.domain.space_admin.dto.RegionListItem;
-import Team_Mute.back_end.domain.space_admin.dto.TagListItem;
+import Team_Mute.back_end.domain.space_admin.dto.response.CategoryListResponseDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.LocationListResponseDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.RegionListResponseDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.TagListResponseDto;
 import Team_Mute.back_end.domain.space_admin.service.SpaceCommonDataService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,32 +24,40 @@ import org.springframework.web.bind.annotation.RestController;
 public class SpaceCommonDataController {
 	private final SpaceCommonDataService spaceCommonDataService;
 
-	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	 **/
 	@GetMapping("/regions")
 	@Operation(summary = "지역 리스트 조회", description = "토큰을 확인하여 지역 리스트를 조회합니다.")
-	public List<RegionListItem> getRegions() {
+	public List<RegionListResponseDto> getRegions() {
 		return spaceCommonDataService.getAllRegions();
 	}
 
-	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	 **/
 	@GetMapping("/categories")
 	@Operation(summary = "카테고리 리스트 조회", description = "토큰을 확인하여 카테고리 리스트를 조회합니다.")
-	public List<CategoryListItem> getCategories() {
+	public List<CategoryListResponseDto> getCategories() {
 		return spaceCommonDataService.getAllCategories();
 	}
 
-	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	 **/
 	@GetMapping("/tags")
 	@Operation(summary = "태그(편의시설) 조회", description = "토큰을 확인하여 태그 리스트를 조회합니다.")
-	public List<TagListItem> getTags() {
+	public List<TagListResponseDto> getTags() {
 		return spaceCommonDataService.getAllTags();
 	}
 
-	// 지역 아이디로 건물 주소 조회
+	/**
+	 * 지역 아이디로 건물 주소 조회
+	 **/
 	@GetMapping("locations/{regionId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
 	@Operation(summary = "지역 아이디로 주소 조회", description = "토큰을 확인하여 주소를 조회합니다.")
-	public List<LocationListItem> getLocationByRegionId(@PathVariable Integer regionId) {
+	public List<LocationListResponseDto> getLocationByRegionId(@PathVariable Integer regionId) {
 		return spaceCommonDataService.getLocationByRegionId(regionId);
 	}
 }
