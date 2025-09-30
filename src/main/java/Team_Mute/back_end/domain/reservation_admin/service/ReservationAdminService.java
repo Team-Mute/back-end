@@ -6,7 +6,6 @@ import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
@@ -223,14 +222,6 @@ public class ReservationAdminService {
 			// 예약 및 사전답사 상태 변경
 			reservation.setReservationStatusId(rejectedStatus);
 			reservation.setUpdDate(LocalDateTime.now());
-
-			if (reservation.getPrevisitReservations() != null) {
-				for (PrevisitReservation previsit : reservation.getPrevisitReservations()) {
-					previsit.setReservationStatusId(rejectedStatus.getReservationStatusId());
-					previsit.setUpdDate(LocalDateTime.now());
-				}
-				adminPrevisitRepository.saveAll(reservation.getPrevisitReservations());
-			}
 
 			// 반려 사유를 로그 테이블에 저장
 			ReservationLog log = new ReservationLog();

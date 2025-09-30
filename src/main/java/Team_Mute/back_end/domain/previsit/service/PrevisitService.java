@@ -1,9 +1,5 @@
 package Team_Mute.back_end.domain.previsit.service;
 
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import Team_Mute.back_end.domain.previsit.dto.request.PrevisitCreateRequest;
 import Team_Mute.back_end.domain.previsit.dto.request.PrevisitUpdateRequest;
 import Team_Mute.back_end.domain.previsit.dto.response.PrevisitResponse;
@@ -16,6 +12,10 @@ import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueExceptio
 import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
 import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +41,6 @@ public class PrevisitService {
 
 		PrevisitReservation previsit = new PrevisitReservation();
 		previsit.setReservation(reservation);
-		previsit.setReservationStatusId(reservation.getReservationStatus().getReservationStatusId());
 		previsit.setPrevisitFrom(request.getPrevisitFrom());
 		previsit.setPrevisitTo(request.getPrevisitTo());
 

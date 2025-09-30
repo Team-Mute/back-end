@@ -1,17 +1,16 @@
 package Team_Mute.back_end.domain.previsit.dto.response;
 
-import java.time.LocalDateTime;
-
 import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+import java.time.LocalDateTime;
 
 @Getter
 @AllArgsConstructor
 public class PrevisitResponse {
 	private Long previsitId;
 	private Long reservationId;
-	private Long reservationStatusId;
 	private LocalDateTime previsitFrom;
 	private LocalDateTime previsitTo;
 	private LocalDateTime regDate;
@@ -21,7 +20,6 @@ public class PrevisitResponse {
 		return new PrevisitResponse(
 			entity.getId(),
 			entity.getReservation().getReservationId(),
-			entity.getReservationStatusId(),
 			entity.getPrevisitFrom(),
 			entity.getPrevisitTo(),
 			entity.getRegDate(),
