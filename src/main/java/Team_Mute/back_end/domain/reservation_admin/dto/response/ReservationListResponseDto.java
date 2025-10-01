@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Getter
 @Setter
@@ -28,7 +27,7 @@ public class ReservationListResponseDto {
 	public boolean isEmergency;
 	public boolean isApprovable;
 	public boolean isRejectable;
-	public List<PrevisitItemResponseDto> previsits;
+	//public List<PrevisitItemResponseDto> previsits;
 
 	// 예약 관리 필터링을 위해 추가한 필드
 	private Integer regionId;
@@ -42,8 +41,7 @@ public class ReservationListResponseDto {
 		boolean isShinhan,
 		boolean isEmergency,
 		boolean isApprovable,
-		boolean isRejectable,
-		List<PrevisitItemResponseDto> previsitDtos
+		boolean isRejectable
 	) {
 		return ReservationListResponseDto.builder()
 			.reservationId(r.getReservationId())
@@ -54,7 +52,6 @@ public class ReservationListResponseDto {
 			.reservationFrom(r.getReservationFrom())
 			.reservationTo(r.getReservationTo())
 			.regDate(r.getRegDate())
-			.previsits(previsitDtos)
 			.isShinhan(isShinhan)
 			.isEmergency(isEmergency)
 			.isApprovable(isApprovable)

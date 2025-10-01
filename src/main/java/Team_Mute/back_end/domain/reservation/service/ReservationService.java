@@ -1,25 +1,7 @@
 package Team_Mute.back_end.domain.reservation.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.previsit.repository.PrevisitRepository;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
 import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
@@ -42,6 +24,22 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -169,7 +167,7 @@ public class ReservationService {
 
 	@Transactional
 	public ReservationResponseDto updateReservation(String userId, Long reservationId,
-		ReservationRequestDto requestDto) {
+													ReservationRequestDto requestDto) {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
@@ -242,13 +240,6 @@ public class ReservationService {
 			finalAttachmentUrls
 		);
 
-		List<PrevisitReservation> previsits = reservation.getPrevisitReservations();
-		if (previsits != null && !previsits.isEmpty()) {
-			for (PrevisitReservation previsit : previsits) {
-				previsit.setReservationStatusId(INITIAL_RESERVATION_STATUS_ID);
-			}
-		}
-
 		Reservation updatedReservation = reservationRepository.save(reservation);
 
 		return ReservationResponseDto.fromEntity(updatedReservation);
@@ -289,13 +280,6 @@ public class ReservationService {
 		// 4. 예약 상태를 '취소됨'으로 변경
 		reservation.setReservationStatusId(cancelledStatus);
 		reservationRepository.save(reservation);
-
-		List<PrevisitReservation> previsits = reservation.getPrevisitReservations();
-		if (previsits != null && !previsits.isEmpty()) {
-			for (PrevisitReservation previsit : previsits) {
-				previsit.setReservationStatusId(CANCELLED_STATUS_ID);
-			}
-		}
 
 		// 5. 성공 응답 DTO 생성 및 반환
 		return ReservationCancelResponseDto.builder()
