@@ -2,11 +2,9 @@ package Team_Mute.back_end.domain.reservation_admin.service;
 
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
-import Team_Mute.back_end.domain.reservation_admin.repository.AdminPrevisitReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationStatusRepository;
 import jakarta.transaction.Transactional;
@@ -26,7 +24,6 @@ public class ReservationApprovalTxService {
 	private final AdminRepository adminRepository;
 	private final AdminReservationRepository adminReservationRepository;
 	private final AdminReservationStatusRepository adminStatusRepository;
-	private final AdminPrevisitReservationRepository adminPrevisitRepository;
 
 	private static final String STATUS_FIRST_PENDING = "1차 승인 대기";
 	private static final String STATUS_SECOND_PENDING = "2차 승인 대기";
@@ -86,15 +83,6 @@ public class ReservationApprovalTxService {
 			reservation.setReservationStatusId(toStatus);
 			reservation.setUpdDate(LocalDateTime.now());
 
-			// 사전답사 상태 동기화 (LAZY라도 지금은 세션 O)
-			if (reservation.getPrevisitReservations() != null) {
-				for (PrevisitReservation previsit : reservation.getPrevisitReservations()) {
-					previsit.setReservationStatusId(toStatus.getReservationStatusId());
-					previsit.setUpdDate(LocalDateTime.now());
-				}
-				adminPrevisitRepository.saveAll(reservation.getPrevisitReservations());
-			}
-
 			return new ApproveResponseDto(
 				reservationId, fromStatus, STATUS_SECOND_PENDING, LocalDateTime.now(), "1차 승인 완료"
 			);
@@ -130,14 +118,6 @@ public class ReservationApprovalTxService {
 
 			reservation.setReservationStatusId(toStatus);
 			reservation.setUpdDate(LocalDateTime.now());
-
-			if (reservation.getPrevisitReservations() != null) {
-				for (PrevisitReservation previsit : reservation.getPrevisitReservations()) {
-					previsit.setReservationStatusId(toStatus.getReservationStatusId());
-					previsit.setUpdDate(LocalDateTime.now());
-				}
-				adminPrevisitRepository.saveAll(reservation.getPrevisitReservations());
-			}
 
 			return new ApproveResponseDto(
 				reservationId, fromStatus, STATUS_FINAL_APPROVED, LocalDateTime.now(), "2차 승인 완료"
