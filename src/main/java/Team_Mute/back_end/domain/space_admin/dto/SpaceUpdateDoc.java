@@ -7,11 +7,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 공간 수정 요청 DTO
+ * - Swagger 문서화용 객체
+ * - 관리자가 기존 공간 정보를 수정할 때 요청 본문(body)에 매핑됨
+ * - 공간명, 설명, 이미지, 카테고리, 태그 등 변경 가능한 필드 포함
+ * - 부분 수정(Patch)와 전체 수정(Put) 시 공통적으로 활용 가능
+ */
 @Schema(name = "SpaceUpdateDoc", description = "multipart/form-data 본문")
 public class SpaceUpdateDoc {
-	private SpaceCreateRequestDto space;      // ← 객체 타입
-	private MultipartFile[] images;        // ← 문서용은 배열 권장 (UI 인식이 안정적)
-	private List<String> keepUrlsOrder;    // ← 최종 순서(기존 URL + "new:i")
+	private SpaceCreateRequestDto space;    // 객체 타입
+	private MultipartFile[] images;        // 문서용은 배열 권장 (UI 인식이 안정적)
+	private List<String> keepUrlsOrder;   // 최종 순서(기존 URL + "new:i")
 
 	// 여기 example이 Swagger UI의 Edit Value에 기본으로 뜹니다.
 	@Schema(

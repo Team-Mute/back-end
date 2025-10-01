@@ -4,13 +4,12 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.DeleteSpaceResponseDto;
-import Team_Mute.back_end.domain.space_admin.dto.response.PagedResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
-import Team_Mute.back_end.domain.space_admin.repository.BoardRepository;
 import Team_Mute.back_end.domain.space_admin.service.SpaceAdminService;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
+import Team_Mute.back_end.global.dto.PagedResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -51,6 +50,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+/**
+ * 공간 관리 Controller
+ * - 관리자 페이지의 '공간 관리' 메뉴에서 사용하는 API 집합
+ * - 공간 등록/수정/삭제/조회 기능을 제공
+ * - 카테고리와 태그 같은 부가 정보 처리도 포함
+ * - 모든 요청은 관리자 로그인 필요
+ * - 공간 등록/수정/삭제 시 트랜잭션 단위로 처리되어 원자성을 보장
+ */
 @Slf4j
 @Tag(name = "공간 관리 API", description = "관리자 공간 관리 관련 API 명세")
 @RestController
@@ -60,7 +67,6 @@ public class SpaceAdminController {
 	private final SpaceAdminService spaceAdminService;
 	private final S3Uploader s3Uploader;
 	private final S3Deleter s3Deleter;
-	private final BoardRepository boardRepository;
 
 	/**
 	 * 공간 전체 조회 (페이징 적용)
@@ -96,7 +102,7 @@ public class SpaceAdminController {
 	}
 
 	/**
-	 * 특정 공간 조회
+	 * 특정 공간 상세 조회
 	 **/
 	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)

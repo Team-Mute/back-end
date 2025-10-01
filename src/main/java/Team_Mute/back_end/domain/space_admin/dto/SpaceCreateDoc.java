@@ -6,6 +6,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 공간 등록 요청 DTO
+ * - Swagger 문서화용 객체
+ * - 관리자가 새로운 공간을 등록할 때 요청 본문(body)에 매핑됨
+ * - 공간명, 카테고리, 지역, 태그, 상세 설명 등의 필드 포함
+ * - 유효성 검증(@NotNull, @Size 등) 어노테이션과 함께 사용
+ */
 @Schema(name = "SpaceCreateDoc", description = "multipart/form-data 본문")
 public class SpaceCreateDoc {
 	private SpaceCreateRequestDto space;      // ← 객체 타입
@@ -56,9 +63,5 @@ public class SpaceCreateDoc {
 	@ArraySchema(schema = @Schema(type = "string", format = "binary"))
 	public MultipartFile[] getImages() {
 		return images;
-	}
-
-	public void setImages(MultipartFile[] v) {
-		this.images = v;
 	}
 }

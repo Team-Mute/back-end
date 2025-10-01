@@ -14,6 +14,12 @@ import java.util.List;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+/**
+ * 공간 공통 데이터 Service
+ * - 로그인하지 않아도 누구나 사용할 수 있는 공용 비즈니스 로직 제공
+ * - 지역, 카테고리, 태그 등 공통 데이터를 조회하는 기능 담당
+ * - 캐싱 전략을 적용할 수 있는 후보 지점 (조회 성능 최적화 고려)
+ */
 @Service
 public class SpaceCommonDataService {
 	private final SpaceRepository spaceRepository;
@@ -36,7 +42,9 @@ public class SpaceCommonDataService {
 		this.spaceLocationRepository = spaceLocationRepository;
 	}
 
-	// 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 지역 전체 조회
+	 **/
 	public List<RegionListResponseDto> getAllRegions() {
 		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "regionId"))
 			.stream()
@@ -44,7 +52,9 @@ public class SpaceCommonDataService {
 			.toList();
 	}
 
-	// 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 카테고리 전체 조회
+	 **/
 	public List<CategoryListResponseDto> getAllCategories() {
 		return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "categoryId"))
 			.stream()
@@ -52,7 +62,9 @@ public class SpaceCommonDataService {
 			.toList();
 	}
 
-	// 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 태그 전체 조회
+	 **/
 	public List<TagListResponseDto> getAllTags() {
 		return tagRepository.findAll(Sort.by(Sort.Direction.ASC, "tagId"))
 			.stream()
@@ -60,7 +72,9 @@ public class SpaceCommonDataService {
 			.toList();
 	}
 
-	// 지역 아이디로 주소 조회(공간 등록 및 수정할 시 사용)
+	/**
+	 * 지역 아이디로 주소 조회
+	 **/
 	public List<LocationListResponseDto> getLocationByRegionId(Integer regionId) {
 		return spaceLocationRepository.findByAdminRegion_RegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
 			.map(element -> new LocationListResponseDto(

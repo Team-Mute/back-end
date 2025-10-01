@@ -14,13 +14,18 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * S3Uploader
+ * - AWS S3 연동 유틸리티
+ * - 업로드 동작을 단순화하고 예외/로깅 처리를 일관되게 함
+ * - 외부에서 재사용하기 쉬운 순수 기능 메서드 제공
+ */
 @Component
 @RequiredArgsConstructor
 public class S3Uploader {
@@ -40,6 +45,9 @@ public class S3Uploader {
 	@Value("${cloud.aws.cloudfront.domain}")
 	private String cloudfrontDomain;
 
+	/**
+	 * 파일을 S3에 업로드
+	 */
 	public String upload(MultipartFile file, String dirName) throws IOException {
 		if (file == null || file.isEmpty()) {
 			throw new IllegalArgumentException("업로드할 파일이 없습니다.");
@@ -75,6 +83,9 @@ public class S3Uploader {
 		return "https://" + cloudfrontDomain + "/" + urlEncode(key);
 	}
 
+	/**
+	 * 여러 파일을 S3에 업로드
+	 */
 	public List<String> uploadAll(List<MultipartFile> files, String dirName) {
 		List<String> urls = new ArrayList<>(files.size());
 		for (MultipartFile file : files) {
@@ -88,11 +99,13 @@ public class S3Uploader {
 		return urls;
 	}
 
-	private String createFileName(String originalName, String dirName) {
-		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-		return dirName + "/" + timestamp + "_" + originalName;
-	}
-
+	/**
+	 * AWS S3 클라이언트를 생성하여 반환
+	 * 매번 호출 시 새로운 S3Client 인스턴스를 생성하므로, 멀티스레드 환경에서도 안전하게 사용 가능
+	 * 접근 키, 시크릿 키, 리전(region) 정보를 기반으로 초기화
+	 *
+	 * @return 새로 생성된 S3Client 인스턴스
+	 */
 	private S3Client getS3Client() {
 		return S3Client.builder()
 			.region(Region.of(region))
@@ -102,7 +115,9 @@ public class S3Uploader {
 			.build();
 	}
 
-	/* 복제한 데이터 업로드 */
+	/**
+	 * 기존 S3 객체를 새로운 키로 복사
+	 **/
 	public String copyByUrl(String sourceUrl, String targetDir) {
 		if (sourceUrl == null || sourceUrl.isBlank()) {
 			throw new IllegalArgumentException("S3 sourceUrl이 비어 있습니다.");
@@ -123,7 +138,9 @@ public class S3Uploader {
 		}
 	}
 
-	// S3 퍼블릭 URL 생성(CloudFront를 쓰지 않는 기본 케이스)
+	/**
+	 * CloudFront 기반 퍼블릭 URL 생성
+	 **/
 	private String buildPublicUrl(String key) {
 		String encKey = urlEncode(key);
 
@@ -131,15 +148,35 @@ public class S3Uploader {
 		return "https://" + cloudfrontDomain + "/" + encKey;
 	}
 
+	/**
+	 * S3 객체 키(Key)를 URL-safe 문자열로 인코딩
+	 * 공백(" ")은 %20으로 치환하여 CloudFront URL에서도 정상 동작하도록 처리
+	 *
+	 * @param s 원본 문자열 (파일 경로나 파일명)
+	 * @return URL 인코딩된 문자열
+	 */
 	private String urlEncode(String s) {
 		return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
 	}
 
+	/**
+	 * 지정된 디렉토리와 원본 파일명을 기반으로 S3 객체 키(Key)를 생성
+	 * 파일명 충돌을 방지하기 위해 타임스탬프(yyyyMMddHHmmss)를 접두사로 붙임
+	 * <p>
+	 * 예: images/photo.png -> images/20251001153045_photo.png
+	 *
+	 * @param dirName      업로드할 S3 디렉토리명
+	 * @param originalName 원본 파일명
+	 * @return 고유한 S3 객체 키
+	 */
 	private String buildNewKey(String dirName, String originalName) {
 		String ts = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
 		return dirName + "/" + ts + "_" + originalName;
 	}
 
+	/**
+	 * URL에서 S3 키 추출
+	 */
 	private String extractKeyFromUrl(String url) {
 		// S3 또는 CloudFront URL 모두에서 key만 추출
 		try {
