@@ -38,9 +38,6 @@ public class User {
 	@Column(name = "user_name", length = 50, nullable = false)
 	private String userName;
 
-	@Column(name = "user_phone", length = 20, nullable = false)
-	private String userPhone;
-
 	@Column(name = "user_pwd", length = 255, nullable = false)
 	private String userPwd;
 
@@ -54,12 +51,6 @@ public class User {
 
 	@Column(name = "agree_email")
 	private Boolean agreeEmail;
-
-	@Column(name = "agree_sms")
-	private Boolean agreeSms;
-
-	@Column(name = "agree_location")
-	private Boolean agreeLocation;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "role_id")

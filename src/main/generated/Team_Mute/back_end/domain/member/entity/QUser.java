@@ -24,10 +24,6 @@ public class QUser extends EntityPathBase<User> {
 
     public final BooleanPath agreeEmail = createBoolean("agreeEmail");
 
-    public final BooleanPath agreeLocation = createBoolean("agreeLocation");
-
-    public final BooleanPath agreeSms = createBoolean("agreeSms");
-
     public final DateTimePath<java.time.LocalDateTime> regDate = createDateTime("regDate", java.time.LocalDateTime.class);
 
     public final NumberPath<Integer> tokenVer = createNumber("tokenVer", Integer.class);
@@ -41,8 +37,6 @@ public class QUser extends EntityPathBase<User> {
     public final NumberPath<Long> userId = createNumber("userId", Long.class);
 
     public final StringPath userName = createString("userName");
-
-    public final StringPath userPhone = createString("userPhone");
 
     public final StringPath userPwd = createString("userPwd");
 

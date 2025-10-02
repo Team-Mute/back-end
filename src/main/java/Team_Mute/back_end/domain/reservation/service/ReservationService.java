@@ -1,5 +1,21 @@
 package Team_Mute.back_end.domain.reservation.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.previsit.repository.PrevisitRepository;
@@ -24,22 +40,6 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -163,86 +163,6 @@ public class ReservationService {
 
 		// 새로운 DTO로 변환하여 반환
 		return ReservationDetailResponseDto.fromEntity(reservation);
-	}
-
-	@Transactional
-	public ReservationResponseDto updateReservation(String userId, Long reservationId,
-													ReservationRequestDto requestDto) {
-		User user = findUserById(userId);
-		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
-
-		// 1. 예약 상태 검증 (기존 로직 유지)
-		Long currentStatusId = reservation.getReservationStatus().getReservationStatusId();
-		if (!Arrays.asList(4L, 6L).contains(currentStatusId)) {
-			throw new IllegalArgumentException("반려 또는 취소된 예약만 수정할 수 있습니다.");
-		}
-
-		final List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
-
-		// 2. 비관적 락을 걸어 Space 엔티티를 조회 (예약 생성 시와 동일)
-		// SpaceRepository의 findById에 @Lock(LockModeType.PESSIMISTIC_WRITE)가 적용되어 있어야 합니다.
-		Space space = spaceRepository.findById(requestDto.getSpaceId())
-			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
-
-		// 3. 자기 자신을 제외한 '본 예약' 시간이 겹치는지 확인
-		boolean isReservationOverlapping = reservationRepository.existsOverlappingReservationExcludingSelf(
-			space.getSpaceId(),
-			requestDto.getReservationFrom(),
-			requestDto.getReservationTo(),
-			validStatusIds,
-			reservationId // 자기 자신 ID를 제외하도록 전달
-		);
-
-		// 4. 자기 자신을 제외한 '사전 답사 예약' 시간이 겹치는지 확인
-		boolean isPrevisitOverlapping = previsitReservationRepository.existsOverlappingPrevisitExcludingSelf(
-			space.getSpaceId(),
-			requestDto.getReservationFrom(),
-			requestDto.getReservationTo(),
-			validStatusIds,
-			reservationId // 자기 자신 ID를 제외하도록 전달
-		);
-
-		// 5. 두 예약 중 하나라도 겹치면 예외 발생
-		if (isReservationOverlapping || isPrevisitOverlapping) {
-			throw new DataIntegrityViolationException("변경하려는 시간에는 이미 다른 확정된 예약 또는 사전 답사가 존재합니다.");
-		}
-		// 6. 파일 처리
-		List<String> currentAttachments = new ArrayList<>(reservation.getReservationAttachment());
-		List<String> existingAttachments = requestDto.getExistingAttachments() != null ?
-			requestDto.getExistingAttachments() : new ArrayList<>();
-		currentAttachments.removeAll(existingAttachments);
-		if (!currentAttachments.isEmpty()) {
-			currentAttachments.forEach(s3Deleter::deleteByUrl);
-		}
-
-		List<String> newAttachmentUrls = new ArrayList<>();
-		List<MultipartFile> newFiles = requestDto.getReservationAttachments();
-		if (newFiles != null && !newFiles.isEmpty()) {
-			String dirName = "attachment/" + reservation.getReservationId();
-			newAttachmentUrls = s3Uploader.uploadAll(newFiles, dirName);
-		}
-
-		List<String> finalAttachmentUrls = new ArrayList<>(existingAttachments);
-		finalAttachmentUrls.addAll(newAttachmentUrls);
-
-		// 7. 예약 정보 및 상태 업데이트
-		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
-		ReservationStatus initialStatus = reservationStatusRepository.findById(INITIAL_RESERVATION_STATUS_ID)
-			.orElseThrow(() -> new ResourceNotFoundException("기본 예약 상태를 찾을 수 없습니다."));
-
-		reservation.updateDetails(
-			space,
-			initialStatus,
-			requestDto.getReservationHeadcount(),
-			requestDto.getReservationFrom(),
-			requestDto.getReservationTo(),
-			requestDto.getReservationPurpose(),
-			finalAttachmentUrls
-		);
-
-		Reservation updatedReservation = reservationRepository.save(reservation);
-
-		return ReservationResponseDto.fromEntity(updatedReservation);
 	}
 
 	public void deleteReservation(String userId, Long reservationId) {

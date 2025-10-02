@@ -4,7 +4,6 @@ public record UserSummaryDto(
 	Long id,
 	String name,
 	String email,
-	String phone,
 	String company // ADAPT: UserCompany가 있으면 회사명 매핑
 ) {
 }

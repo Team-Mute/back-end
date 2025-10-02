@@ -109,14 +109,11 @@ public class UserService {
 		UserRole userRoleObject) {
 		return User.builder()
 			.userName(requestDto.getUserName())
-			.userPhone(requestDto.getUserPhone())
 			.userEmail(requestDto.getUserEmail())
 			.userPwd(encodedPassword)
 			.userCompany(companyObject)
 			.userRole(userRoleObject)
 			.agreeEmail(requestDto.getAgreeEmail())
-			.agreeSms(requestDto.getAgreeSms())
-			.agreeLocation(requestDto.getAgreeLocation())
 			.regDate(LocalDateTime.now())
 			.tokenVer(1)
 			.build();
@@ -140,10 +137,7 @@ public class UserService {
 			user.setUserEmail(requestDto.getUserEmail());
 		}
 		user.setUserName(requestDto.getUserName());
-		user.setUserPhone(requestDto.getUserPhone());
 		user.setAgreeEmail(requestDto.getAgreeEmail());
-		user.setAgreeSms(requestDto.getAgreeSms());
-		user.setAgreeLocation(requestDto.getAgreeLocation());
 		log.info("회원 정보 수정 완료: userId={}", userId);
 	}
 

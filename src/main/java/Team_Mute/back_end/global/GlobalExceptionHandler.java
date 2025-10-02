@@ -1,21 +1,9 @@
 package Team_Mute.back_end.global;
 
-import Team_Mute.back_end.domain.member.dto.response.ErrorResponseDto;
-import Team_Mute.back_end.domain.member.exception.CompanyNotFoundException;
-import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
-import Team_Mute.back_end.domain.member.exception.ExternalApiException;
-import Team_Mute.back_end.domain.member.exception.UserRegistrationException;
-import Team_Mute.back_end.domain.previsit.exception.PrevisitAlreadyExistsException;
-import Team_Mute.back_end.domain.reservation.exception.ForbiddenAccessException;
-import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
-import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
-import Team_Mute.back_end.domain.smsAuth.exception.InvalidVerificationException;
-import Team_Mute.back_end.domain.smsAuth.exception.SmsSendingFailedException;
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -28,7 +16,19 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+
+import Team_Mute.back_end.domain.member.dto.response.ErrorResponseDto;
+import Team_Mute.back_end.domain.member.exception.CompanyNotFoundException;
+import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
+import Team_Mute.back_end.domain.member.exception.ExternalApiException;
+import Team_Mute.back_end.domain.member.exception.UserRegistrationException;
+import Team_Mute.back_end.domain.previsit.exception.PrevisitAlreadyExistsException;
+import Team_Mute.back_end.domain.reservation.exception.ForbiddenAccessException;
+import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
+import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
@@ -89,20 +89,6 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
 	}
 
-	@ExceptionHandler(SmsSendingFailedException.class)
-	public ResponseEntity<ErrorResponseDto> handleSmsSendingFailed(SmsSendingFailedException e) {
-		log.error("Sms sending failed error: {}", e.getMessage());
-		ErrorResponseDto errorResponse = new ErrorResponseDto(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
-		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-	}
-
-	@ExceptionHandler(InvalidVerificationException.class)
-	public ResponseEntity<ErrorResponseDto> handleInvalidVerification(InvalidVerificationException e) {
-		log.error("Invalid verification error: {}", e.getMessage());
-		ErrorResponseDto errorResponse = new ErrorResponseDto(e.getMessage(), HttpStatus.BAD_REQUEST.value());
-		return ResponseEntity.badRequest().body(errorResponse);
-	}
-
 	@ExceptionHandler(DuplicateEmailException.class)
 	public ResponseEntity<ErrorResponseDto> handleDuplicateEmail(DuplicateEmailException e) {
 		log.error("Duplicate email error: {}", e.getMessage());
@@ -137,7 +123,7 @@ public class GlobalExceptionHandler {
 
 		Map<String, String> errors = new HashMap<>();
 		ex.getBindingResult().getAllErrors().forEach((error) -> {
-			String fieldName = ((FieldError) error).getField();
+			String fieldName = ((FieldError)error).getField();
 			String errorMessage = error.getDefaultMessage();
 			errors.put(fieldName, errorMessage);
 		});
@@ -150,7 +136,7 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<Map<String, String>> handleBindException(BindException ex) {
 		Map<String, String> errors = new HashMap<>();
 		ex.getBindingResult().getAllErrors().forEach((error) -> {
-			String fieldName = ((FieldError) error).getField();
+			String fieldName = ((FieldError)error).getField();
 			String errorMessage = error.getDefaultMessage();
 			errors.put(fieldName, errorMessage);
 		});

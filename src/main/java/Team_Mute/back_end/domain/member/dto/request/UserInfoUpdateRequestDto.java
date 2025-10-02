@@ -14,15 +14,6 @@ public class UserInfoUpdateRequestDto {
 	@NotBlank(message = "이름은 필수 입력 값입니다.")
 	private String userName;
 
-	@NotBlank(message = "전화번호는 필수 입력 값입니다.")
-	private String userPhone;
-
 	@NotNull(message = "이메일 수신 동의 여부를 입력해주세요.")
 	private Boolean agreeEmail;
-
-	@NotNull(message = "SMS 수신 동의 여부를 입력해주세요.")
-	private Boolean agreeSms;
-
-	@NotNull(message = "위치 정보 동의 여부를 입력해주세요.")
-	private Boolean agreeLocation;
 }

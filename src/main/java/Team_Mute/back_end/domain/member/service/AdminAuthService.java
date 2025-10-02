@@ -39,25 +39,19 @@ public class AdminAuthService {
 		String userId = admin.getAdminId().toString();
 		Integer regionId;
 
-		Map<String, Object> accessTokenClaims = new HashMap<>();
-		accessTokenClaims.put("roleId", admin.getUserRole().getRoleId());
+		Map<String, Object> TokenClaims = new HashMap<>();
+		TokenClaims.put("roleId", admin.getUserRole().getRoleId());
 		if (admin.getAdminRegion() == null) {
 			regionId = -1;
 		} else {
 			regionId = admin.getAdminRegion().getRegionId();
 		}
-		accessTokenClaims.put("regionId", regionId);
-		accessTokenClaims.put("tokenVer", admin.getTokenVer());
-		accessTokenClaims.put("sid", sid);
+		TokenClaims.put("regionId", regionId);
+		TokenClaims.put("tokenVer", admin.getTokenVer());
+		TokenClaims.put("sid", sid);
 
-		String at = jwt.createAccessToken(IdGenerator.newJtiAT(), ADMIN_AUDIENCE, userId, accessTokenClaims);
-
-		Map<String, Object> refreshTokenClaims = new HashMap<>();
-		refreshTokenClaims.put("regionId", regionId);
-		refreshTokenClaims.put("tokenVer", admin.getTokenVer());
-		refreshTokenClaims.put("sid", sid);
-
-		String rt = jwt.createRefreshToken(IdGenerator.newJtiRT(), ADMIN_AUDIENCE, userId, refreshTokenClaims);
+		String at = jwt.createAccessToken(IdGenerator.newJtiAT(), ADMIN_AUDIENCE, userId, TokenClaims);
+		String rt = jwt.createRefreshToken(IdGenerator.newJtiRT(), ADMIN_AUDIENCE, userId, TokenClaims);
 
 		Duration rtTtl = Duration.ofSeconds(props.refreshToken().ttlSeconds());
 		Map<String, Object> session = Map.of(
@@ -112,20 +106,14 @@ public class AdminAuthService {
 		}
 
 		// 3. [회전] 새로운 액세스 토큰과 리프레시 토큰을 모두 생성
-		Map<String, Object> newAccessTokenClaims = new HashMap<>();
-		newAccessTokenClaims.put("roleId", c.get("roleId", Integer.class));
-		newAccessTokenClaims.put("regionId", c.get("regionId", Integer.class));
-		newAccessTokenClaims.put("tokenVer", tokenVerInToken);
-		newAccessTokenClaims.put("sid", sid);
+		Map<String, Object> newTokenClaims = new HashMap<>();
+		newTokenClaims.put("roleId", c.get("roleId", Integer.class));
+		newTokenClaims.put("regionId", c.get("regionId", Integer.class));
+		newTokenClaims.put("tokenVer", tokenVerInToken);
+		newTokenClaims.put("sid", sid);
 
-		String newAT = jwt.createAccessToken(IdGenerator.newJtiAT(), ADMIN_AUDIENCE, userId, newAccessTokenClaims);
-
-		Map<String, Object> newRefreshTokenClaims = new HashMap<>();
-		newRefreshTokenClaims.put("regionId", c.get("regionId", Integer.class));
-		newRefreshTokenClaims.put("tokenVer", tokenVerInToken);
-		newRefreshTokenClaims.put("sid", sid);
-
-		String newRT = jwt.createRefreshToken(IdGenerator.newJtiRT(), ADMIN_AUDIENCE, userId, newRefreshTokenClaims);
+		String newAT = jwt.createAccessToken(IdGenerator.newJtiAT(), ADMIN_AUDIENCE, userId, newTokenClaims);
+		String newRT = jwt.createRefreshToken(IdGenerator.newJtiRT(), ADMIN_AUDIENCE, userId, newTokenClaims);
 
 		Duration remainingTtl = Duration.between(Instant.now(), c.getExpiration().toInstant());
 		if (!remainingTtl.isNegative()) {

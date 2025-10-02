@@ -22,12 +22,6 @@ public class SignupRequestDto {
 	@Pattern(regexp = "^[가-힣a-zA-Z\\s]+$", message = "사용자 이름은 한글, 영문만 입력 가능합니다.")
 	private String userName;
 
-	@Schema(description = "사용자 전화번호", example = "010-1234-5678")
-	@NotBlank(message = "전화번호는 필수 입력 항목입니다.")
-	@Pattern(regexp = "^01([0|1|6|7|8|9])-([0-9]{3,4})-([0-9]{4})$",
-		message = "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)")
-	private String userPhone;
-
 	@Schema(description = "사용자 이메일", example = "mute@example.com")
 	@NotBlank(message = "이메일은 필수 입력 항목입니다.")
 	@Email(message = "올바른 이메일 형식이 아닙니다.")
@@ -49,12 +43,4 @@ public class SignupRequestDto {
 	@Schema(description = "이메일 수신 동의", example = "true")
 	@NotNull(message = "이메일 알림 동의 여부를 선택해주세요.")
 	private Boolean agreeEmail;
-
-	@Schema(description = "SMS 수신 동의", example = "true")
-	@NotNull(message = "SMS 알림 동의 여부를 선택해주세요.")
-	private Boolean agreeSms;
-
-	@Schema(description = "위치정보 활용 동의", example = "true")
-	@NotNull(message = "위치정보 활용 동의 여부를 선택해주세요.")
-	private Boolean agreeLocation;
 }

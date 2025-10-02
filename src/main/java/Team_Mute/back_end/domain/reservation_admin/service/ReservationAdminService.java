@@ -1,11 +1,30 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.*;
+
+import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
+import Team_Mute.back_end.domain.member.service.EmailService;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation_admin.dto.request.RejectRequestDto;
@@ -24,28 +43,9 @@ import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationSt
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationDetailRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationLogRepository;
 import Team_Mute.back_end.domain.reservation_admin.util.EmergencyEvaluator;
-import Team_Mute.back_end.domain.smsAuth.exception.SmsSendingFailedException;
-import Team_Mute.back_end.domain.smsAuth.service.SmsService;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import lombok.extern.slf4j.Slf4j;
-
-import java.text.Normalizer;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isApprovableFor;
-import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isRejectableFor;
 
 @Slf4j
 @Service
@@ -53,7 +53,6 @@ import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprov
 public class ReservationAdminService {
 	private final ReservationApprovalTxService approvalTxService;
 	private final RservationListAllService rservationListAllService;
-	private final SmsService smsService;
 	private final AdminReservationRepository adminReservationRepository;
 	private final AdminPrevisitReservationRepository adminPrevisitRepository;
 	private final AdminReservationStatusRepository adminStatusRepository;
@@ -64,6 +63,7 @@ public class ReservationAdminService {
 	private final ReservationLogRepository reservationLogRepository;
 	private final ReservationDetailRepository reservationDetailRepository;
 	private final EmergencyEvaluator emergencyEvaluator;
+	private final EmailService emailService;
 
 	private static final Long ROLE_SECOND_APPROVER = 1L; // 2차 승인자(1,2차 가능)
 	private static final Long ROLE_FIRST_APPROVER = 2L; // 1차 승인자(1차만 가능)
@@ -73,7 +73,6 @@ public class ReservationAdminService {
 	public ReservationAdminService(
 		ReservationApprovalTxService approvalTxService,
 		RservationListAllService rservationListAllService,
-		SmsService smsService,
 		AdminReservationRepository adminReservationRepository,
 		AdminPrevisitReservationRepository adminPrevisitRepository,
 		AdminReservationStatusRepository adminStatusRepository,
@@ -83,11 +82,11 @@ public class ReservationAdminService {
 		UserCompanyRepository userCompanyRepository,
 		ReservationLogRepository reservationLogRepository,
 		ReservationDetailRepository reservationDetailRepository,
-		EmergencyEvaluator emergencyEvaluator
+		EmergencyEvaluator emergencyEvaluator,
+		EmailService emailService
 	) {
 		this.approvalTxService = approvalTxService;
 		this.rservationListAllService = rservationListAllService;
-		this.smsService = smsService;
 		this.adminReservationRepository = adminReservationRepository;
 		this.adminPrevisitRepository = adminPrevisitRepository;
 		this.adminStatusRepository = adminStatusRepository;
@@ -98,6 +97,7 @@ public class ReservationAdminService {
 		this.reservationLogRepository = reservationLogRepository;
 		this.reservationDetailRepository = reservationDetailRepository;
 		this.emergencyEvaluator = emergencyEvaluator;
+		this.emailService = emailService;
 	}
 
 	// 일괄 승인 에러 메세지
@@ -144,15 +144,14 @@ public class ReservationAdminService {
 						Reservation reservation = adminReservationRepository.findById(id)
 							.orElseThrow(() -> new IllegalArgumentException("예약을 찾을 수 없습니다."));
 
-						smsService.sendSmsForReservationAdmin(
-							null,
+						emailService.sendMailForReservationAdmin(
 							reservation,
 							APPROVED_FINAL_ID,
 							null
 						);
 
 						//finalMsg += " / SMS 발송 완료";
-					} catch (SmsSendingFailedException smsEx) {
+					} catch (MailException e) {
 						//finalMsg += " / SMS 발송 실패: " + smsEx.getMessage();
 					}
 
@@ -235,15 +234,14 @@ public class ReservationAdminService {
 			// 반려 성공 시 SMS 시도 (실패해도 반려 유지)
 			String smsMsg;
 			try {
-				smsService.sendSmsForReservationAdmin(
-					null,
+				emailService.sendMailForReservationAdmin(
 					reservation,
 					REJECTED_STATUS_ID,
 					rejectionReason
 				);
 				smsMsg = " + 반려 메세지 전송 완료";
-			} catch (SmsSendingFailedException smsEx) {
-				throw new RuntimeException(smsEx.getMessage(), smsEx);
+			} catch (MailException e) {
+				throw new RuntimeException(e.getMessage(), e);
 			}
 
 			return new RejectResponseDto(
@@ -252,7 +250,7 @@ public class ReservationAdminService {
 				rejectedStatus.getReservationStatusName(),
 				LocalDateTime.now(),
 				rejectionReason,
-				"반려 완료" + smsMsg
+				"반려 완료"
 			);
 		} else {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "반려 권한이 없습니다.");
@@ -283,7 +281,6 @@ public class ReservationAdminService {
 			u.getUserId(),
 			u.getUserName(),
 			u.getUserEmail(),
-			u.getUserPhone(),
 			(u.getUserCompany() != null) ? u.getUserCompany().getCompanyName() : null
 		);
 
@@ -364,7 +361,8 @@ public class ReservationAdminService {
 		// 1. 가공된 전체 데이터 가져오기 (1차 승인자 필터링 포함)
 		List<Reservation> allReservations = adminReservationRepository.findAll();
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
-		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(allReservations, admin);
+		List<ReservationListResponseDto> allDtos = rservationListAllService.getReservationListAll(allReservations,
+			admin);
 
 		// 2. 복합 조건에 따른 필터링 (Stream API 활용)
 		List<ReservationListResponseDto> filteredList = allDtos.stream()
@@ -379,10 +377,12 @@ public class ReservationAdminService {
 				}
 
 				// 지역 ID 필터링 (지역 ID가 있을 경우에만 적용)
-				boolean regionMatch = (regionId == null) || (dto.getRegionId() != null && dto.getRegionId().equals(regionId));
+				boolean regionMatch =
+					(regionId == null) || (dto.getRegionId() != null && dto.getRegionId().equals(regionId));
 
 				// 상태 ID 필터링 (상태 ID가 있을 경우에만 적용)
-				boolean statusMatch = (statusId == null) || (dto.getStatusId() != null && dto.getStatusId().equals(statusId));
+				boolean statusMatch =
+					(statusId == null) || (dto.getStatusId() != null && dto.getStatusId().equals(statusId));
 
 				// 신한 예약 플래그 필터링 (플래그가 있을 경우에만 적용)
 				boolean shinhanMatch = (isShinhan == null) || (dto.getIsShinhan().equals(isShinhan));
@@ -396,7 +396,7 @@ public class ReservationAdminService {
 			.toList();
 
 		// 3. 수동으로 페이징 처리
-		int start = (int) pageable.getOffset();
+		int start = (int)pageable.getOffset();
 		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
 		List<ReservationListResponseDto> pagedContent;
 		if (start > filteredList.size()) {
@@ -417,7 +417,8 @@ public class ReservationAdminService {
 	}
 
 	private String normalizeNullable(String s) {
-		if (s == null) return "";
+		if (s == null)
+			return "";
 		String nfc = Normalizer.normalize(s, Normalizer.Form.NFC);
 		return nfc.toLowerCase(Locale.ROOT);
 	}
