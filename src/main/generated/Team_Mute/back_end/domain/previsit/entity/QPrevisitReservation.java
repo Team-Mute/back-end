@@ -32,8 +32,6 @@ public class QPrevisitReservation extends EntityPathBase<PrevisitReservation> {
 
     public final Team_Mute.back_end.domain.reservation.entity.QReservation reservation;
 
-    public final NumberPath<Long> reservationStatusId = createNumber("reservationStatusId", Long.class);
-
     public final DateTimePath<java.time.LocalDateTime> updDate = createDateTime("updDate", java.time.LocalDateTime.class);
 
     public QPrevisitReservation(String variable) {

@@ -14,12 +14,9 @@ public class UserInfoResponseDto {
 	private Integer companyId;
 	private String userEmail;
 	private String userName;
-	private String userPhone;
 	private LocalDateTime regDate;
 	private LocalDateTime updDate;
 	private Boolean agreeEmail;
-	private Boolean agreeSms;
-	private Boolean agreeLocation;
 	private String companyName;
 	private String roleName;
 
@@ -30,12 +27,9 @@ public class UserInfoResponseDto {
 			.companyId(user.getUserCompany().getCompanyId())
 			.userEmail(user.getUserEmail())
 			.userName(user.getUserName())
-			.userPhone(user.getUserPhone())
 			.regDate(user.getRegDate())
 			.updDate(user.getUpdDate())
 			.agreeEmail(user.getAgreeEmail())
-			.agreeSms(user.getAgreeSms())
-			.agreeLocation(user.getAgreeLocation())
 			.companyName(user.getUserCompany().getCompanyName())
 			.roleName(user.getUserRole().getRoleName())
 			.build();

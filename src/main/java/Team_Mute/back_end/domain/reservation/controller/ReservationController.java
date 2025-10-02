@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -108,22 +107,6 @@ public class ReservationController {
 
 		ReservationDetailResponseDto responseDto = reservationService.findReservationById(userId, reservationId);
 		return ResponseEntity.ok(responseDto);
-	}
-
-	// 4. 예약 수정
-	@PutMapping(value = "/{reservation_id}", consumes = {"multipart/form-data"})
-	public ResponseEntity<ReservationResponseDto> updateReservation(
-		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId,
-		@Valid @RequestPart("requestDto") ReservationRequestDto requestDto,
-		@RequestPart(value = "files", required = false) List<MultipartFile> files) {
-
-		// DTO에 파일 리스트 설정
-		requestDto.setReservationAttachments(files);
-
-		ReservationResponseDto updatedReservation = reservationService.updateReservation(userId, reservationId,
-			requestDto);
-		return ResponseEntity.ok(updatedReservation);
 	}
 
 	// 5. 예약 삭제

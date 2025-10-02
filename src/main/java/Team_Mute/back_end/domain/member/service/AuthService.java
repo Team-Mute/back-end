@@ -89,15 +89,21 @@ public class AuthService {
 		if (currentVerExpected != null && !currentVerExpected.equals(ver))
 			throw new RuntimeException("version changed");
 
-		Map<String, Object> newAccessTokenClaims = new HashMap<>();
-		newAccessTokenClaims.put("cid", c.get("cid"));
-		newAccessTokenClaims.put("sid", c.get("sid"));
-		newAccessTokenClaims.put("ver", c.get("ver"));
-		newAccessTokenClaims.put("roles", c.get("roles"));
+		Map<String, Object> newClaims = new HashMap<>();
+		newClaims.put("cid", c.get("cid"));
+		newClaims.put("sid", c.get("sid"));
+		newClaims.put("ver", c.get("ver"));
+		newClaims.put("roles", c.get("roles"));
 
-		String newAT = jwt.createAccessToken(IdGenerator.newJtiAT(), USER_AUDIENCE, userId, newAccessTokenClaims);
+		String newAT = jwt.createAccessToken(IdGenerator.newJtiAT(), USER_AUDIENCE, userId, newClaims);
+		String newRtJti = IdGenerator.newJtiRT();
+		String newRT = jwt.createRefreshToken(newRtJti, USER_AUDIENCE, userId, newClaims);
+		Duration rtTtl = Duration.ofSeconds(props.refreshToken().ttlSeconds());
 
-		return new TokenPair(newAT, refreshToken);
+		store.revokeRt(rtJti, rtTtl);
+		store.setCurrentRtJti(sid, newRtJti, rtTtl);
+		
+		return new TokenPair(newAT, newRT);
 	}
 
 	public void logout(String accessToken, String userId) {
