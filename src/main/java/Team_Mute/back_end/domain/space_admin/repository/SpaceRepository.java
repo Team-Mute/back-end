@@ -127,6 +127,7 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		   SELECT
 		     s.space_id           AS spaceId,
 		     s.space_name         AS spaceName,
+		     r.region_id          AS regionId,
 		     r.region_name        AS regionName,
 		     /* 담당자명 */
 			  COALESCE(
