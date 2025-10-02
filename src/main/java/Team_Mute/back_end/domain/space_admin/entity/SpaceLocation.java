@@ -53,19 +53,37 @@ public class SpaceLocation {
 	private String locationName;
 
 	/**
-	 * 도로명 주소 + 접근 정보까지 포함
-	 * - 예: "서울특별시 명동10길 52 (충무로2가 65-4) - 명동역 도보 2분"
-	 * - 도로명, 지번 보조 표기, 가까운 지하철역 및 도보 시간 등 부가 안내를 함께 저장
-	 * - 길이 제한: 200자 (부가 정보가 많아질 경우 확장 고려)
+	 * 도로명 주소
+	 * - 예: "서울특별시 중구 명동10길 52"
+	 * - 도로명 주소 정보를 저장
+	 * - 길이 제한: 200자
 	 */
 	@Column(name = "address_road", nullable = false, length = 200)
 	private String addressRoad;
+
+	/**
+	 * 지번 주소
+	 * - 예: "서울특별시 중구 충무로2가 65-4"
+	 * - 지번 주소 정보를 저장
+	 * - 길이 제한: 200자
+	 */
+	@Column(name = "address_jibun", nullable = false, length = 200)
+	private String addressJibun;
 
 	/**
 	 * 우편번호
 	 */
 	@Column(name = "postal_code", length = 20)
 	private String postalCode;
+
+	/**
+	 * 접근 정보
+	 * - 예: "명동역 도보 2분"
+	 * - 위치 접근 정보를 저장
+	 * - 길이 제한: 200자 (부가 정보가 많아질 경우 확장 고려)
+	 */
+	@Column(name = "access_info", nullable = false, length = 200)
+	private String accessInfo;
 
 	/**
 	 * 위치 활성화 여부 (기본값 true → 활성 상태)

@@ -77,11 +77,33 @@ public class SpaceCommonDataService {
 	 **/
 	public List<LocationListResponseDto> getLocationByRegionId(Integer regionId) {
 		return spaceLocationRepository.findByAdminRegion_RegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
-			.map(element -> new LocationListResponseDto(
-				element.getLocationId(),
-				element.getLocationName(),
-				element.getAddressRoad(),
-				element.getPostalCode()
-			)).toList();
+			.map(element -> {
+
+				// 1. 도로명 주소와 지번 주소를 조합합니다.
+				// 결과: "서울특별시 명동10길 52 (충무로2가 65-4)"
+				String combinedAddressRoad = String.format(
+					"%s (%s)",
+					element.getAddressRoad(),
+					element.getAddressJibun()
+				);
+
+				// 2. Record DTO를 생성하며, 필드 순서에 맞게 정확히 매핑합니다.
+				return new LocationListResponseDto(
+					// 1. locationId
+					element.getLocationId(),
+
+					// 2. locationName
+					element.getLocationName(),
+
+					// 3. addressRoad (조합된 주소)
+					combinedAddressRoad,
+
+					// 4. postalCode (우편번호)
+					element.getPostalCode(),
+
+					// 5. addressInfo (접근성 정보)
+					element.getAccessInfo()
+				);
+			}).toList();
 	}
 }

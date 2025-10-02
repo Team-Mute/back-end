@@ -57,7 +57,8 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  COALESCE(
 		      json_build_object(
 			      'locationName', l.location_name,
-			      'addressRoad', l.address_road
+			      'addressRoad', l.address_road || ' (' || l.address_jibun || ')',
+			      'addressInfo', l.access_info
 			  ), '{}'::json
 		  ) AS location,
 		  s.space_image_url    AS spaceImageUrl
@@ -99,7 +100,8 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  COALESCE(
 		      json_build_object(
 			      'locationName', l.location_name,
-			      'addressRoad', l.address_road
+			      'addressRoad', l.address_road || ' (' || l.address_jibun || ')',
+			      'addressInfo', l.access_info
 			  ), '{}'::json
 		  ) AS location,
 
