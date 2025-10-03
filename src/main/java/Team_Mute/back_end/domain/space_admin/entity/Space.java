@@ -46,7 +46,7 @@ public class Space {
 	/**
 	 * 지역 ID (예: 서울, 대구 등) → FK (tb_regions.region_id)
 	 */
-	@Column(name = "region_id")
+	@Column(name = "region_id", nullable = false)
 	private Integer regionId;
 
 	/**
@@ -54,13 +54,13 @@ public class Space {
 	 * - 숫자 코드 값 (예: 1=미팅룸, 2=행사장, ...)
 	 * - FK (tb_space_categories.category_id)
 	 */
-	@Column(name = "category_id")
+	@Column(name = "category_id", nullable = false)
 	private Integer categoryId;
 
 	/**
 	 * 담당자 ID → FK (tb_admins.user_id)
 	 */
-	@Column(name = "user_id")
+	@Column(name = "user_id", nullable = false)
 	private Long userId;
 
 	/**
@@ -78,7 +78,7 @@ public class Space {
 	/**
 	 * 공간 주소 ID → FK (tb_locations.location_id)
 	 */
-	@Column(name = "location_id")
+	@Column(name = "location_id", nullable = false)
 	private Integer locationId;
 
 	/**
@@ -102,17 +102,17 @@ public class Space {
 	/**
 	 * 예약 방식 (예: 웹 신청 후 관리자 승인, TEXT 타입)
 	 */
-	@Column(name = "reservation_way", nullable = true, columnDefinition = "TEXT")
+	@Column(name = "reservation_way", nullable = false, columnDefinition = "TEXT")
 	private String reservationWay;
 
 	/**
 	 * 이용 수칙 (이용자에게 제공되는 규칙, TEXT 타입)
 	 */
-	@Column(name = "space_rules", nullable = true, columnDefinition = "TEXT")
+	@Column(name = "space_rules", nullable = false, columnDefinition = "TEXT")
 	private String spaceRules;
 
 	/**
-	 * 등록일 (공간 최초 등록 시각, NOT NULL)
+	 * 등록일 (공간 최초 등록 시각)
 	 */
 	@CreationTimestamp
 	@Column(name = "reg_date", nullable = false)

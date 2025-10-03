@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
  * - Jackson 직렬화 시 지정한 순서대로 필드가 JSON에 출력됨
  */
 @JsonPropertyOrder({
-	"spaceId", "spaceName", "region", "category", "location", "adminName",
+	"spaceId", "spaceName", "region", "category", "location", "admin",
 	"spaceCapacity", "spaceLocation", "spaceDescription", "spaceImageUrl", "detailImageUrls",
 	"tagNames", "spaceIsAvailable", "reservationWay", "spaceRules", "operations", "closedDays",
 	"regDate", "updDate"
@@ -18,7 +18,8 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
 public interface SpaceDatailResponseDto {
 	Integer getSpaceId(); // 공간 고유 ID
 
-	String getAdminName(); // 담당 관리자 이름
+	@JsonRawValue
+	String getAdmin(); // 담당 관리자 정보: JSON text: {"adminId":3, "adminNameWithRole":"홍길동(1차 승인자)"}
 
 	String getSpaceName(); // 공간 이름
 

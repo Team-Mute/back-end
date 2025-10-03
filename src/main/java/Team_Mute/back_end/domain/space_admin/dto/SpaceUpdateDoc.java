@@ -34,7 +34,7 @@ public class SpaceUpdateDoc {
 			  "categoryId": 1,
 			  "locationId": 1,
 			  "tagNames": ["TV", "화이트보드", "WIFI"],
-			  "adminName": "master1",
+			  "adminId": 3,
 			  "reservationWay": "웹 신청 후 관리자 승인",
 			  "spaceRules": "실내 흡연 금지, 음식물 반입 금지",
 			  "operations": [

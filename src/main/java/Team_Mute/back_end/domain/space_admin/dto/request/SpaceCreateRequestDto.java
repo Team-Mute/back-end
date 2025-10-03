@@ -89,10 +89,10 @@ public class SpaceCreateRequestDto {
 	private List<String> tagNames;
 
 	/**
-	 * 담당자 이름
+	 * 담당자 아이디
 	 */
-	@Schema(example = "홍길동")
-	private String adminName;
+	@NotNull
+	private Long adminId;
 
 	/**
 	 * 예약 방식 안내(선택, 길이 여유)
