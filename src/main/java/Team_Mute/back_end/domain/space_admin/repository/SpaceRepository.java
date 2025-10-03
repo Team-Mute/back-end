@@ -13,21 +13,44 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+/**
+ * Space Repository
+ * - 테이블: tb_spaces
+ * - 역할: 공간 등록/수정 중복 체크, 목록/상세 조회(Projection 기반) 제공
+ * - 목록/상세는 Native Query + 인터페이스 Projection으로 매핑
+ * - 상세 조회는 PostgreSQL json_build_object/json_agg 등을 사용해
+ * 연관 데이터(지역/카테고리/위치/태그/운영시간/휴무일)를 한 번에 조립
+ */
+@Repository
 public interface SpaceRepository extends JpaRepository<Space, Integer> {
 	/**
-	 * 공간 등록할 경우 공간명 중복 체크
-	 **/
+	 * 공간명 중복 체크 (공간 등록 시 사용)
+	 *
+	 * @param spaceName 공간 이름
+	 * @return true = 중복 존재
+	 */
 	boolean existsBySpaceName(String spaceName);
 
 	/**
-	 * 공간 수정할 경우 공간명 중복 체크
-	 **/
+	 * 공간명 중복 여부 (공간 수정 시 사용)
+	 * - 동일 ID는 제외하고, 같은 이름이 존재하는지 검사
+	 *
+	 * @param spaceName 공간 이름
+	 * @param spaceId   제외할 PK (자기 자신)
+	 * @return true = 중복 존재
+	 */
 	boolean existsBySpaceNameAndSpaceIdNot(String spaceName, Integer spaceId);
 
 	/**
-	 * 공간 리스트 조회
-	 **/
+	 * 공간 리스트 페이징 조회 (관리자 전용 전체 목록)
+	 * - Projection: SpaceListResponseDto
+	 * - 정렬: region_id 오름차순, reg_date 내림차순
+	 *
+	 * @param pageable 페이징 정보
+	 * @return Page<SpaceListResponseDto>
+	 */
 	@Query(value = """
 		   SELECT
 		     s.space_id           AS spaceId,
@@ -54,8 +77,15 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 	Page<SpaceListResponseDto> findAllWithNames(Pageable pageable);
 
 	/**
-	 * 1차 승인자일 경우 담당 지역 공간 리스트만 조회
-	 **/
+	 * 공간 리스트 페이징 조회 (1차 승인자의 담당 지역만)
+	 * - Projection: SpaceListResponseDto
+	 * - 필터: region_id = :adminRegionId
+	 * - 정렬: region_id 오름차순, reg_date 내림차순
+	 *
+	 * @param pageable      페이징 정보
+	 * @param adminRegionId 담당 지역 ID
+	 * @return Page<SpaceListResponseDto>
+	 */
 	@Query(value = """
 		   SELECT
 		     s.space_id           AS spaceId,
@@ -82,12 +112,22 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 
 
 	/**
-	 * 지역별 공간 리스트 조회
-	 **/
+	 * 지역별 공간 리스트 조회 (비페이징)
+	 * - Projection: SpaceListResponseDto
+	 * - 필터: region_id = :regionId
+	 * - 정렬: reg_date 내림차순
+	 * <p>
+	 * NOTE
+	 * - List 반환이므로 countQuery는 사용되지 않음
+	 *
+	 * @param regionId 지역 ID
+	 * @return List 형태의 공간 목록
+	 */
 	@Query(value = """
 		   SELECT
 		     s.space_id           AS spaceId,
 		     s.space_name         AS spaceName,
+		     r.region_id          AS regionId,
 		     r.region_name        AS regionName,
 		     /* 담당자명 */
 			  COALESCE(
@@ -110,8 +150,15 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 	List<SpaceListResponseDto> findAllWithRegion(@Param("regionId") Integer regionId);
 
 	/**
-	 * 단건 상세 + 조인
-	 **/
+	 * 공간 단건 상세 조회 (+ 연관 데이터 조인/조립)
+	 * - Projection: SpaceDatailResponseDto
+	 * - PostgreSQL json_build_object/json_agg 사용
+	 * - operations/closedDays/region/category/location 필드는 문자열로
+	 * 반환 후 @JsonRawValue로 그대로 JSON에 포함됨
+	 *
+	 * @param spaceId 공간 ID
+	 * @return 상세 Projection
+	 */
 	@Query(value = """
 		SELECT
 		  s.space_id           AS spaceId,
@@ -208,6 +255,14 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		""", nativeQuery = true)
 	Optional<SpaceDatailResponseDto> findDetailWithNames(@Param("spaceId") Integer spaceId);
 
+	/**
+	 * ID로 단건 조회 (비관적 잠금)
+	 * - 업데이트 직전 안전하게 단일 행 잠금을 걸고 싶을 때 사용
+	 * - 트랜잭션 범위 내에서만 유효
+	 *
+	 * @param id PK
+	 * @return Optional<Space>
+	 */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Override
 	Optional<Space> findById(Integer id);

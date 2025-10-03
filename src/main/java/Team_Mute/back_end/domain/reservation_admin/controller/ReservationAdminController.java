@@ -8,7 +8,7 @@ import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationDetai
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationFilterOptionsResponse;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.service.ReservationAdminService;
-import Team_Mute.back_end.domain.space_admin.dto.response.PagedResponseDto;
+import Team_Mute.back_end.global.dto.PagedResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 

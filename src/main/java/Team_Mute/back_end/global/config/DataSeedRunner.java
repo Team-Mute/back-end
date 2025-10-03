@@ -39,10 +39,10 @@ public class DataSeedRunner implements CommandLineRunner {
 
 		// 3) 위치: region_name → region_id 매핑 + 업서트
 		List<LocSeed> seeds = List.of(
-			new LocSeed("서울", "신한 스퀘어브릿지 서울", "서울특별시 명동10길 52 (충무로2가 65-4) - 명동역 도보 2분", "04536", true),
-			new LocSeed("인천", "신한 스퀘어브릿지 인천", "인천 연수구 컨벤시아대로 204 (송도동 93) - 인천대입구역 도보 5분", "22004", true),
-			new LocSeed("대구", "신한 스퀘어브릿지 대구", "대구 동구 동대구로 465 대구스케일업허브 (신천동 106) - 동대구역 도보 10분", "41260", true),
-			new LocSeed("대전", "신한 스퀘어브릿지 대전 S1", "대전 유성구 대학로155번길 4 (궁동 426-12) - 월평역 도보 20분", "34138", true)
+			new LocSeed("서울", "신한 스퀘어브릿지 서울", "서울특별시 명동10길 52", "충무로2가 65-4", "04536", "명동역 도보 2분", true),
+			new LocSeed("인천", "신한 스퀘어브릿지 인천", "인천광역시 연수구 컨벤시아대로 204", "송도동 93", "22004", "인천대입구역 도보 5분", true),
+			new LocSeed("대구", "신한 스퀘어브릿지 대구", "대구광역시 동구 동대구로 465 대구스케일업허브", "신천동 106", "41260", "동대구역 도보 10분", true),
+			new LocSeed("대전", "신한 스퀘어브릿지 대전 S1", "대전광역시 유성구 대학로155번길 4", "궁동 426-12", "34138", "월평역 도보 20분", true)
 		);
 		seeds.forEach(this::upsertLocationByRegionName);
 	}
@@ -131,14 +131,18 @@ public class DataSeedRunner implements CommandLineRunner {
 		final String regionName;
 		final String locationName;
 		final String addressRoad;
+		final String addressJibun;
 		final String postalCode;
+		final String accessInfo;
 		final Boolean active;
 
-		LocSeed(String regionName, String locationName, String addressRoad, String postalCode, Boolean active) {
+		LocSeed(String regionName, String locationName, String addressRoad, String addressJibun, String postalCode, String accessInfo, Boolean active) {
 			this.regionName = regionName;
 			this.locationName = locationName;
 			this.addressRoad = addressRoad;
+			this.addressJibun = addressJibun;
 			this.postalCode = postalCode;
+			this.accessInfo = accessInfo;
 			this.active = active;
 		}
 	}

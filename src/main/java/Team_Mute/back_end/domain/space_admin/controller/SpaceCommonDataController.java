@@ -17,6 +17,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 공간 공통 데이터 Controller
+ * - 로그인하지 않아도 누구나 접근 가능한 공용 API 제공
+ * - 토큰 검증이나 권한 체크를 하지 않음
+ * - 공간 카테고리, 태그 등 공통 데이터 조회에 사용
+ */
 @Tag(name = "공간 관련 공통 API", description = "공간 관련 공통 API 명세")
 @RestController
 @RequestMapping("/api/spaces")
@@ -25,28 +31,28 @@ public class SpaceCommonDataController {
 	private final SpaceCommonDataService spaceCommonDataService;
 
 	/**
-	 * 지역 전체 조회(공간 등록 및 수정할 시 사용)
+	 * 지역 전체 조회
 	 **/
 	@GetMapping("/regions")
-	@Operation(summary = "지역 리스트 조회", description = "토큰을 확인하여 지역 리스트를 조회합니다.")
+	@Operation(summary = "지역 리스트 조회", description = "인증 없이 지역 리스트를 조회합니다.")
 	public List<RegionListResponseDto> getRegions() {
 		return spaceCommonDataService.getAllRegions();
 	}
 
 	/**
-	 * 카테고리 전체 조회(공간 등록 및 수정할 시 사용)
+	 * 카테고리 전체 조회
 	 **/
 	@GetMapping("/categories")
-	@Operation(summary = "카테고리 리스트 조회", description = "토큰을 확인하여 카테고리 리스트를 조회합니다.")
+	@Operation(summary = "카테고리 리스트 조회", description = "인증 없이 카테고리 리스트를 조회합니다.")
 	public List<CategoryListResponseDto> getCategories() {
 		return spaceCommonDataService.getAllCategories();
 	}
 
 	/**
-	 * 태그 전체 조회(공간 등록 및 수정할 시 사용)
+	 * 태그(편의시설) 전체 조회
 	 **/
 	@GetMapping("/tags")
-	@Operation(summary = "태그(편의시설) 조회", description = "토큰을 확인하여 태그 리스트를 조회합니다.")
+	@Operation(summary = "태그(편의시설) 조회", description = "인증 없이 태그 리스트를 조회합니다.")
 	public List<TagListResponseDto> getTags() {
 		return spaceCommonDataService.getAllTags();
 	}
@@ -56,7 +62,7 @@ public class SpaceCommonDataController {
 	 **/
 	@GetMapping("locations/{regionId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
-	@Operation(summary = "지역 아이디로 주소 조회", description = "토큰을 확인하여 주소를 조회합니다.")
+	@Operation(summary = "지역 아이디로 주소 조회", description = "인증 없이 주소를 조회합니다.")
 	public List<LocationListResponseDto> getLocationByRegionId(@PathVariable Integer regionId) {
 		return spaceCommonDataService.getLocationByRegionId(regionId);
 	}

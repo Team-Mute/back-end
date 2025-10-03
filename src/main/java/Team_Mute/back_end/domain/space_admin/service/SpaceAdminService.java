@@ -43,6 +43,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * 공간 관리 Service
+ * - 관리자 전용 비즈니스 로직을 처리하는 계층
+ * - Controller에서 전달받은 요청을 DB/Repository와 연동하여 처리
+ * - 공간 등록, 수정, 삭제, 상세 조회 기능을 담당
+ * - 트랜잭션 단위로 실행되어 원자성을 보장
+ */
 @Slf4j
 @Service
 public class SpaceAdminService {
@@ -185,7 +192,6 @@ public class SpaceAdminService {
 			.spaceDescription(req.getSpaceDescription())
 			.spaceCapacity(req.getSpaceCapacity())
 			.spaceIsAvailable(req.getSpaceIsAvailable())
-			//.spaceImageUrl(cover) // 이때 이미지 URL은 저장 X
 			.reservationWay(req.getReservationWay())
 			.spaceRules(req.getSpaceRules())
 			.regDate(LocalDateTime.now())
