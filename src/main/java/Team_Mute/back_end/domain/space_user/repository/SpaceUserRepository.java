@@ -91,11 +91,18 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  s.space_name         AS spaceName,
 		  r.region_name        AS regionName,
 		  c.category_name      AS categoryName,
-		        s.space_capacity     AS spaceCapacity,
+		  s.space_capacity     AS spaceCapacity,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
 		  s.reservation_way    AS  reservationWay,
 		  s.space_rules        AS spaceRules,
+		  /* 담당자 정보 추가 */
+		   COALESCE(
+			   json_build_object(
+				  'managerName', a.admin_name,
+				  'managerPhone', a.admin_phone
+			  ), '{}'::json
+		   ) AS manager,
 		  /* 주소 */
 		  COALESCE(
 		      json_build_object(
@@ -152,6 +159,7 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		JOIN tb_admin_region     r ON r.region_id   = s.region_id
 		JOIN tb_space_categories c ON c.category_id = s.category_id
 		JOIN tb_locations        l ON l.location_id = s.location_id
+		LEFT JOIN tb_admins       a ON a.admin_id    = s.user_id
 		WHERE s.space_id = :spaceId
 		AND   s.space_is_available = true
 		""", nativeQuery = true)

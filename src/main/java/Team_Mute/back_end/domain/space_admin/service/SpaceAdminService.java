@@ -7,6 +7,7 @@ import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.AdminListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceDatailResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
@@ -179,14 +180,32 @@ public class SpaceAdminService {
 		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
 
-		// 담당자명
-		Long matchUserId = resolveUserIdByUserName(req.getAdminName());
+		// 4. 담당자 ID 및 지역 권한 검증
+		Long adminIdToAssign = req.getAdminId();
 
-		// 4. 공간 저장
+		// Admin, UserRole, AdminRegion 정보를 함께 로드
+		Admin assignedAdmin = adminRepository.findAdminWithRoleAndRegion(adminIdToAssign)
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 담당자 ID입니다: " + adminIdToAssign));
+
+		// 1차 승인자 (roleId=2) 권한 검증 / 2차 승인자 (roleId=1L)는 지역 검증을 건너뜀 (전역 권한)
+		if (assignedAdmin.getUserRole().getRoleId().equals(2)) {
+			Integer requiredRegionId = req.getRegionId();
+			Integer adminRegionId = assignedAdmin.getAdminRegion() != null
+				? assignedAdmin.getAdminRegion().getRegionId()
+				: null;
+
+			if (adminRegionId == null || !adminRegionId.equals(requiredRegionId)) {
+				throw new IllegalArgumentException(
+					"담당자 지정 불가 - 해당 지역에 대한 권한이 없습니다."
+				);
+			}
+		}
+
+		// 5. 공간 저장
 		Space space = Space.builder()
 			.categoryId(category.getCategoryId())
 			.regionId(region.getRegionId())
-			.userId(matchUserId)
+			.userId(adminIdToAssign)
 			.spaceName(req.getSpaceName())
 			.locationId(location.getLocationId())
 			.spaceDescription(req.getSpaceDescription())
@@ -200,7 +219,7 @@ public class SpaceAdminService {
 		Space saved = spaceRepository.save(space);
 		Integer spaceId = saved.getSpaceId();
 
-		// 5. 이미지 저장
+		// 6. 이미지 저장
 		// 임시 폴더의 이미지들을 최종 폴더('spaces/{id}')로 이동
 		String targetDir = "spaces/" + spaceId;
 		List<String> finalUrls = urls.stream()
@@ -233,7 +252,7 @@ public class SpaceAdminService {
 			spaceImageRepository.saveAll(list);
 		}
 
-		// 6. 태그 처리
+		// 7. 태그 처리
 		for (String tagName : req.getTagNames()) {
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
@@ -253,7 +272,7 @@ public class SpaceAdminService {
 			tagMapRepository.save(map);
 		}
 
-		// 7. 운영시간 저장
+		// 8. 운영시간 저장
 		if (req.getOperations() != null && !req.getOperations().isEmpty()) {
 			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
 				SpaceOperation.builder()
@@ -267,7 +286,7 @@ public class SpaceAdminService {
 			spaceOperationRepository.saveAll(ops);
 		}
 
-		// 8. 운영시간 및 휴무일 저장
+		// 9. 운영시간 및 휴무일 저장
 		if (req.getClosedDays() != null && !req.getClosedDays().isEmpty()) {
 			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME; // "2025-09-15T09:00:00"
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
@@ -345,13 +364,31 @@ public class SpaceAdminService {
 			}
 		}
 
-		// 담당자명
-		Long matchUserId = resolveUserIdByUserName(req.getAdminName());
+		// 7) 담당자 ID 및 지역 권한 검증
+		Long adminIdToAssign = req.getAdminId();
 
-		// 7) 본문 필드 “전체 교체”
+		// Admin, UserRole, AdminRegion 정보를 함께 로드
+		Admin assignedAdmin = adminRepository.findAdminWithRoleAndRegion(adminIdToAssign)
+			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 담당자 ID입니다: " + adminIdToAssign));
+
+		// 1차 승인자 (roleId=2) 권한 검증 / 2차 승인자 (roleId=1L)는 지역 검증을 건너뜀 (전역 권한)
+		if (assignedAdmin.getUserRole().getRoleId().equals(2)) {
+			Integer requiredRegionId = req.getRegionId();
+			Integer adminRegionId = assignedAdmin.getAdminRegion() != null
+				? assignedAdmin.getAdminRegion().getRegionId()
+				: null;
+
+			if (adminRegionId == null || !adminRegionId.equals(requiredRegionId)) {
+				throw new IllegalArgumentException(
+					"담당자 지정 불가 - 해당 지역에 대한 권한이 없습니다."
+				);
+			}
+		}
+
+		// 8) 본문 필드 “전체 교체”
 		space.setCategoryId(category.getCategoryId());
 		space.setRegionId(region.getRegionId());
-		space.setUserId(matchUserId);
+		space.setUserId(adminIdToAssign);
 		space.setSpaceName(req.getSpaceName());
 		space.setLocationId(location.getLocationId());
 		space.setSpaceDescription(req.getSpaceDescription());
@@ -361,7 +398,7 @@ public class SpaceAdminService {
 		space.setReservationWay(req.getReservationWay());
 		space.setSpaceRules(req.getSpaceRules());
 
-		// 8) 태그 전량 교체
+		// 9) 태그 전량 교체
 		tagMapRepository.deleteBySpace(space);
 		for (String tagName : req.getTagNames()) {
 			SpaceTag tag = tagRepository.findByTagName(tagName)
@@ -381,7 +418,7 @@ public class SpaceAdminService {
 			tagMapRepository.save(map);
 		}
 
-		// 9) 운영 시간 및 휴무일 처리
+		// 10) 운영 시간 및 휴무일 처리
 		// 운영시간
 		spaceOperationRepository.deleteBySpaceId(spaceId);
 		if (!req.getOperations().isEmpty()) {
@@ -411,7 +448,7 @@ public class SpaceAdminService {
 			spaceClosedDayRepository.saveAll(closedDay);
 		}
 
-		// 10) 이미지 처리 (PUT 정책)
+		// 11) 이미지 처리 (PUT 정책)
 		// - urls == null   : 이미지 변경 없음 (기존 유지, S3 조작 없음)
 		// - urls.isEmpty() : 커버/상세 전부 삭제 (커버 null, 상세 0장) + S3 삭제
 		// - urls.size()>=1 : 커버/상세 전부 교체 + S3 삭제(제거분만)
@@ -558,5 +595,27 @@ public class SpaceAdminService {
 			.build();
 
 		return tagRepository.save(newTag);
+	}
+
+	/**
+	 * 지역 ID로 승인자 리스트 조회 (role_id 1(2차 승인자) + role_id 2(1차 승인자) & regionId 일치)
+	 **/
+	public List<AdminListResponseDto> getApproversByRegionId(Integer regionId) {
+		return adminRepository.findApproversByRegion(regionId)
+			.stream()
+			.map(admin -> {
+				// roleId에 따른 역할 이름 결정
+				String roleName = admin.getUserRole().getRoleId().equals(1) ? "2차 승인자" : "1차 승인자";
+
+				// 출력 예시: 홍길동(1차 승인자) 형식으로 조합
+				String adminNameWithRole = String.format("%s(%s)", admin.getAdminName(), roleName);
+
+				// DTO로 변환 시 adminId도 함께 전달
+				return new AdminListResponseDto(
+					admin.getAdminId(),
+					adminNameWithRole
+				);
+			})
+			.toList();
 	}
 }

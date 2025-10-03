@@ -186,14 +186,25 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 			      'addressRoad', l.address_road
 			  ), '{}'::json
 		  ) AS location,
-		  /* 담당자명 */
-		  COALESCE(
-		  (
-			  SELECT admin_name
-			  FROM tb_admins
-			  WHERE admin_id = s.user_id
-		  ), '알 수 없음'
-		        ) AS adminName,
+		  /* 담당자 정보 (admin 객체) */
+		        COALESCE(
+		            json_build_object(
+		               'adminId', a.admin_id,
+		               'adminNameWithRole', (
+		                   a.admin_name || '(' ||\s
+		                   CASE ur.role_id
+		                       WHEN 1 THEN '2차 승인자'
+		                       WHEN 2 THEN '1차 승인자'
+		                       ELSE '미지정'
+		                   END || ')'
+		               )
+		           ),\s
+		           -- 담당자 정보가 NULL일 경우 기본값 설정 (기존 '알 수 없음' 반영)
+		           json_build_object(
+		               'adminId', NULL::BIGINT,
+		               'adminNameWithRole', '알 수 없음'
+		           )
+		        ) AS admin,
 		  s.space_capacity     AS spaceCapacity,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
@@ -251,6 +262,8 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		JOIN tb_admin_region     r ON r.region_id   = s.region_id
 		JOIN tb_space_categories c ON c.category_id = s.category_id
 		JOIN tb_locations        l ON l.location_id = s.location_id
+		LEFT JOIN tb_admins       a ON a.admin_id    = s.user_id
+		LEFT JOIN tb_user_roles   ur ON ur.role_id    = a.role_id
 		WHERE s.space_id = :spaceId
 		""", nativeQuery = true)
 	Optional<SpaceDatailResponseDto> findDetailWithNames(@Param("spaceId") Integer spaceId);

@@ -3,6 +3,7 @@ package Team_Mute.back_end.domain.space_admin.controller;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceCreateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.SpaceUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.AdminListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.DeleteSpaceResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
@@ -348,5 +349,15 @@ public class SpaceAdminController {
 
 			return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
 		}
+	}
+
+	/**
+	 * 지역 아이디로 승인자 리스트 조회
+	 **/
+	@GetMapping("/approvers/{regionId}")
+	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
+	@Operation(summary = "지역 아이디로 승인자 리스트 조회", description = "인증 없이 지역 관리자 리스트(1차, 2차 승인자 포함)를 조회합니다.")
+	public List<AdminListResponseDto> getApproversByRegionId(@PathVariable Integer regionId) {
+		return spaceAdminService.getApproversByRegionId(regionId);
 	}
 }
