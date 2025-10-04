@@ -356,7 +356,7 @@ public class SpaceAdminController {
 	 **/
 	@GetMapping("/approvers/{regionId}")
 	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
-	@Operation(summary = "지역 아이디로 승인자 리스트 조회", description = "인증 없이 지역 관리자 리스트(1차, 2차 승인자 포함)를 조회합니다.")
+	@Operation(summary = "지역 아이디로 승인자 리스트 조회", description = "토큰을 확인하여 지역 관리자 리스트(1차, 2차 승인자 포함)를 조회합니다.")
 	public List<AdminListResponseDto> getApproversByRegionId(@PathVariable Integer regionId) {
 		return spaceAdminService.getApproversByRegionId(regionId);
 	}
