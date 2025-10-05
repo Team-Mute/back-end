@@ -18,12 +18,21 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
+/**
+ * 사용자 공간 검색 및 조회 관련 비즈니스 로직을 처리하는 서비스 클래스
+ */
 @Slf4j
 @Service
 public class SpaceUserService {
 	private final SpaceUserRepository spaceUserRepository;
 	private final ReservationScheduleService reservationScheduleService;
 
+	/**
+	 * SpaceUserService의 생성자
+	 *
+	 * @param spaceUserRepository        공간 데이터 접근을 위한 레포지토리
+	 * @param reservationScheduleService 예약 가능 스케줄 확인 로직을 담당하는 서비스
+	 */
 	public SpaceUserService(
 		SpaceUserRepository spaceUserRepository,
 		ReservationScheduleService reservationScheduleService
@@ -32,6 +41,18 @@ public class SpaceUserService {
 		this.reservationScheduleService = reservationScheduleService;
 	}
 
+	/**
+	 * 사용자 요청 조건에 따라 공간을 검색하고 분류
+	 * 1차적으로 지역/인원/태그로 필터링한 후, 예약 시간 조건이 있을 경우 예약 스케줄 서비스를 통해 필터링
+	 *
+	 * @param regionId      지역 ID
+	 * @param people        최소 인원
+	 * @param tagNames      편의시설 태그 목록
+	 * @param startDateTime 예약 시작 시간 (ISO 8601 형식, 시간 필터링 조건)
+	 * @param endDateTime   예약 종료 시간 (ISO 8601 형식, 시간 필터링 조건)
+	 * @return 카테고리별(미팅룸/이벤트홀)로 분류된 검색 결과를 담은 {@code SpaceSearchResponse}
+	 * @throws InvalidInputValueException 시간 정보가 유효하지 않을 경우
+	 */
 	public SpaceSearchResponse searchSpaces(
 		Integer regionId,
 		Integer people,
@@ -120,7 +141,15 @@ public class SpaceUserService {
 			.build();
 	}
 
-	// 주어진 예약 가능 시간 슬롯 목록에서 특정 시간대(from, to)가 사용 가능한지 확인하는 헬퍼 메서드
+	/**
+	 * 주어진 예약 가능 시간 슬롯 목록에서 특정 요청 시간대(시작 시간 ~ 종료 시간)가
+	 * 단일 가용 슬롯 안에 완전히 포함되어 사용 가능한지 확인하는 헬퍼 메서드
+	 *
+	 * @param availableTimes 예약 가능한 시간 슬롯 목록
+	 * @param startTime      요청 시작 시간 ({@code LocalTime})
+	 * @param endTime        요청 종료 시간 ({@code LocalTime})
+	 * @return 요청 시간대가 하나의 가용 슬롯에 완전히 포함되면 {@code true}, 아니면 {@code false}
+	 */
 	private boolean isTimeSlotFullyAvailable(List<AvailableTimeResponse.TimeSlot> availableTimes, LocalTime startTime, LocalTime endTime) {
 		// 1. 요청 시간이 유효한지 확인
 		if (startTime == null || endTime == null || startTime.isAfter(endTime) || startTime.equals(endTime)) {
@@ -142,7 +171,13 @@ public class SpaceUserService {
 		return false;
 	}
 
-	// 특정 공간 상세 정보 조회
+	/**
+	 * 특정 공간의 상세 정보를 조회
+	 *
+	 * @param spaceId 조회할 공간의 ID
+	 * @return 공간 상세 정보를 담은 {@code SpaceUserDtailResponseDto}
+	 * @throws NoSuchElementException 해당 ID의 공간을 찾을 수 없을 경우
+	 */
 	public SpaceUserDtailResponseDto getSpaceById(Integer spaceId) {
 		return spaceUserRepository.findSpaceDetail(spaceId)
 			.orElseThrow(() -> new NoSuchElementException("공간을 찾을 수 없습니다."));
