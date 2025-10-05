@@ -8,7 +8,7 @@ import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.service.RservationListAllService;
-import Team_Mute.back_end.global.constants.ReservationStatus;
+import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -69,12 +69,12 @@ public class DashboardAdminService {
 
 		// 1차 승인 대기 건수 집계
 		long waitingFistApprovalCount = allContent.stream()
-			.filter(dto -> dto.getStatusId().equals(ReservationStatus.WAITING_FIRST_APPROVAL))
+			.filter(dto -> dto.getStatusId().equals(ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId()))
 			.count();
 
 		// 2차 승인 대기 건수 집계
 		long waitingSecondApprovalCount = allContent.stream()
-			.filter(dto -> dto.getStatusId().equals(ReservationStatus.WAITING_SECOND_APPROVAL))
+			.filter(dto -> dto.getStatusId().equals(ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId()))
 			.count();
 
 		// 긴급 예약 건수 집계
@@ -118,7 +118,7 @@ public class DashboardAdminService {
 
 		// 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 이용 완료인 리스트만 추출 후 새로운 DTO로 변환
 		List<ReservationCalendarResponseDto> responseDtos = allContent.stream()
-			.filter(dto -> dto.getStatusId().equals(ReservationStatus.WAITING_FIRST_APPROVAL) || dto.getStatusId().equals(ReservationStatus.WAITING_SECOND_APPROVAL) || dto.getStatusId().equals(ReservationStatus.FINAL_APPROVAL) || dto.getStatusId().equals(ReservationStatus.USER_COMPLETED))
+			.filter(dto -> dto.getStatusId().equals(ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId()) || dto.getStatusId().equals(ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId()) || dto.getStatusId().equals(ReservationStatusEnum.FINAL_APPROVAL.getId()) || dto.getStatusId().equals(ReservationStatusEnum.USER_COMPLETED.getId()))
 			.map(ReservationCalendarResponseDto::from)
 			.collect(Collectors.toList());
 

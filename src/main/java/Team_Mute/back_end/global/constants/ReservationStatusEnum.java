@@ -4,7 +4,7 @@ package Team_Mute.back_end.global.constants;
  * 예약 상태를 정의하는 Enum 클래스
  * 각 상태는 불변의 ID 값을 가지며, 해당 값은 DB의 예약 상태 코드와 매핑됩니다.
  */
-public enum ReservationStatus {
+public enum ReservationStatusEnum {
 
 	/**
 	 * 1차 승인 대기 상태 (ID: 1)
@@ -40,23 +40,32 @@ public enum ReservationStatus {
 	private final String description;
 
 	/**
-	 * ReservationStatus의 생성자입니다.
+	 * ReservationStatus의 생성자
 	 *
 	 * @param id          예약 상태 ID
 	 * @param description 예약 상태에 대한 설명
 	 */
-	ReservationStatus(Long id, String description) {
+	ReservationStatusEnum(Long id, String description) {
 		this.id = id;
 		this.description = description;
 	}
 
 	/**
-	 * 예약 상태 ID를 반환합니다.
-	 * 이 ID는 필터링 로직에서 예약 상태를 비교하는 데 사용됩니다.
+	 * 예약 상태 ID를 반환
+	 * 이 ID는 필터링 로직에서 예약 상태를 비교하는 데 사용
 	 *
 	 * @return 예약 상태 ID (Long)
 	 */
 	public Long getId() {
 		return id;
+	}
+
+	/**
+	 * 예약 상태 Description을 반환
+	 *
+	 * @return 예약 상태 ID (Long)
+	 */
+	public String getDescription() {
+		return description;
 	}
 }

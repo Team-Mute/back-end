@@ -1,29 +1,9 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
-import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.*;
-
-import java.text.Normalizer;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.mail.MailException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
-import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
-import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.member.service.EmailService;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
@@ -37,15 +17,33 @@ import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationFilte
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.UserSummaryDto;
 import Team_Mute.back_end.domain.reservation_admin.entity.ReservationLog;
-import Team_Mute.back_end.domain.reservation_admin.repository.AdminPrevisitReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationStatusRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationDetailRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.ReservationLogRepository;
-import Team_Mute.back_end.domain.reservation_admin.util.EmergencyEvaluator;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
+import Team_Mute.back_end.global.constants.AdminRoleEnum;
+import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 import lombok.extern.slf4j.Slf4j;
+
+import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isApprovableFor;
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isRejectableFor;
 
 @Slf4j
 @Service
@@ -54,49 +52,32 @@ public class ReservationAdminService {
 	private final ReservationApprovalTxService approvalTxService;
 	private final RservationListAllService rservationListAllService;
 	private final AdminReservationRepository adminReservationRepository;
-	private final AdminPrevisitReservationRepository adminPrevisitRepository;
 	private final AdminReservationStatusRepository adminStatusRepository;
 	private final SpaceRepository spaceRepository;
-	private final UserRepository userRepository;
 	private final AdminRepository adminRepository;
-	private final UserCompanyRepository userCompanyRepository;
 	private final ReservationLogRepository reservationLogRepository;
 	private final ReservationDetailRepository reservationDetailRepository;
-	private final EmergencyEvaluator emergencyEvaluator;
 	private final EmailService emailService;
-
-	private static final Long ROLE_SECOND_APPROVER = 1L; // 2차 승인자(1,2차 가능)
-	private static final Long ROLE_FIRST_APPROVER = 2L; // 1차 승인자(1차만 가능)
-	private static final Long APPROVED_FINAL_ID = 3L; // 최종 승인
-	public static final Long REJECTED_STATUS_ID = 4L; // 반려 상태 // 반려
 
 	public ReservationAdminService(
 		ReservationApprovalTxService approvalTxService,
 		RservationListAllService rservationListAllService,
 		AdminReservationRepository adminReservationRepository,
-		AdminPrevisitReservationRepository adminPrevisitRepository,
 		AdminReservationStatusRepository adminStatusRepository,
 		SpaceRepository spaceRepository,
-		UserRepository userRepository,
 		AdminRepository adminRepository,
-		UserCompanyRepository userCompanyRepository,
 		ReservationLogRepository reservationLogRepository,
 		ReservationDetailRepository reservationDetailRepository,
-		EmergencyEvaluator emergencyEvaluator,
 		EmailService emailService
 	) {
 		this.approvalTxService = approvalTxService;
 		this.rservationListAllService = rservationListAllService;
 		this.adminReservationRepository = adminReservationRepository;
-		this.adminPrevisitRepository = adminPrevisitRepository;
 		this.adminStatusRepository = adminStatusRepository;
 		this.spaceRepository = spaceRepository;
-		this.userRepository = userRepository;
 		this.adminRepository = adminRepository;
-		this.userCompanyRepository = userCompanyRepository;
 		this.reservationLogRepository = reservationLogRepository;
 		this.reservationDetailRepository = reservationDetailRepository;
-		this.emergencyEvaluator = emergencyEvaluator;
 		this.emailService = emailService;
 	}
 
@@ -121,7 +102,7 @@ public class ReservationAdminService {
 		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
 
 		// ----- 1차 승인 -----
-		if (ROLE_FIRST_APPROVER.equals(roleId)) {
+		if (AdminRoleEnum.ROLE_FIRST_APPROVER.getId().equals(roleId)) {
 			for (Long id : ids) {
 				try {
 					ApproveResponseDto r = approvalTxService.approveFirstTx(adminId, id); // ← Tx 전용 서비스 호출
@@ -134,7 +115,7 @@ public class ReservationAdminService {
 			}
 		}
 		// ----- 2차 승인 -----
-		else if (ROLE_SECOND_APPROVER.equals(roleId)) {
+		else if (AdminRoleEnum.ROLE_SECOND_APPROVER.getId().equals(roleId)) {
 			for (Long id : ids) {
 				try {
 					ApproveResponseDto r = approvalTxService.approveSecondTx(adminId, id); // ← Tx 전용 서비스 호출
@@ -146,7 +127,7 @@ public class ReservationAdminService {
 
 						emailService.sendMailForReservationAdmin(
 							reservation,
-							APPROVED_FINAL_ID,
+							ReservationStatusEnum.FINAL_APPROVAL.getId(),
 							null
 						);
 
@@ -183,15 +164,15 @@ public class ReservationAdminService {
 		// 현재 승인 상태
 		Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
 
-		if (roleId.equals(1L) || roleId.equals(2L)) {
+		if (roleId.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId()) || roleId.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {
 			// 1차 승인자일 경우 담당 지역만 승인 가능
-			if (roleId.equals(2L)) {
+			if (roleId.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {
 				Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
 				if (!reservationRegionId.equals(adminRegionId)) {
 					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 						"해당 지역의 반려 권한이 없습니다 담당 지역인지 확인하세요");
 				}
-				if (currentStatusId.equals(2L)) {
+				if (currentStatusId.equals(ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId())) {
 					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 						"이미 1차 승인이 완료된 예약입니다.");
 				}
@@ -199,13 +180,13 @@ public class ReservationAdminService {
 
 			// 데이터베이스의 상태 ID를 기반으로 이미 최종 상태인 경우를 확인
 			// 3: 최종 승인 완료, 4: 반려됨, 5: 사용 완료, 6: 취소됨
-			if (currentStatusId.equals(3L)) {
+			if (currentStatusId.equals(ReservationStatusEnum.FINAL_APPROVAL.getId())) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 최종 승인 완료된 예약입니다.");
-			} else if (currentStatusId.equals(4L)) {
+			} else if (currentStatusId.equals(ReservationStatusEnum.REJECTED_STATUS.getId())) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 반려된 예약입니다.");
-			} else if (currentStatusId.equals(5L)) {
+			} else if (currentStatusId.equals(ReservationStatusEnum.USER_COMPLETED.getId())) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 사용 완료된 예약입니다.");
-			} else if (currentStatusId.equals(6L)) {
+			} else if (currentStatusId.equals(ReservationStatusEnum.CANCELED_STATUS.getId())) {
 				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "사용자에 의해 취소된 예약입니다.");
 			}
 			String rejectionReason = requestDto.getRejectionReason();
@@ -215,7 +196,7 @@ public class ReservationAdminService {
 			}
 
 			// 반려 상태 엔티티 조회
-			ReservationStatus rejectedStatus = adminStatusRepository.findById(REJECTED_STATUS_ID)
+			ReservationStatus rejectedStatus = adminStatusRepository.findById(ReservationStatusEnum.REJECTED_STATUS.getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rejected status not found"));
 
 			// 예약 및 사전답사 상태 변경
@@ -236,7 +217,7 @@ public class ReservationAdminService {
 			try {
 				emailService.sendMailForReservationAdmin(
 					reservation,
-					REJECTED_STATUS_ID,
+					ReservationStatusEnum.REJECTED_STATUS.getId(),
 					rejectionReason
 				);
 				smsMsg = " + 반려 메세지 전송 완료";
@@ -396,7 +377,7 @@ public class ReservationAdminService {
 			.toList();
 
 		// 3. 수동으로 페이징 처리
-		int start = (int)pageable.getOffset();
+		int start = (int) pageable.getOffset();
 		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
 		List<ReservationListResponseDto> pagedContent;
 		if (start > filteredList.size()) {
