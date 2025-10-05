@@ -52,6 +52,7 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  s.space_name         AS spaceName,
 		  s.space_description  AS spaceDescription,
 		  s.space_capacity     AS spaceCapacity,
+		  s.category_id        AS categoryId,
 		  c.category_name      AS categoryName,
 		  COALESCE(t.tag_names, ARRAY[]::text[]) AS tagNames,   /* CHANGE: NULL → 빈 배열 */
 		  COALESCE(
@@ -71,14 +72,12 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		WHERE
 		  s.space_is_available = true
 		  AND (:regionId   IS NULL OR s.region_id   = :regionId)      /* CHANGE: 옵셔널 */
-		  AND (:categoryId IS NULL OR s.category_id = :categoryId)/* CHANGE: 옵셔널 */
 		  AND (:people   IS NULL OR s.space_capacity >= :people)  /* CHANGE: 옵셔널(이상) */
 		ORDER BY s.reg_date DESC                                   /* 필요시 다른 기본 정렬 가능 */
 		""",
 		nativeQuery = true)
 	List<SpaceUserResponseDto> searchSpacesForUser(
 		@Param("regionId") Integer regionId,    // CHANGE: null 허용
-		@Param("categoryId") Integer categoryId,  // CHANGE: null 허용
 		@Param("people") Integer people,      // CHANGE: null 허용(이상)
 		@Param("tagNames") String[] tagNames,   // CHANGE: 배열 파라미터 (이름 기반)
 		@Param("tagCount") Integer tagCount     // CHANGE: 배열 길이 전달

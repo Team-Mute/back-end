@@ -1,6 +1,6 @@
 package Team_Mute.back_end.domain.space_user.controller;
 
-import Team_Mute.back_end.domain.space_user.dto.SpaceUserResponseDto;
+import Team_Mute.back_end.domain.space_user.dto.SpaceSearchResponse;
 import Team_Mute.back_end.domain.space_user.service.SpaceUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -28,17 +27,16 @@ public class SpaceUserController {
 
 	// 공간 검색
 	@GetMapping
-	@Operation(summary = "공간 검색", description = "지역/카테고리/인원/편의시설(tagNames AND)로 필터링. 파라미터 없으면 전체")
-	public ResponseEntity<List<SpaceUserResponseDto>> searchSpaces(
+	@Operation(summary = "공간 검색", description = "지역(regionId)/인원(people)/편의시설(tagNames[])로 필터링. 파라미터 없으면 전체")
+	public ResponseEntity<SpaceSearchResponse> searchSpaces(
 		@RequestParam(required = false) Integer regionId,
-		@RequestParam(required = false) Integer categoryId,
 		@RequestParam(required = false) Integer people,
 		@RequestParam(required = false) String[] tagNames,
 		@RequestParam(name = "startDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
 		@RequestParam(name = "endDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime
 	) {
 		return ResponseEntity.ok(
-			spaceUserService.searchSpaces(regionId, categoryId, people, tagNames, startDateTime, endDateTime)
+			spaceUserService.searchSpaces(regionId, people, tagNames, startDateTime, endDateTime)
 		);
 	}
 

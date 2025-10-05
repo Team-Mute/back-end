@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
 
 @JsonPropertyOrder({
 	"spaceId", "spaceName", "spaceDescription",
-	"spaceCapacity", "categoryName", "tagNames", "location", "spaceImageUrl"
+	"spaceCapacity", "categoryId", "categoryName", "tagNames", "location", "spaceImageUrl"
 })
 public interface SpaceUserResponseDto {
 
@@ -16,6 +16,8 @@ public interface SpaceUserResponseDto {
 	String getSpaceDescription();
 
 	Integer getSpaceCapacity();
+
+	Integer getCategoryId();
 
 	String getCategoryName();
 
