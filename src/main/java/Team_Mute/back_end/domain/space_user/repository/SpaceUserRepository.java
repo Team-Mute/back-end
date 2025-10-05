@@ -10,9 +10,23 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * 사용자 공간 검색 및 상세 조회를 위한 데이터 접근 레포지토리
+ * JpaRepository를 상속받으며, 복잡한 검색 및 상세 조회는 Native SQL을 사용
+ */
 public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 
-	// 공간 검색
+	/**
+	 * 공간 검색
+	 * - 사용자 필터링 조건(지역, 인원, 태그)에 맞는 공간 목록을 조회
+	 * - 태그는 AND 조건으로 필터링되며, 미팅룸(category_id = 1)과 행사장(category_id = 2)을 포함
+	 *
+	 * @param regionId 지역 ID (선택 사항, NULL 허용)
+	 * @param people   최소 수용 인원 (선택 사항, NULL 허용)
+	 * @param tagNames 선택된 태그 이름 배열 (선택 사항, 빈 배열 허용)
+	 * @param tagCount {@code tagNames} 배열의 길이 (태그 AND 필터링 로직에 사용됨)
+	 * @return 필터링 조건에 맞는 공간 목록 {@code SpaceUserResponseDto}
+	 */
 	@Query(value = """
 		/* CHANGE: 태그 목록 미리 집계 (응답에 tagNames 배열 포함) */
 		WITH tag_agg AS (
@@ -52,6 +66,7 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  s.space_name         AS spaceName,
 		  s.space_description  AS spaceDescription,
 		  s.space_capacity     AS spaceCapacity,
+		  s.category_id        AS categoryId,
 		  c.category_name      AS categoryName,
 		  COALESCE(t.tag_names, ARRAY[]::text[]) AS tagNames,   /* CHANGE: NULL → 빈 배열 */
 		  COALESCE(
@@ -71,20 +86,25 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		WHERE
 		  s.space_is_available = true
 		  AND (:regionId   IS NULL OR s.region_id   = :regionId)      /* CHANGE: 옵셔널 */
-		  AND (:categoryId IS NULL OR s.category_id = :categoryId)/* CHANGE: 옵셔널 */
 		  AND (:people   IS NULL OR s.space_capacity >= :people)  /* CHANGE: 옵셔널(이상) */
 		ORDER BY s.reg_date DESC                                   /* 필요시 다른 기본 정렬 가능 */
 		""",
 		nativeQuery = true)
 	List<SpaceUserResponseDto> searchSpacesForUser(
 		@Param("regionId") Integer regionId,    // CHANGE: null 허용
-		@Param("categoryId") Integer categoryId,  // CHANGE: null 허용
 		@Param("people") Integer people,      // CHANGE: null 허용(이상)
 		@Param("tagNames") String[] tagNames,   // CHANGE: 배열 파라미터 (이름 기반)
 		@Param("tagCount") Integer tagCount     // CHANGE: 배열 길이 전달
 	);
 
-	// 특정 공간 상세 조회
+	/**
+	 * 특정 공간 상세 조회
+	 * - 특정 공간 ID에 해당하는 상세 정보를 조회
+	 * - 담당자/위치/상세 이미지/태그(편의시설)/운영 시간/휴무일 정보 등을 JSON/배열 형태로 포함하여 반환
+	 *
+	 * @param spaceId 조회할 공간의 ID
+	 * @return 공간 상세 정보를 담은 {@code Optional<SpaceUserDtailResponseDto>}
+	 */
 	@Query(value = """
 		SELECT
 		  s.space_id           AS spaceId,

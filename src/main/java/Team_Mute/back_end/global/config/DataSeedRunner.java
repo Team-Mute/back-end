@@ -29,7 +29,6 @@ public class DataSeedRunner implements CommandLineRunner {
 		// 1) 카테고리
 		ensureCategory("미팅룸");
 		ensureCategory("행사장");
-		ensureCategory("다목적");
 
 		// 2) 지역
 		ensureRegion("서울");
