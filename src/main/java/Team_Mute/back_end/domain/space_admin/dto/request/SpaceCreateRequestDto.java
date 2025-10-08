@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
@@ -30,21 +29,21 @@ public class SpaceCreateRequestDto {
 	/**
 	 * 공간명 (필수)
 	 */
-	@NotBlank
+	@NotNull(message = "공간명을 입력해 주세요.")
 	@Schema(example = "공간명")
 	private String spaceName;
 
 	/**
 	 * 공간 설명 (필수, TEXT 가능)
 	 */
-	@NotBlank
+	@NotNull(message = "공간 설명을 입력해 주세요.")
 	@Schema(example = "쾌적한 공간입니다.")
 	private String spaceDescription;
 
 	/**
 	 * 위치 ID (FK: tb_locations.location_id)
 	 */
-	@NotNull
+	@NotNull(message = "공간 주소를 선택해 주세요.")
 	@Min(1)
 	@Schema(example = "1")
 	private Integer locationId;
@@ -52,7 +51,7 @@ public class SpaceCreateRequestDto {
 	/**
 	 * 수용 인원 (필수, 최소 1명)
 	 */
-	@NotNull
+	@NotNull(message = "수용 인원을 입력해 주세요.")
 	@Min(1)
 	@Schema(example = "50")
 	private Integer spaceCapacity;
@@ -60,7 +59,7 @@ public class SpaceCreateRequestDto {
 	/**
 	 * 지역 ID (숫자 코드, 예: 1=서울 …)
 	 */
-	@NotNull
+	@NotNull(message = "공간 지역을 선택해 주세요.")
 	@Min(1)
 	@Schema(example = "1")
 	private Integer regionId;
@@ -70,7 +69,7 @@ public class SpaceCreateRequestDto {
 	 * - 예: 1=미팅룸, 2=행사장, ...
 	 * - FK: tb_space_categories.category_id
 	 */
-	@NotNull
+	@NotNull(message = "카테고리를 선택해 주세요.")
 	@Min(1)
 	@Schema(example = "1")
 	private Integer categoryId;
@@ -78,25 +77,27 @@ public class SpaceCreateRequestDto {
 	/**
 	 * 활성화 여부 (true=예약 가능)
 	 */
-	@NotNull
+	@NotNull(message = "공간 활성화 여부를 선택해 주세요.")
 	@Schema(example = "true")
 	private Boolean spaceIsAvailable;
 
 	/**
 	 * 태그명 목록 (예: TV, 화이트보드, WIFI)
 	 */
+	@NotNull(message = "태그 목록은 필수입니다. (빈 배열 [] 은 허용)")
 	@Schema(example = "[\"TV\",\"화이트보드\",\"WIFI\"]")
 	private List<String> tagNames;
 
 	/**
 	 * 담당자 아이디
 	 */
-	@NotNull
+	@NotNull(message = "담당자명을 입력해 주세요.")
 	private Long adminId;
 
 	/**
 	 * 예약 방식 안내(선택, 길이 여유)
 	 */
+	@NotNull(message = "예약 방식을 입력해 주세요.")
 	@Size(max = 5000) // 길이 여유
 	@Schema(example = "웹 신청 후 관리자 승인")
 	private String reservationWay;
@@ -104,6 +105,7 @@ public class SpaceCreateRequestDto {
 	/**
 	 * 이용 수칙 안내(선택, 길이 여유)
 	 */
+	@NotNull(message = "이용 수칙을 입력해 주세요.")
 	@Size(max = 5000) // 길이 여유
 	@Schema(example = "실내 흡연 금지, 음식물 반입 금지")
 	private String spaceRules;
@@ -114,7 +116,7 @@ public class SpaceCreateRequestDto {
 	 * - isOpen=true면 from/to 필수(HH:mm)
 	 * - 총 7개, 요일 중복 없음 (isValidOperations로 검증)
 	 */
-	@NotNull
+	@NotNull(message = "공간 운영 시간을 입력해 주세요")
 	private List<OperationItem> operations;
 
 	/**
@@ -122,7 +124,6 @@ public class SpaceCreateRequestDto {
 	 * - from/to: ISO-8601 DateTime
 	 * - 예: 2025-08-20T00:00:00 ~ 2025-08-20T23:59:59
 	 */
-	@NotNull
 	private List<ClosedItem> closedDays;
 
 	/**

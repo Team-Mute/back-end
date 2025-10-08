@@ -19,7 +19,9 @@ import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -117,6 +120,8 @@ public class SpaceAdminController {
 	}
 
 	private final ObjectMapper objectMapper; // ObjectMapper 주입
+	@Autowired
+	private Validator validator;
 
 	/**
 	 * 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
@@ -148,6 +153,15 @@ public class SpaceAdminController {
 
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
+
+			// DTO에 대한 수동 유효성 검증 실행
+			Set<ConstraintViolation<SpaceCreateRequestDto>> violations = validator.validate(request);
+
+			if (!violations.isEmpty()) {
+				// 유효성 검증 실패 시, 400 Bad Request와 에러 메시지 반환
+				String errorMessage = violations.iterator().next().getMessage();
+				return ResponseEntity.badRequest().body("입력 오류: " + errorMessage);
+			}
 
 			// 업로드 가능한 파일(= null 아니고 비어있지 않은 파일)만 필터링
 			List<MultipartFile> usableImages = (images == null) ? List.of()
