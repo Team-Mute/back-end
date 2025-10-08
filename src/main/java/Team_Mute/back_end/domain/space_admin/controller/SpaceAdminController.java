@@ -96,13 +96,26 @@ public class SpaceAdminController {
 	}
 
 	/**
-	 * 지역별 공간 조회
+	 * 지역별 공간 조회 (페이징 적용)
 	 **/
 	@GetMapping("/list/{regionId}")
-	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
-	@Operation(summary = "지역별 공간 리스트 조회", description = "토큰을 확인하여 지역별 공간 리스트를 조회합니다.")
-	public List<SpaceListResponseDto> getAllSpacesByRegion(@PathVariable Integer regionId) {
-		return spaceAdminService.getAllSpacesByRegion(regionId);
+	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
+	@Operation(summary = "지역별 공간 리스트 조회 (페이징)", description = "토큰을 확인하여 지역별 공간 리스트를 페이징하여 조회합니다.")
+	public ResponseEntity<PagedResponseDto<SpaceListResponseDto>> getAllSpacesByRegion(
+		@PathVariable Integer regionId,
+		@RequestParam(defaultValue = "1") int page,
+		@RequestParam(defaultValue = "6") int size // 페이징 정보 추가
+	) {
+		// 1부터 시작하는 페이지 요청을 Spring Data JPA의 0부터 시작하는 페이지로 변환
+		int adjustedPage = Math.max(0, page - 1);
+
+		// Pageable 객체 생성
+		Pageable pageable = PageRequest.of(adjustedPage, size);
+
+		Page<SpaceListResponseDto> spacePage = spaceAdminService.getAllSpacesByRegion(pageable, regionId);
+		PagedResponseDto<SpaceListResponseDto> response = new PagedResponseDto<>(spacePage);
+
+		return ResponseEntity.ok(response);
 	}
 
 	/**

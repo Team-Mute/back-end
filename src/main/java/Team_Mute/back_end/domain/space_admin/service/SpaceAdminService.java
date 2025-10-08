@@ -137,10 +137,10 @@ public class SpaceAdminService {
 	}
 
 	/**
-	 * 지역별 공간 전체 조회
+	 * 지역별 공간 전체 조회 (페이징 적용)
 	 **/
-	public List<SpaceListResponseDto> getAllSpacesByRegion(Integer regionId) {
-		return spaceRepository.findAllWithRegion(regionId);
+	public Page<SpaceListResponseDto> getAllSpacesByRegion(Pageable pageable, Integer regionId) {
+		return spaceRepository.findAllWithRegion(pageable, regionId);
 	}
 
 	/**
