@@ -9,25 +9,25 @@ public enum AdminRoleEnum {
 	/**
 	 * 마스터 관리자 (Master) - 계정 생성 관리자
 	 */
-	ROLE_MASTER(0L, "마스터 관리자"),
+	ROLE_MASTER(0, "마스터 관리자"),
 
 	/**
 	 * 2차 승인자 (Approver)
 	 */
-	ROLE_SECOND_APPROVER(1L, "2차 승인자"),
+	ROLE_SECOND_APPROVER(1, "2차 승인자"),
 
 	/**
 	 * 1차 승인자 (Manager)
 	 */
-	ROLE_FIRST_APPROVER(2L, "1차 승인자"),
+	ROLE_FIRST_APPROVER(2, "1차 승인자"),
 
 
 	/**
 	 * 사용자 (customer)
 	 */
-	ROLE_USER(3L, "사용자");
+	ROLE_USER(3, "사용자");
 
-	private final Long id;
+	private final Integer id;
 	private final String description;
 
 	/**
@@ -36,7 +36,7 @@ public enum AdminRoleEnum {
 	 * @param id          관리자 권한 ID
 	 * @param description 관리자 권한에 대한 설명
 	 */
-	AdminRoleEnum(Long id, String description) {
+	AdminRoleEnum(Integer id, String description) {
 		this.id = id;
 		this.description = description;
 	}
@@ -46,7 +46,16 @@ public enum AdminRoleEnum {
 	 *
 	 * @return 관리자 권한 ID (Long)
 	 */
-	public Long getId() {
+	public Integer getId() {
 		return id;
+	}
+
+	/**
+	 * 관리자 권한명를 반환합니다.
+	 *
+	 * @return 관리자 권한명
+	 */
+	public String getDescription() {
+		return description;
 	}
 }

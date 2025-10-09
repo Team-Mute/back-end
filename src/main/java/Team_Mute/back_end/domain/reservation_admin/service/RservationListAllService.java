@@ -15,6 +15,7 @@ import Team_Mute.back_end.domain.reservation_admin.util.EmergencyEvaluator;
 import Team_Mute.back_end.domain.reservation_admin.util.ShinhanGroupUtils;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
+import Team_Mute.back_end.global.constants.AdminRoleEnum;
 
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +27,10 @@ import org.springframework.stereotype.Service;
 import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isApprovableFor;
 import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isRejectableFor;
 
+/**
+ * [예약 리스트 조회 및 필터링] 서비스
+ * - DB에서 조회된 전체 예약 리스트를 관리자 역할/지역에 따라 필터링하고, 예약 상태 및 정책에 따른 정렬 우선순위를 계산하여 DTO로 변환하는 역할을 담당
+ */
 @Service
 public class RservationListAllService {
 	private final AdminPrevisitReservationRepository adminPrevisitRepository;
@@ -34,9 +39,6 @@ public class RservationListAllService {
 	private final UserRepository userRepository;
 	private final UserCompanyRepository userCompanyRepository;
 	private final EmergencyEvaluator emergencyEvaluator;
-
-	private static final Integer ROLE_SECOND_APPROVER = 1; // 2차 승인자(1,2차 가능)
-	private static final Integer ROLE_FIRST_APPROVER = 2; // 1차 승인자(1차만 가능)
 
 	public RservationListAllService(
 		AdminPrevisitReservationRepository adminPrevisitRepository,
@@ -54,9 +56,16 @@ public class RservationListAllService {
 		this.emergencyEvaluator = emergencyEvaluator;
 	}
 
+	/**
+	 * 전체 예약 리스트를 조회하고, 관리자 권한 및 담당 지역에 따라 필터링 및 정렬하여 DTO로 변환
+	 *
+	 * @param reservations DB에서 조회된 예약 엔티티 리스트
+	 * @param admin        현재 로그인된 관리자 엔티티
+	 * @return 필터링 및 정렬이 완료된 예약 리스트 DTO
+	 */
 	public List<ReservationListResponseDto> getReservationListAll(List<Reservation> reservations, Admin admin) {
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
-		// 리스트 정렬: 관리자의 역할에 따라 정렬 기준을 동적으로 설정
+		// 예약 리스트 정렬: 관리자의 역할에 따라 정렬 기준을 동적으로 설정
 		reservations = reservations.stream()
 			.sorted(
 				// 1차 정렬: getStatusOrder 메서드를 통해 상태 우선순위 결정
@@ -71,7 +80,7 @@ public class RservationListAllService {
 			)
 			.collect(Collectors.toList());
 
-		// 관리자 담당 지역 ID 가져오기
+		// 관리자 담당 지역 ID 가져오기 (1차 승인자 필터링에 사용)
 		Integer adminRegionId;
 		if (admin.getAdminRegion() != null) {
 			adminRegionId = admin.getAdminRegion().getRegionId();
@@ -80,7 +89,7 @@ public class RservationListAllService {
 		}
 
 		// 1차 승인자일 경우 리스트를 관리 지역만 필터링
-		if (adminRole.equals(ROLE_FIRST_APPROVER) && adminRegionId != null) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId()) && adminRegionId != null) {
 			reservations = reservations.stream()
 				.filter(r -> {
 					Integer spaceRegionId = r.getSpace().getRegionId(); // 예약된 공간의 지역 ID
@@ -102,7 +111,7 @@ public class RservationListAllService {
 
 		List<PrevisitReservation> previsitList = adminPrevisitRepository.findByReservation_ReservationIdIn(reservationIds);
 
-		// 상태ID → 상태명 맵
+		// 상태ID(Long) → 상태명(String) 맵 생성
 		Map<Long, String> statusNameById = adminStatusRepository.findAllById(statusIds).stream()
 			.collect(Collectors.toMap(
 				ReservationStatus::getReservationStatusId,
@@ -113,11 +122,11 @@ public class RservationListAllService {
 		Set<Integer> spaceIds = reservations.stream().map(r -> r.getSpace().getSpaceId()).collect(Collectors.toSet());
 		Set<Long> userIds = reservations.stream().map(r -> r.getUser().getUserId()).collect(Collectors.toSet());
 
-		// spaceId -> spaceName 맵
+		// spaceId -> spaceName 맵 생성
 		Map<Integer, String> spaceNameById = spaceRepository.findAllById(spaceIds).stream()
 			.collect(Collectors.toMap(Space::getSpaceId, Space::getSpaceName));
 
-		// userId -> userName 맵
+		// userId(Long) -> userName(String) 맵 생성
 		Map<Long, String> userNameById = userRepository.findAllById(userIds).stream()
 			.collect(Collectors.toMap(User::getUserId, User::getUserName));
 
@@ -134,19 +143,19 @@ public class RservationListAllService {
 			.filter(java.util.Objects::nonNull)
 			.collect(java.util.stream.Collectors.toSet());
 
-		// companyId -> companyName 맵 생성 (요게 companyNameById)
+		// companyId(Integer) -> companyName(String) 맵 생성 (companyNameById)
 		Map<Integer, String> companyNameById = userCompanyRepository.findAllById(companyIds).stream()
 			.collect(Collectors.toMap(UserCompany::getCompanyId, UserCompany::getCompanyName));
 
-		// userId -> isShinhan 맵
+		// userId(Long) -> isShinhan(Boolean) 맵 생성
 		Map<Long, Boolean> isShinhanByUserId =
 			ShinhanGroupUtils.buildIsShinhanByUserId(users, companyNameById);
 
 		// 버튼 클릭 활성화를 위한 권한 체크
-		Long roleId = Long.valueOf(admin.getUserRole().getRoleId());
+		Integer roleId = admin.getUserRole().getRoleId();
 
 
-		// DTO 변환
+		// DTO 변환 및 승인/반려 가능 여부 계산
 		List<ReservationListResponseDto> content = reservations.stream()
 			.map(reservation -> {
 				// 버튼 클릭 활성화를 위한 권한 체크
@@ -158,6 +167,8 @@ public class RservationListAllService {
 				Long uid = reservation.getUser().getUserId();
 				boolean isShinhan = isShinhanByUserId.getOrDefault(uid, false);
 				boolean isEmergency = emergencyEvaluator.isEmergency(reservation, statusName);
+
+				// 승인/반려 가능 여부 판단 (정책 유틸리티 호출)
 				boolean isApprovable = isApprovableFor(reservationRegionId, adminRegionId, roleId, statusName);
 				boolean isRejectable = isRejectableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
@@ -168,15 +179,23 @@ public class RservationListAllService {
 		return content;
 	}
 
+	/**
+	 * 관리자 역할에 따라 예약 상태의 정렬 우선순위를 결정
+	 * (예: 2차 승인자는 WAITING_SECOND_APPROVAL이 최우선)
+	 *
+	 * @param statusId  예약 상태 ID (Long)
+	 * @param adminRole 관리자 역할 ID (Integer)
+	 * @return 정렬 우선순위 값 (낮을수록 우선)
+	 */
 	private int getStatusOrder(Long statusId, Integer adminRole) {
-		if (adminRole.equals(ROLE_SECOND_APPROVER)) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId())) {
 			return switch (statusId.intValue()) {
-				case 2 -> 1;
-				case 1 -> 2;
-				case 3 -> 3;
-				case 4 -> 4;
-				case 5 -> 5;
-				case 6 -> 6;
+				case 2 -> 1;  // 2차 승인 대기
+				case 1 -> 2;  // 1차 승인 대기
+				case 3 -> 3;  // 최종 승인 완료
+				case 4 -> 4;  // 반려
+				case 5 -> 5;  // 이용 완료
+				case 6 -> 6;  // 예약 취소
 				default -> 99;
 			};
 		} else {

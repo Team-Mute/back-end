@@ -28,6 +28,7 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceTagMapRepository;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
+import Team_Mute.back_end.global.constants.AdminRoleEnum;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
@@ -67,10 +68,6 @@ public class SpaceAdminService {
 	private final SpaceLocationRepository spaceLocationRepository;
 	private final UserRepository userRepository;
 	private final AdminRepository adminRepository;
-
-	private static final Integer ROLE_MASTER = 0; // 마스터 관리자
-	private static final Integer ROLE_SECOND_APPROVER = 1; // 2차 승인자
-	private static final Integer ROLE_FIRST_APPROVER = 2; // 1차 승인자
 
 	/**
 	 * 공간 등록 및 수정 시, 이름으로 userId 결정
@@ -126,7 +123,7 @@ public class SpaceAdminService {
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
 		// 1차 승인자일 경우, 담당 지역으로 필터링된 데이터 조회
-		if (adminRole.equals(ROLE_FIRST_APPROVER) && admin.getAdminRegion() != null) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId()) && admin.getAdminRegion() != null) {
 			Integer adminRegionId = admin.getAdminRegion().getRegionId();
 			return spaceRepository.findAllByAdminRegion(pageable, adminRegionId);
 		}
@@ -160,7 +157,7 @@ public class SpaceAdminService {
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
-		if (adminRole.equals(ROLE_MASTER)) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 등록 권한이 없습니다.");
 		}
 
@@ -315,7 +312,7 @@ public class SpaceAdminService {
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
-		if (adminRole.equals(ROLE_MASTER)) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 수정 권한이 없습니다.");
 		}
 
@@ -543,7 +540,7 @@ public class SpaceAdminService {
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
-		if (adminRole.equals(ROLE_MASTER)) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 삭제 권한이 없습니다.");
 		}
 
@@ -580,7 +577,7 @@ public class SpaceAdminService {
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
-		if (adminRole.equals(ROLE_MASTER)) {
+		if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리 권한이 없습니다.");
 		}
 

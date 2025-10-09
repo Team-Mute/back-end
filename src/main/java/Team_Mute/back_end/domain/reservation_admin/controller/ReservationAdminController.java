@@ -27,16 +27,26 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * [관리자 예약 관리] 컨트롤러
+ * - 관리자 권한을 기반으로 예약 리스트 조회, 상세 조회, 1/2차 승인 및 반려 처리를 위한 API 엔드포인트를 제공합니다.
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/reservations-admin")
 public class ReservationAdminController {
 	private final ReservationAdminService reservationAdminService;
 
-	// 다중 승인 에러 처리
+	/**
+	 * 일괄 승인 결과(BulkApproveResponseDto)를 분석하여 HTTP 응답 상태 코드를 결정
+	 * (일부 성공/실패 시 207 Multi-Status 반환 등)
+	 *
+	 * @param resp 일괄 승인 처리 결과 DTO
+	 * @return 적절한 HTTP 상태 코드
+	 */
 	private org.springframework.http.HttpStatus resolveBulkStatus(BulkApproveResponseDto resp) {
 		if (resp.getFailureCount() == 0) {
-			return org.springframework.http.HttpStatus.OK; // 전부 성공
+			return org.springframework.http.HttpStatus.OK; // 전부 성공 (200)
 		}
 
 		if (resp.getSuccessCount() == 0) { // 전부 실패
@@ -49,10 +59,10 @@ public class ReservationAdminController {
 				.anyMatch(r -> !r.isSuccess() && r.getMessage() != null &&
 					(r.getMessage().contains("이미 처리 완료") || r.getMessage().contains("상태")));
 
-			if (hasForbidden) return org.springframework.http.HttpStatus.FORBIDDEN;      // 403 권한 문제
+			if (hasForbidden) return org.springframework.http.HttpStatus.FORBIDDEN;     // 403 권한 문제
 			if (hasNotFound) return org.springframework.http.HttpStatus.NOT_FOUND;      // 404 리소스 없음
-			if (hasStateConflict) return org.springframework.http.HttpStatus.CONFLICT;     // 409 상태/전이 충돌
-			return org.springframework.http.HttpStatus.BAD_REQUEST;                         // 400 그 외 전부 실패
+			if (hasStateConflict) return org.springframework.http.HttpStatus.CONFLICT;  // 409 상태/전이 충돌
+			return org.springframework.http.HttpStatus.BAD_REQUEST;                     // 400 그 외 전부 실패
 		}
 
 		// 일부 성공 일부 실패 → 부분 성공
@@ -63,7 +73,9 @@ public class ReservationAdminController {
 		this.reservationAdminService = reservationService;
 	}
 
-	// 1차 승인 + 2차 승인
+	/**
+	 * 1차 승인 + 2차 승인
+	 **/
 	@PostMapping("/approve")
 	@Operation(summary = "1차 승인 또는 2차 승인(단건 or 일괄)", description = "토큰을 확인하여 1차 승인 및 2차 승인을 진행합니다.")
 	public ResponseEntity<BulkApproveResponseDto> approveSecondBulk(
@@ -76,13 +88,16 @@ public class ReservationAdminController {
 		return ResponseEntity.status(resolveBulkStatus(resp)).body(resp);
 	}
 
-	// 예약 반려
+	/**
+	 * 예약 반려
+	 **/
 	@PostMapping(value = "/reject/{reservationId}", consumes = MediaType.APPLICATION_JSON_VALUE)
 	@Operation(summary = "예약 반려", description = "토큰을 확인하여 반려 진행합니다.")
 	public ResponseEntity<RejectResponseDto> rejectReservation(
 		Authentication authentication,
 		@PathVariable Long reservationId,
 		@org.springframework.web.bind.annotation.RequestBody RejectRequestDto requestDto) {
+
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 
 		RejectResponseDto response = reservationAdminService.rejectReservation(
@@ -94,7 +109,9 @@ public class ReservationAdminController {
 		return ResponseEntity.ok(response);
 	}
 
-	// 예약 상세 조회
+	/**
+	 * 예약 상세 조회
+	 **/
 	@GetMapping("/detail/{reservationId}")
 	@Operation(summary = "예약 상세 조회", description = "토큰을 확인하여 예약 상세를 조회합니다.")
 	public ResponseEntity<ReservationDetailResponseDto> getById(Authentication authentication, @PathVariable Long reservationId) {
@@ -103,8 +120,9 @@ public class ReservationAdminController {
 		return ResponseEntity.ok(reservationAdminService.getByReservationId(adminId, reservationId));
 	}
 
-	// ========== 필터 옵션 조회 =========
-	// 1) 상태 조회
+	/**
+	 * 1) 필터 옵션 조회: 상태 조회
+	 **/
 	@GetMapping("/filter-options/statuses")
 	@Operation(summary = "예약 상태 필터 옵션 조회", description = "예약 상태 필터링을 위한 드롭다운 옵션을 조회합니다.")
 	public ResponseEntity<List<ReservationFilterOptionsResponse.StatusOptionDto>> getStatusOptions() {
@@ -112,7 +130,9 @@ public class ReservationAdminController {
 		return ResponseEntity.ok(statuses);
 	}
 
-	// 2) 긴급 및 신한 플래그 조회
+	/**
+	 * 2) 필터 옵션 조회: 긴급 및 신한 플래그 조회
+	 **/
 	@GetMapping("/filter-options/flags")
 	@Operation(summary = "긴급 및 신한 플래그 조회", description = "긴급/신한 예약 등 플래그 필터링을 위한 드롭다운 옵션을 조회합니다.")
 	public ResponseEntity<List<ReservationFilterOptionsResponse.FlagOptionDto>> getFlagOptions() {
@@ -120,6 +140,19 @@ public class ReservationAdminController {
 		return ResponseEntity.ok(flags);
 	}
 
+	/**
+	 * 복합 조건에 따른 예약 리스트 검색 및 페이징 처리
+	 *
+	 * @param authentication 현재 로그인된 관리자 정보
+	 * @param keyword        키워드 (예약자명, 공간명)
+	 * @param regionId       지역 ID (Integer)
+	 * @param statusId       상태 ID (Long)
+	 * @param isShinhan      신한 예약 여부
+	 * @param isEmergency    긴급 예약 여부
+	 * @param page           현재 페이지 번호 (1부터 시작)
+	 * @param size           페이지 크기 (한 페이지에 보여줄 데이터의 개수)
+	 * @return 페이징된 예약 리스트 응답 DTO
+	 */
 	@GetMapping("/search")
 	@Operation(
 		summary = "예약 검색(복합 조건)",
