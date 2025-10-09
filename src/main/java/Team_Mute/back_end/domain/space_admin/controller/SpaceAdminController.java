@@ -19,7 +19,9 @@ import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -93,13 +96,26 @@ public class SpaceAdminController {
 	}
 
 	/**
-	 * 지역별 공간 조회
+	 * 지역별 공간 조회 (페이징 적용)
 	 **/
 	@GetMapping("/list/{regionId}")
-	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
-	@Operation(summary = "지역별 공간 리스트 조회", description = "토큰을 확인하여 지역별 공간 리스트를 조회합니다.")
-	public List<SpaceListResponseDto> getAllSpacesByRegion(@PathVariable Integer regionId) {
-		return spaceAdminService.getAllSpacesByRegion(regionId);
+	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
+	@Operation(summary = "지역별 공간 리스트 조회 (페이징)", description = "토큰을 확인하여 지역별 공간 리스트를 페이징하여 조회합니다.")
+	public ResponseEntity<PagedResponseDto<SpaceListResponseDto>> getAllSpacesByRegion(
+		@PathVariable Integer regionId,
+		@RequestParam(defaultValue = "1") int page,
+		@RequestParam(defaultValue = "6") int size // 페이징 정보 추가
+	) {
+		// 1부터 시작하는 페이지 요청을 Spring Data JPA의 0부터 시작하는 페이지로 변환
+		int adjustedPage = Math.max(0, page - 1);
+
+		// Pageable 객체 생성
+		Pageable pageable = PageRequest.of(adjustedPage, size);
+
+		Page<SpaceListResponseDto> spacePage = spaceAdminService.getAllSpacesByRegion(pageable, regionId);
+		PagedResponseDto<SpaceListResponseDto> response = new PagedResponseDto<>(spacePage);
+
+		return ResponseEntity.ok(response);
 	}
 
 	/**
@@ -117,6 +133,8 @@ public class SpaceAdminController {
 	}
 
 	private final ObjectMapper objectMapper; // ObjectMapper 주입
+	@Autowired
+	private Validator validator;
 
 	/**
 	 * 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
@@ -148,6 +166,15 @@ public class SpaceAdminController {
 
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
+
+			// DTO에 대한 수동 유효성 검증 실행
+			Set<ConstraintViolation<SpaceCreateRequestDto>> violations = validator.validate(request);
+
+			if (!violations.isEmpty()) {
+				// 유효성 검증 실패 시, 400 Bad Request와 에러 메시지 반환
+				String errorMessage = violations.iterator().next().getMessage();
+				return ResponseEntity.badRequest().body("입력 오류: " + errorMessage);
+			}
 
 			// 업로드 가능한 파일(= null 아니고 비어있지 않은 파일)만 필터링
 			List<MultipartFile> usableImages = (images == null) ? List.of()

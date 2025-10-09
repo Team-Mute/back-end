@@ -90,7 +90,7 @@ public class Space {
 	/**
 	 * 대표 이미지 경로 (NOT NULL, TEXT 타입, S3 URL 등 저장)
 	 */
-	@Column(name = "space_image_url", nullable = false, columnDefinition = "TEXT")
+	@Column(name = "space_image_url", nullable = true, columnDefinition = "TEXT")
 	private String spaceImageUrl;
 
 	/**
@@ -122,7 +122,7 @@ public class Space {
 	 * 수정일 (마지막 수정 시각, NULL 허용)
 	 */
 	@UpdateTimestamp
-	@Column(name = "upd_date")
+	@Column(name = "upd_date", nullable = true)
 	private LocalDateTime updDate;
 
 	/**
