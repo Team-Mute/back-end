@@ -20,20 +20,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -138,9 +133,11 @@ public class SpaceAdminController {
 	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
 	@Operation(summary = "공간 단건 조회", description = "토큰을 확인하여 공간을 조회합니다.")
-	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
+	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId, Authentication authentication) {
 		try {
-			return ResponseEntity.ok(spaceAdminService.getSpaceById(spaceId));
+			Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+			return ResponseEntity.ok(spaceAdminService.getSpaceById(spaceId, adminId));
 		} catch (NoSuchElementException e) {
 			return ResponseEntity.status(404).body(java.util.Map.of("message", "공간을 찾을 수 없습니다."));
 		}
@@ -187,6 +184,7 @@ public class SpaceAdminController {
 
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
+			request.setSpaceName(request.getSpaceName().trim()); // 공간명 앞, 뒤 공백 제거
 
 			// DTO에 대한 수동 유효성 검증 실행
 			Set<ConstraintViolation<SpaceCreateRequestDto>> violations = validator.validate(request);
@@ -226,12 +224,13 @@ public class SpaceAdminController {
 
 			return ResponseEntity.ok(Map.of(
 				"message", "등록 완료",
-				"data", spaceAdminService.getSpaceById(id)
+				"data", spaceAdminService.getSpaceById(id, adminId)
 			));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("등록 실패: " + e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+			// JSON 파싱/매핑 오류 (400 Bad Request) 처리
+			return ResponseEntity.badRequest().body("입력 오류: 공간 데이터(JSON) 형식이 올바르지 않습니다.");
 		}
 	}
 
@@ -269,7 +268,7 @@ public class SpaceAdminController {
 		Authentication authentication,
 		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
 		@PathVariable Integer spaceId,
-		@RequestPart("space") @Valid String spaceJson,
+		@RequestPart("space") String spaceJson,
 		@RequestPart(value = "images", required = false) List<MultipartFile> images,
 		@RequestPart(value = "keepUrlsOrder", required = false) List<String> keepUrlsOrder // 유지할 기존 이미지 URL 목록 + 순서
 	) {
@@ -277,92 +276,40 @@ public class SpaceAdminController {
 			// 관리자 권한 아이디
 			Long adminId = Long.valueOf((String) authentication.getPrincipal());
 
-			// 0) DTO 파싱
+			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
+			request.setSpaceName(request.getSpaceName().trim()); // 공간명 앞, 뒤 공백 제거
 
-			// 1) 파일 필터링
+			// 수동 유효성 검증 로직
+			Set<ConstraintViolation<SpaceCreateRequestDto>> violations = validator.validate(request);
+
+			if (!violations.isEmpty()) {
+				// 유효성 검증 실패 시, 400 Bad Request와 에러 메시지 반환
+				String errorMessage = violations.iterator().next().getMessage();
+				return ResponseEntity.badRequest().body("입력 오류: " + errorMessage);
+			}
+
+			// 이미지 처리: 파일 필터링
 			List<MultipartFile> usableImages = (images == null) ? List.of()
 				: images.stream().filter(f -> f != null && !f.isEmpty()).toList();
 
-			// 2) 신규 업로드
-			List<String> uploadedUrls = usableImages.isEmpty()
-				? List.of()
-				: s3Uploader.uploadAll(usableImages, "spaces/" + spaceId);
-
-			// 3) keepUrlsOrder 필수 사용 (없으면 400)
 			if (keepUrlsOrder == null) {
 				return ResponseEntity.badRequest().body(
 					"keepUrlsOrder는 필수입니다. 최종 순서를 JSON 배열로 보내주세요. (예: [\"기존URL\",\"new:0\",\"new:1\"])");
 			}
 
-			List<String> finalUrls = new ArrayList<>();
-
-			// 3-1) 빈 배열([])이면 전체 삭제 의도로 간주
-			if (keepUrlsOrder.isEmpty()) {
-				if (!uploadedUrls.isEmpty()) {
-					return ResponseEntity.badRequest().body(
-						"keepUrlsOrder가 빈 배열인데 새 이미지가 첨부되었습니다. new:i 토큰으로 순서를 명시하세요.");
-				}
-				// 전부 삭제 → 최종 목록은 빈 리스트
-			} else {
-				// 3-2) "new:i" 토큰 검증
-				Pattern p = Pattern.compile("^new:(\\d+)$");
-				Set<Integer> tokenIdx = new LinkedHashSet<>();
-
-				for (String item : keepUrlsOrder) {
-					if (item == null || item.isBlank()) continue;
-					Matcher m = p.matcher(item);
-					if (m.matches()) tokenIdx.add(Integer.parseInt(m.group(1)));
-				}
-
-				if (uploadedUrls.isEmpty()) {
-					if (!tokenIdx.isEmpty()) {
-						return ResponseEntity.badRequest().body("새 이미지가 없는데 keepUrlsOrder에 new:i 토큰이 포함되어 있습니다.");
-					}
-				} else {
-					// 토큰 인덱스 집합은 정확히 {0..n-1}와 동일해야 함
-					Set<Integer> expected = new LinkedHashSet<>();
-					for (int i = 0; i < uploadedUrls.size(); i++) expected.add(i);
-					if (!tokenIdx.equals(expected)) {
-						return ResponseEntity.badRequest().body(
-							"keepUrlsOrder의 new:i 토큰 수/인덱스가 업로드한 새 이미지 수와 일치하지 않습니다. " +
-								"(expected: new:0..new:" + (uploadedUrls.size() - 1) + ")"
-						);
-					}
-				}
-
-				// 3-3) 최종 리스트 조립 ("new:i" → 업로드 URL 치환, 나머지는 기존 URL로 간주)
-				for (String item : keepUrlsOrder) {
-					if (item == null || item.isBlank()) continue;
-					Matcher m = p.matcher(item);
-					if (m.matches()) {
-						int idx = Integer.parseInt(m.group(1));
-						if (idx < 0 || idx >= uploadedUrls.size()) {
-							return ResponseEntity.badRequest().body("잘못된 new 토큰 인덱스: " + item);
-						}
-						finalUrls.add(uploadedUrls.get(idx));
-					} else {
-						finalUrls.add(item); // 기존 URL
-					}
-				}
-			}
-
-			// 4) 최대 개수 제한
-			if (finalUrls.size() > 5) {
-				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 설정할 수 있습니다.");
-			}
-
 			// 5) 서비스 호출 (finalUrls가 곧 최종 상태/순서)
-			spaceAdminService.updateWithImages(adminId, spaceId, request, finalUrls);
+			spaceAdminService.updateWithImages(adminId, spaceId, request, keepUrlsOrder, usableImages);
 
 			return ResponseEntity.ok(Map.of(
 				"message", "수정 완료",
-				"data", spaceAdminService.getSpaceById(spaceId)
+				"data", spaceAdminService.getSpaceById(spaceId, adminId)
 			));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("수정 실패: " + e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+			// JSON 파싱/매핑 오류 (400 Bad Request) 처리
+			return ResponseEntity.badRequest().body("입력 오류: 공간 데이터(JSON) 형식이 올바르지 않습니다.");
 		}
 	}
 
@@ -406,8 +353,11 @@ public class SpaceAdminController {
 			return ResponseEntity.badRequest().build();
 		}
 
+		String trimmedTagName = tagName.trim();
+
 		try {
-			SpaceTag createdTag = spaceAdminService.createTag(adminId, tagName);
+			SpaceTag createdTag = spaceAdminService.createTag(adminId, trimmedTagName);
+
 			return ResponseEntity.status(HttpStatus.CREATED).body(createdTag);
 		} catch (IllegalArgumentException e) {
 			Map<String, String> errorResponse = new HashMap<>();
