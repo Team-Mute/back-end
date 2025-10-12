@@ -85,10 +85,11 @@ public class ReservationListResponseDto {
 	 * 예약된 공간의 지역 ID (필터링 및 권한 체크용)
 	 */
 	private Integer regionId;
+
 	/**
 	 * 예약 상태 ID (필터링 및 정렬용)
 	 */
-	private Long statusId;
+	private Integer statusId;
 
 	/**
 	 * Reservation 엔티티와 추가 정보를 이용해 DTO를 생성하는 팩토리 메서드.

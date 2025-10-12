@@ -66,6 +66,6 @@ public record ReservationDetailResponseDto(
 	/**
 	 * 현재 예약 상태 ID
 	 */
-	Long statusId
+	Integer statusId
 ) {
 }

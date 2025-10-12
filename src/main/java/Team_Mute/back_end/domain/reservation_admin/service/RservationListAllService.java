@@ -100,7 +100,7 @@ public class RservationListAllService {
 		}
 
 		// 예약/사전답사에서 쓰일 상태ID 수집
-		Set<Long> statusIds = reservations.stream()
+		Set<Integer> statusIds = reservations.stream()
 			.map(r -> r.getReservationStatus().getReservationStatusId())
 			.collect(Collectors.toSet());
 
@@ -111,8 +111,8 @@ public class RservationListAllService {
 
 		List<PrevisitReservation> previsitList = adminPrevisitRepository.findByReservation_ReservationIdIn(reservationIds);
 
-		// 상태ID(Long) → 상태명(String) 맵 생성
-		Map<Long, String> statusNameById = adminStatusRepository.findAllById(statusIds).stream()
+		// 상태ID(Integer) → 상태명(String) 맵 생성
+		Map<Integer, String> statusNameById = adminStatusRepository.findAllById(statusIds).stream()
 			.collect(Collectors.toMap(
 				ReservationStatus::getReservationStatusId,
 				ReservationStatus::getReservationStatusName
@@ -187,9 +187,9 @@ public class RservationListAllService {
 	 * @param adminRole 관리자 역할 ID (Integer)
 	 * @return 정렬 우선순위 값 (낮을수록 우선)
 	 */
-	private int getStatusOrder(Long statusId, Integer adminRole) {
+	private int getStatusOrder(Integer statusId, Integer adminRole) {
 		if (adminRole.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId())) {
-			return switch (statusId.intValue()) {
+			return switch (statusId) {
 				case 2 -> 1;  // 2차 승인 대기
 				case 1 -> 2;  // 1차 승인 대기
 				case 3 -> 3;  // 최종 승인 완료
@@ -199,7 +199,7 @@ public class RservationListAllService {
 				default -> 99;
 			};
 		} else {
-			return statusId.intValue();
+			return statusId;
 		}
 	}
 }

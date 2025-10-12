@@ -50,7 +50,7 @@ public class ReservationLog {
 	/**
 	 * 상태 변경 시 기록된 반려 사유
 	 */
-	@Column(name = "memo", columnDefinition = "TEXT")
+	@Column(name = "memo", columnDefinition = "TEXT", nullable = false)
 	private String memo;
 
 	/**

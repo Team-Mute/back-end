@@ -22,12 +22,14 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class SpaceCommonDataService {
+	// Repository 및 외부 유틸리티 의존성 주입
 	private final SpaceRepository spaceRepository;
 	private final SpaceCategoryRepository categoryRepository;
 	private final AdminRegionRepository regionRepository;
 	private final SpaceTagRepository tagRepository;
 	private final SpaceLocationRepository spaceLocationRepository;
 
+	// Constructor Injection (생성자를 통한 의존성 주입)
 	public SpaceCommonDataService(
 		SpaceRepository spaceRepository,
 		SpaceCategoryRepository categoryRepository,
@@ -44,6 +46,9 @@ public class SpaceCommonDataService {
 
 	/**
 	 * 지역 전체 조회
+	 * - 모든 지역(Region) 목록을 ID 기준 오름차순으로 조회
+	 *
+	 * @return {@code RegionListResponseDto} 리스트
 	 **/
 	public List<RegionListResponseDto> getAllRegions() {
 		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "regionId"))
@@ -54,6 +59,9 @@ public class SpaceCommonDataService {
 
 	/**
 	 * 카테고리 전체 조회
+	 * - 모든 공간 카테고리(Category) 목록을 ID 기준 오름차순으로 조회
+	 *
+	 * @return {@code CategoryListResponseDto} 리스트
 	 **/
 	public List<CategoryListResponseDto> getAllCategories() {
 		return categoryRepository.findAll(Sort.by(Sort.Direction.ASC, "categoryId"))
@@ -63,7 +71,10 @@ public class SpaceCommonDataService {
 	}
 
 	/**
-	 * 태그 전체 조회
+	 * 태그(편의시설) 전체 조회
+	 * - 모든 태그(Tag, 편의시설) 목록을 ID 기준 오름차순으로 조회
+	 *
+	 * @return {@code TagListResponseDto} 리스트
 	 **/
 	public List<TagListResponseDto> getAllTags() {
 		return tagRepository.findAll(Sort.by(Sort.Direction.ASC, "tagId"))
@@ -74,7 +85,11 @@ public class SpaceCommonDataService {
 
 	/**
 	 * 지역 아이디로 주소 조회
-	 **/
+	 * - 특정 지역 ID에 속하며 활성화된 건물 주소(Location) 목록을 오름차순으로 조회
+	 *
+	 * @param regionId 조회할 지역의 ID
+	 * @return {@code LocationListResponseDto} 리스트
+	 */
 	public List<LocationListResponseDto> getLocationByRegionId(Integer regionId) {
 		return spaceLocationRepository.findByAdminRegion_RegionIdAndIsActiveTrueOrderByLocationNameAsc(regionId).stream()
 			.map(element -> {

@@ -10,6 +10,7 @@ import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListR
 import Team_Mute.back_end.domain.reservation_admin.service.ReservationAdminService;
 import Team_Mute.back_end.global.dto.PagedResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
  * - 관리자 권한을 기반으로 예약 리스트 조회, 상세 조회, 1/2차 승인 및 반려 처리를 위한 API 엔드포인트를 제공합니다.
  */
 @Slf4j
+@Tag(name = "예약 관리 API", description = "관리자 예약 관리 관련 API 명세")
 @RestController
 @RequestMapping("/api/reservations-admin")
 public class ReservationAdminController {

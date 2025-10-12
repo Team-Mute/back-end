@@ -55,6 +55,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Slf4j
 @Service
 public class SpaceAdminService {
+	// Repository 및 외부 유틸리티 의존성 주입
 	private final SpaceRepository spaceRepository;
 	private final SpaceCategoryRepository categoryRepository;
 	private final AdminRegionRepository regionRepository;
@@ -69,23 +70,7 @@ public class SpaceAdminService {
 	private final UserRepository userRepository;
 	private final AdminRepository adminRepository;
 
-	/**
-	 * 공간 등록 및 수정 시, 이름으로 userId 결정
-	 **/
-	public Long resolveUserIdByUserName(String adminName) {
-		String name = (adminName == null) ? "" : adminName.trim();
-		if (name.isEmpty()) {
-			throw new IllegalArgumentException("담당자명이 비어 있습니다.");
-		}
-
-		List<Admin> matches = adminRepository.findByAdminName(name);
-		if (matches.isEmpty()) {
-			throw new IllegalArgumentException("존재하지 않는 담당자 이름입니다: " + name);
-		}
-
-		return matches.get(0).getAdminId();
-	}
-
+	// Constructor Injection (생성자를 통한 의존성 주입)
 	public SpaceAdminService(
 		SpaceRepository spaceRepository,
 		SpaceCategoryRepository categoryRepository,
@@ -117,6 +102,13 @@ public class SpaceAdminService {
 
 	/**
 	 * 공간 전체 조회 (페이징 적용)
+	 * - 1차 승인자({@code ROLE_FIRST_APPROVER})일 경우, 자신이 담당하는 지역의 공간만 조회
+	 * - 2차 승인자 또는 다른 권한({@code ROLE_SECOND_APPROVER})일 경우, 모든 공간을 조회
+	 *
+	 * @param pageable Spring Data JPA의 페이징 정보 (페이지 번호, 크기, 정렬 등)
+	 * @param adminId  현재 로그인한 관리자의 ID
+	 * @return 페이징 처리된 {@code SpaceListResponseDto} 목록
+	 * @throws UserNotFoundException 관리자 ID에 해당하는 사용자가 없을 경우
 	 **/
 	public Page<SpaceListResponseDto> getAllSpaces(Pageable pageable, Long adminId) { // This `Pageable` is the Spring one
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
@@ -135,6 +127,10 @@ public class SpaceAdminService {
 
 	/**
 	 * 지역별 공간 전체 조회 (페이징 적용)
+	 *
+	 * @param pageable Spring Data JPA의 페이징 정보
+	 * @param regionId 조회할 지역의 ID
+	 * @return 페이징 처리된 {@code SpaceListResponseDto} 목록
 	 **/
 	public Page<SpaceListResponseDto> getAllSpacesByRegion(Pageable pageable, Integer regionId) {
 		return spaceRepository.findAllWithRegion(pageable, regionId);
@@ -142,6 +138,10 @@ public class SpaceAdminService {
 
 	/**
 	 * 특정 공간 조회
+	 *
+	 * @param spaceId 조회할 공간의 ID
+	 * @return 공간 상세 정보 DTO (담당자 이름, 지역 이름 등을 포함)
+	 * @throws NoSuchElementException 공간 ID에 해당하는 데이터가 없을 경우
 	 **/
 	public SpaceDatailResponseDto getSpaceById(Integer spaceId) {
 		return spaceRepository.findDetailWithNames(spaceId)
@@ -150,6 +150,14 @@ public class SpaceAdminService {
 
 	/**
 	 * 공간 등록
+	 * - 복잡한 다중 DB/S3 작업을 원자적으로 처리하기 위해 {@code @Transactional}을 사용
+	 *
+	 * @param adminId 공간 등록을 요청한 관리자 ID
+	 * @param req     공간 생성 요청 DTO
+	 * @param urls    S3 'temp' 폴더에 임시로 업로드된 이미지 URL 목록
+	 * @return 새로 생성된 공간의 ID
+	 * @throws ResponseStatusException  권한이 없는 경우 (403 FORBIDDEN)
+	 * @throws IllegalArgumentException 공간명 중복, 카테고리/지역/주소/담당자 ID가 유효하지 않은 경우
 	 **/
 	@Transactional
 	public Integer createWithImages(Long adminId, SpaceCreateRequestDto req, java.util.List<String> urls) {
@@ -157,34 +165,38 @@ public class SpaceAdminService {
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
+		// 마스터 권한({@code ROLE_MASTER})은 공간 등록 권한이 없음
 		if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 등록 권한이 없습니다.");
 		}
 
+		// 공간명 중복 체크
 		if (spaceRepository.existsBySpaceName(req.getSpaceName())) {
 			throw new IllegalArgumentException("이미 존재하는 공간명입니다.");
 		}
 
-		// 1. categoryId
+		// 필수 외래키(Foreign Key)들 엔티티 조회 및 유효성 검증
+		// 1) categoryId
 		SpaceCategory category = categoryRepository.findByCategoryId(req.getCategoryId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리 ID입니다: " + req.getCategoryId()));
 
-		// 2. regionId
+		// 2) regionId
 		AdminRegion region = regionRepository.findByRegionId(req.getRegionId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역 ID입니다: " + req.getRegionId()));
 
-		// 3. locationId
+		// 3) locationId
 		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
 
-		// 4. 담당자 ID 및 지역 권한 검증
+		// 담당자 ID 및 지역 권한 검증
 		Long adminIdToAssign = req.getAdminId();
 
-		// Admin, UserRole, AdminRegion 정보를 함께 로드
+		// 담당자로 지정될 Admin, UserRole, AdminRegion 정보를 함께 로드
 		Admin assignedAdmin = adminRepository.findAdminWithRoleAndRegion(adminIdToAssign)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 담당자 ID입니다: " + adminIdToAssign));
 
-		// 1차 승인자 (roleId=2) 권한 검증 / 2차 승인자 (roleId=1L)는 지역 검증을 건너뜀 (전역 권한)
+		// 1차 승인자 (roleId=2): 권한 검증(해당 담당자의 담당 지역과 일치하는지 검증)
+		// 2차 승인자 (roleId=1): 지역 검증을 건너뜀 (전역 권한)
 		if (assignedAdmin.getUserRole().getRoleId().equals(2)) {
 			Integer requiredRegionId = req.getRegionId();
 			Integer adminRegionId = assignedAdmin.getAdminRegion() != null
@@ -198,7 +210,7 @@ public class SpaceAdminService {
 			}
 		}
 
-		// 5. 공간 저장
+		// === 공간 정보 DB 저장 ===
 		Space space = Space.builder()
 			.categoryId(category.getCategoryId())
 			.regionId(region.getRegionId())
@@ -216,7 +228,7 @@ public class SpaceAdminService {
 		Space saved = spaceRepository.save(space);
 		Integer spaceId = saved.getSpaceId();
 
-		// 6. 이미지 저장
+		// === 이미지 저장 ===
 		// 임시 폴더의 이미지들을 최종 폴더('spaces/{id}')로 이동
 		String targetDir = "spaces/" + spaceId;
 		List<String> finalUrls = urls.stream()
@@ -249,8 +261,9 @@ public class SpaceAdminService {
 			spaceImageRepository.saveAll(list);
 		}
 
-		// 7. 태그 처리
+		// === 태그 처리 ===
 		for (String tagName : req.getTagNames()) {
+			// 태그명으로 조회. 없으면 새로 생성 및 저장
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
 					SpaceTag newTag = SpaceTag.builder()
@@ -260,6 +273,7 @@ public class SpaceAdminService {
 					return tagRepository.save(newTag);
 				});
 
+			// Space와 Tag의 매핑 엔티티 생성 및 저장
 			SpaceTagMap map = SpaceTagMap.builder()
 				.space(saved)
 				.tag(tag)
@@ -269,7 +283,7 @@ public class SpaceAdminService {
 			tagMapRepository.save(map);
 		}
 
-		// 8. 운영시간 저장
+		// === 운영시간 저장 ===
 		if (req.getOperations() != null && !req.getOperations().isEmpty()) {
 			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
 				SpaceOperation.builder()
@@ -283,7 +297,7 @@ public class SpaceAdminService {
 			spaceOperationRepository.saveAll(ops);
 		}
 
-		// 9. 운영시간 및 휴무일 저장
+		// === 휴무일 저장 ===
 		if (req.getClosedDays() != null && !req.getClosedDays().isEmpty()) {
 			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME; // "2025-09-15T09:00:00"
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
@@ -296,12 +310,21 @@ public class SpaceAdminService {
 			spaceClosedDayRepository.saveAll(closedDay);
 		}
 
-		// PK getter 이름 맞추기
+		// 새로 생성된 공간의 ID 반환
 		return saved.getSpaceId();
 	}
 
 	/**
 	 * 공간 수정
+	 * - 이미지 처리는 PUT 정책(전체 교체)을 따르며, S3 삭제는 트랜잭션 커밋 후에 비동기적으로(afterCommit) 처리
+	 *
+	 * @param adminId 공간 수정을 요청한 관리자 ID
+	 * @param spaceId 수정할 공간 ID
+	 * @param req     공간 수정 요청 DTO
+	 * @param urls    최종적으로 DB에 저장될 이미지 URL 목록 (기존 URL + 신규 업로드 URL 조합)
+	 * @throws ResponseStatusException  권한이 없는 경우 (403 FORBIDDEN)
+	 * @throws IllegalArgumentException 공간 ID, 카테고리/지역/주소/담당자 ID가 유효하지 않거나, 이미지 최소 개수 미달, 지역 권한 불일치 등
+	 * @throws DuplicateKeyException    공간명이 다른 기존 공간과 중복될 경우
 	 **/
 	@Transactional
 	public void updateWithImages(Long adminId,
@@ -316,12 +339,11 @@ public class SpaceAdminService {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 수정 권한이 없습니다.");
 		}
 
-		// 1) 대상 조회
+		// 대상 공간 조회
 		Space space = spaceRepository.findById(spaceId)
 			.orElseThrow(() -> new IllegalArgumentException("해당 공간이 존재하지 않습니다: " + spaceId));
 
-		// 2) 이름이 요청에 포함되어 있고, 실제로 값이 바뀌는 경우만 중복 확인
-		// 변경 감지 전 전처리(트리밍/정규화 권장)
+		// 공간 이름 중복 확인 (ID가 현재 공간이 아닌 다른 공간과 이름이 겹치는지 검사)
 		String newName = req.getSpaceName() != null ? req.getSpaceName().trim() : null;
 		if (newName != null && !newName.equals(space.getSpaceName())) {
 			if (spaceRepository.existsBySpaceNameAndSpaceIdNot(newName, spaceId)) {
@@ -330,28 +352,31 @@ public class SpaceAdminService {
 			space.setSpaceName(newName);
 		}
 
-		// 3) categoryId
+		// 필수 외래키(Foreign Key)들 엔티티 조회 및 유효성 검증
+		// 1) categoryId
 		SpaceCategory category = categoryRepository.findByCategoryId(req.getCategoryId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다: " + req.getCategoryId()));
 
-		// 4) regionId
+		// 2) regionId
 		AdminRegion region = regionRepository.findByRegionId(req.getRegionId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 지역명입니다: " + req.getRegionId()));
 
-		// 5) locationId
+		// 3) locationId
 		SpaceLocation location = spaceLocationRepository.findByLocationId(req.getLocationId())
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주소 ID입니다: " + req.getLocationId()));
 
-		// 6) 이미지 처리 직전, 최종 결과 기준 검증 로직
+		// 최종 이미지 결과 기반 최소 개수(1장) 검증
+		// Controller에서 최종적으로 구성된 `urls` 목록을 기준으로 검증
 		if (urls == null) {
-			// 변경 없음 → 기존 상태 유지
+			// urls == null: 이미지 변경 요청이 없음
+			// 여기서는 최종적으로 이미지가 하나도 남지 않는 경우만 체크
 			boolean hasAny = (space.getSpaceImageUrl() != null)
 				|| !spaceImageRepository.findBySpace(space).isEmpty();
 			if (!hasAny) {
 				throw new IllegalArgumentException("이미지는 최소 1장은 필요합니다.");
 			}
 		} else {
-			// urls 기반 최종 결과 계산
+			// urls != null: 이미지 교체/삭제 요청이 있음. 최종 목록의 크기를 확인
 			String newMainUrl = urls.isEmpty() ? null : urls.get(0);
 			List<String> newGalleryUrls = (urls.size() > 1) ? urls.subList(1, urls.size()) : List.of();
 
@@ -361,14 +386,15 @@ public class SpaceAdminService {
 			}
 		}
 
-		// 7) 담당자 ID 및 지역 권한 검증
+		// 담당자 ID 및 지역 권한 검증
 		Long adminIdToAssign = req.getAdminId();
 
-		// Admin, UserRole, AdminRegion 정보를 함께 로드
+		// 담당자로 지정될 Admin, UserRole, AdminRegion 정보를 함께 로드
 		Admin assignedAdmin = adminRepository.findAdminWithRoleAndRegion(adminIdToAssign)
 			.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 담당자 ID입니다: " + adminIdToAssign));
 
-		// 1차 승인자 (roleId=2) 권한 검증 / 2차 승인자 (roleId=1L)는 지역 검증을 건너뜀 (전역 권한)
+		// 1차 승인자 (roleId=2): 권한 검증(해당 담당자의 담당 지역과 일치하는지 검증)
+		// 2차 승인자 (roleId=1): 지역 검증을 건너뜀 (전역 권한)
 		if (assignedAdmin.getUserRole().getRoleId().equals(2)) {
 			Integer requiredRegionId = req.getRegionId();
 			Integer adminRegionId = assignedAdmin.getAdminRegion() != null
@@ -382,7 +408,7 @@ public class SpaceAdminService {
 			}
 		}
 
-		// 8) 본문 필드 “전체 교체”
+		// Space 본문 필드 업데이트
 		space.setCategoryId(category.getCategoryId());
 		space.setRegionId(region.getRegionId());
 		space.setUserId(adminIdToAssign);
@@ -395,9 +421,10 @@ public class SpaceAdminService {
 		space.setReservationWay(req.getReservationWay());
 		space.setSpaceRules(req.getSpaceRules());
 
-		// 9) 태그 전량 교체
+		// === 태그 전량 교체 ===
 		tagMapRepository.deleteBySpace(space);
 		for (String tagName : req.getTagNames()) {
+			// 태그 조회/생성 후 매핑 저장
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
 					SpaceTag newTag = SpaceTag.builder()
@@ -415,8 +442,7 @@ public class SpaceAdminService {
 			tagMapRepository.save(map);
 		}
 
-		// 10) 운영 시간 및 휴무일 처리
-		// 운영시간
+		// === 운영시간 ===
 		spaceOperationRepository.deleteBySpaceId(spaceId);
 		if (!req.getOperations().isEmpty()) {
 			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
@@ -431,7 +457,7 @@ public class SpaceAdminService {
 			spaceOperationRepository.saveAll(ops);
 		}
 
-		// 휴무일
+		// === 휴무일 ===
 		spaceClosedDayRepository.deleteBySpaceId(spaceId);
 		if (!req.getClosedDays().isEmpty()) {
 			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME;
@@ -445,11 +471,7 @@ public class SpaceAdminService {
 			spaceClosedDayRepository.saveAll(closedDay);
 		}
 
-		// 11) 이미지 처리 (PUT 정책)
-		// - urls == null   : 이미지 변경 없음 (기존 유지, S3 조작 없음)
-		// - urls.isEmpty() : 커버/상세 전부 삭제 (커버 null, 상세 0장) + S3 삭제
-		// - urls.size()>=1 : 커버/상세 전부 교체 + S3 삭제(제거분만)
-
+		// === 이미지 처리 ===
 		if (urls != null) {
 			// 기존 상태 스냅샷
 			final String oldMainUrl = space.getSpaceImageUrl();
@@ -465,7 +487,7 @@ public class SpaceAdminService {
 				? urls.subList(1, urls.size())
 				: java.util.Collections.emptyList();
 
-			// --- 삭제 대상 URL 계산(메인 + 상세) ---
+			// 삭제 대상 URL 계산(메인 + 상세)
 			java.util.List<String> deleteUrls = new java.util.ArrayList<>();
 
 			// 메인 이미지: 전체 삭제 또는 교체면 삭제 대상
@@ -482,7 +504,7 @@ public class SpaceAdminService {
 				}
 			}
 
-			// --- DB 갱신 ---
+			// DB 갱신
 			// 상세 전량 삭제 후 재삽입(단순 PUT 정책)
 			spaceImageRepository.deleteBySpace(space);
 
@@ -512,7 +534,7 @@ public class SpaceAdminService {
 			spaceRepository.save(space);
 			spaceRepository.flush();
 
-			// --- 커밋 이후 S3 삭제 (DB 커밋 성공 시에만) ---
+			// 커밋 이후 S3 삭제 (DB 커밋 성공 시에만)
 			if (!deleteUrls.isEmpty()) {
 				org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
 					new org.springframework.transaction.support.TransactionSynchronization() {
@@ -533,6 +555,12 @@ public class SpaceAdminService {
 
 	/**
 	 * 공간 삭제
+	 * - 공간을 삭제하고, 연관된 모든 데이터를 정리하며, S3에 저장된 이미지 파일도 삭제합니다.
+	 *
+	 * @param adminId 공간 삭제를 요청한 관리자 ID
+	 * @param spaceId 삭제할 공간 ID
+	 * @throws ResponseStatusException 권한이 없는 경우 (403 FORBIDDEN)
+	 * @throws NoSuchElementException  공간 ID에 해당하는 데이터가 없을 경우
 	 **/
 	@Transactional
 	public void deleteSpace(Long adminId, Integer spaceId) {
@@ -571,6 +599,13 @@ public class SpaceAdminService {
 
 	/**
 	 * 태그(편의시설) 추가
+	 * - 새로운 태그(편의시설)를 생성하고 DB에 저장합니다.
+	 *
+	 * @param adminId 태그 생성을 요청한 관리자 ID
+	 * @param tagName 생성할 태그 이름
+	 * @return 생성된 {@code SpaceTag} 엔티티
+	 * @throws ResponseStatusException  권한이 없는 경우 (403 FORBIDDEN)
+	 * @throws IllegalArgumentException 이미 존재하는 태그명인 경우
 	 **/
 	public SpaceTag createTag(Long adminId, String tagName) {
 		// 관리자 권한 체크
@@ -595,8 +630,14 @@ public class SpaceAdminService {
 	}
 
 	/**
-	 * 지역 ID로 승인자 리스트 조회 (role_id 1(2차 승인자) + role_id 2(1차 승인자) & regionId 일치)
-	 **/
+	 * 지역 ID로 관리자 리스트 조회
+	 * <p>
+	 * - 2차 승인자(role_id 1)는 모든 지역에 대해 반환
+	 * - 1차 승인자(role_id 2)는 해당 {@code regionId}를 담당 지역으로 가진 관리자만 반환
+	 *
+	 * @param regionId 조회할 지역 ID
+	 * @return 관리자 이름과 ID를 포함한 {@code AdminListResponseDto} 목록
+	 */
 	public List<AdminListResponseDto> getApproversByRegionId(Integer regionId) {
 		return adminRepository.findApproversByRegion(regionId)
 			.stream()

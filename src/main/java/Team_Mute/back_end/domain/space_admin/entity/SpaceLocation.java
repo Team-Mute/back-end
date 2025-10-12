@@ -43,7 +43,7 @@ public class SpaceLocation {
 	 * - 각 위치는 특정 지역(서울, 인천 등)에 속함
 	 */
 	@ManyToOne
-	@JoinColumn(name = "region_id", referencedColumnName = "region_id")
+	@JoinColumn(name = "region_id", nullable = false, referencedColumnName = "region_id")
 	private AdminRegion adminRegion;
 
 	/**
@@ -73,7 +73,7 @@ public class SpaceLocation {
 	/**
 	 * 우편번호
 	 */
-	@Column(name = "postal_code", length = 20)
+	@Column(name = "postal_code", nullable = false, length = 20)
 	private String postalCode;
 
 	/**

@@ -39,7 +39,7 @@ public class ReservationFilterOptionsResponse {
 		/**
 		 * 예약 상태 ID (필터링에 사용될 값, 예: 1, 2 등)
 		 */
-		private Long id;
+		private Integer id;
 
 		/**
 		 * 상태 표시 이름 (클라이언트에게 보여줄 이름, 예: "1차 승인 대기", "2차 승인 대기" 등)

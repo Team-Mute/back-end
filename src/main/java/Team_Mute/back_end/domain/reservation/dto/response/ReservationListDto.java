@@ -33,8 +33,8 @@ public class ReservationListDto {
 			.build();
 	}
 
-	private static String mapStatusIdToName(Long statusId) {
-		return switch (statusId.intValue()) {
+	private static String mapStatusIdToName(Integer statusId) {
+		return switch (statusId) {
 			case 1, 2 -> "진행중";
 			case 3 -> "예약완료";
 			case 4 -> "반려";

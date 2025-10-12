@@ -191,7 +191,7 @@ public class ReservationAdminService {
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
 
 		// 현재 승인 상태 ID
-		Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
+		Integer currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
 
 		// 권한 체크 (1차 또는 2차 승인자)
 		if (roleId.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId()) || roleId.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {

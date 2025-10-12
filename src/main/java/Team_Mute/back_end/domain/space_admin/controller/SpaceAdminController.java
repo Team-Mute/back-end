@@ -74,7 +74,13 @@ public class SpaceAdminController {
 
 	/**
 	 * 공간 전체 조회 (페이징 적용)
-	 **/
+	 * - 관리자의 권한(1차/2차 승인자)에 따라 조회 범위가 다름
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보 ({@code adminId} 포함)
+	 * @param page           요청 페이지 번호 (기본값 1)
+	 * @param size           페이지당 항목 수 (기본값 6)
+	 * @return 페이징된 공간 리스트 DTO
+	 */
 	@GetMapping("/list")
 	@Operation(summary = "공간 전체 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
 	public ResponseEntity<PagedResponseDto<SpaceListResponseDto>> getAllSpaces(
@@ -97,7 +103,12 @@ public class SpaceAdminController {
 
 	/**
 	 * 지역별 공간 조회 (페이징 적용)
-	 **/
+	 *
+	 * @param regionId 조회할 지역 ID
+	 * @param page     요청 페이지 번호 (기본값 1)
+	 * @param size     페이지당 항목 수 (기본값 6)
+	 * @return 페이징된 지역별 공간 리스트 DTO
+	 */
 	@GetMapping("/list/{regionId}")
 	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
 	@Operation(summary = "지역별 공간 리스트 조회 (페이징)", description = "토큰을 확인하여 지역별 공간 리스트를 페이징하여 조회합니다.")
@@ -120,7 +131,10 @@ public class SpaceAdminController {
 
 	/**
 	 * 특정 공간 상세 조회
-	 **/
+	 *
+	 * @param spaceId 조회할 공간 ID
+	 * @return 공간 상세 정보 DTO 또는 404 에러 메시지
+	 */
 	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
 	@Operation(summary = "공간 단건 조회", description = "토큰을 확인하여 공간을 조회합니다.")
@@ -138,6 +152,13 @@ public class SpaceAdminController {
 
 	/**
 	 * 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
+	 * - 요청 본문은 {@code multipart/form-data}로, 'space'(JSON), 'images'(파일 배열)로 구성
+	 * - 이미지는 'temp' 폴더에 먼저 업로드 후, DB 저장 성공 시 'spaces/{id}'로 이동
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param spaceJson      공간 정보가 담긴 JSON 문자열
+	 * @param images         업로드된 이미지 파일 리스트
+	 * @return 등록된 공간의 상세 정보와 성공 메시지
 	 **/
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(
@@ -216,7 +237,17 @@ public class SpaceAdminController {
 
 	/**
 	 * 공간 수정
-	 **/
+	 * <p>
+	 * - PUT 요청으로, 'space'(JSON), 'images'(신규 파일), 'keepUrlsOrder'(기존+신규 이미지의 최종 순서)를 받음
+	 * - 'keepUrlsOrder'를 통해 최종적으로 유지될 이미지 목록과 순서를 명시하는 것이 핵심 로직
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param spaceId        수정할 공간 ID
+	 * @param spaceJson      공간 정보가 담긴 JSON 문자열
+	 * @param images         새로 업로드할 이미지 파일 리스트 (Optional)
+	 * @param keepUrlsOrder  유지할 기존 URL과 신규 이미지 토큰("new:i")을 포함하는 최종 순서 목록
+	 * @return 수정된 공간의 상세 정보와 성공 메시지
+	 */
 	@PutMapping(value = "/{spaceId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(
 		summary = "공간 수정",
@@ -337,7 +368,12 @@ public class SpaceAdminController {
 
 	/**
 	 * 공간 삭제
-	 **/
+	 * - DB 데이터 삭제 및 S3 이미지 파일 삭제를 포함
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param spaceId        삭제할 공간 ID
+	 * @return 삭제 성공 메시지 및 삭제된 공간 ID
+	 */
 	@DeleteMapping("/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "삭제할 공간 ID", required = true)
 	@Operation(summary = "공간 삭제", description = "토큰을 확인하여 공간 삭제를 진행합니다.")
@@ -354,7 +390,11 @@ public class SpaceAdminController {
 
 	/**
 	 * 태그(편의시설) 추가
-	 **/
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param tagName        생성할 태그 이름
+	 * @return 생성된 {@code SpaceTag} 정보 또는 에러 메시지
+	 */
 	@PostMapping("/tags")
 	@Operation(summary = "태그(편의시설) 등록", description = "토큰을 확인하여 편의시설을 등록합니다.")
 	public ResponseEntity<?> createTag(Authentication authentication, @RequestParam String tagName) {
@@ -379,7 +419,10 @@ public class SpaceAdminController {
 	}
 
 	/**
-	 * 지역 아이디로 승인자 리스트 조회
+	 * 지역 아이디로 관리자 리스트 조회
+	 *
+	 * @param regionId 조회할 지역 ID
+	 * @return 관리자 리스트 DTO
 	 **/
 	@GetMapping("/approvers/{regionId}")
 	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)

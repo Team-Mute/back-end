@@ -1,17 +1,17 @@
 package Team_Mute.back_end.domain.member.service;
 
-import java.time.format.DateTimeFormatter;
+import Team_Mute.back_end.domain.reservation.entity.Reservation;
+import Team_Mute.back_end.global.constants.ReservationStatusEnum;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+import java.time.format.DateTimeFormatter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import Team_Mute.back_end.domain.reservation.entity.Reservation;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -21,8 +21,6 @@ public class EmailService {
 	private final JavaMailSender mailSender;
 	@Value("${invite.base-url}")
 	private String inviteBaseURL;
-	private static final Long APPROVED_FINAL_ID = 3L; // 최종 승인
-	private static final Long REJECTED_STATUS_ID = 4L;
 
 	public void sendTemporaryPassword(String toEmail, String temporaryPassword) {
 		try {
@@ -62,7 +60,7 @@ public class EmailService {
 		}
 	}
 
-	public void sendMailForReservationAdmin(Reservation reservation, Long statusId, String rejectMsg) {
+	public void sendMailForReservationAdmin(Reservation reservation, Integer statusId, String rejectMsg) {
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 		String OrderId = reservation.getOrderId();
 		String userName = reservation.getUser().getUserName();
@@ -81,7 +79,7 @@ public class EmailService {
 		SimpleMailMessage message = new SimpleMailMessage();
 		message.setTo(email);
 
-		if (statusId.equals(APPROVED_FINAL_ID)) {
+		if (statusId.equals(ReservationStatusEnum.FINAL_APPROVAL.getId())) {
 			message.setSubject("[신한금융희망재단] 최종 승인 완료 안내");
 			message.setText("안녕하세요, 신한금융희망재단 입니다.\n\n"
 				+ "신청하신 공간 예약이 완료되었습니다.\n\n"
@@ -92,7 +90,7 @@ public class EmailService {
 				+ "초대장 URL\n" + invitationURL + "\n\n"
 				+ "※ 예약 내역은 [마이페이지 > 공간 예약 내역 > 예약완료]에서 확인하실 수 있습니다.\n"
 				+ "※ 고객센터: 070-5038-6828 (평일 09:00~18:00)");
-		} else if (statusId.equals(REJECTED_STATUS_ID)) {
+		} else if (statusId.equals(ReservationStatusEnum.REJECTED_STATUS.getId())) {
 			message.setSubject("[신한금융희망재단] 공간 예약 반려 안내");
 			message.setText(
 				"안녕하세요, 신한금융희망재단 입니다.\n\n"

@@ -32,7 +32,7 @@ public class ReservationApprovalTxService {
 	private final AdminReservationStatusRepository adminStatusRepository;
 
 	// 상태명(Description) -> 상태ID(Long) 캐시: DB 반복 조회를 줄이기 위한 간단한 메모리 캐시
-	private final Map<String, Long> statusIdCache = new HashMap<>();
+	private final Map<String, Integer> statusIdCache = new HashMap<>();
 
 	/**
 	 * 상태명(String)을 기준으로 DB에서 상태 엔티티 ID(Long)를 조회하거나 캐시에서 가져옴
@@ -41,7 +41,7 @@ public class ReservationApprovalTxService {
 	 * @return ReservationStatusId (Long) (예: 1)
 	 * @throws ResponseStatusException 상태를 찾을 수 없을 때
 	 */
-	private Long statusId(String name) {
+	private Integer statusId(String name) {
 		return statusIdCache.computeIfAbsent(name, key ->
 			adminStatusRepository.findByReservationStatusName(key)
 				.map(ReservationStatus::getReservationStatusId)
@@ -74,7 +74,7 @@ public class ReservationApprovalTxService {
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
 
 		// 현재 예약 상태 확인
-		Long fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
+		Integer fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
 		String fromStatus = adminStatusRepository.findById(fromStatusId)
 			.map(ReservationStatus::getReservationStatusName).orElse("UNKNOWN");
 
@@ -135,7 +135,7 @@ public class ReservationApprovalTxService {
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
 
 		// 현재 예약 상태 확인
-		Long fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
+		Integer fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
 		String fromStatus = adminStatusRepository.findById(fromStatusId)
 			.map(ReservationStatus::getReservationStatusName).orElse("UNKNOWN");
 
