@@ -33,7 +33,6 @@ import jakarta.persistence.LockModeType;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -339,6 +338,26 @@ public class SpaceAdminService {
 
 		// === 운영시간 저장 ===
 		if (req.getOperations() != null && !req.getOperations().isEmpty()) {
+
+			// 1) 유효성 검사: operationFrom이 operationTo보다 이후이거나 같은지 확인
+			boolean isValidTimeRange = req.getOperations().stream()
+				.allMatch(o -> {
+					// 운영 시간이 열려 있는 경우에만 시간 유효성을 검사합니다.
+					if (Boolean.TRUE.equals(o.getIsOpen())) {
+						// 시작 시간이 종료 시간보다 같거나 이후인 경우 (유효하지 않음)
+						if (!o.getFrom().isBefore(o.getTo())) {
+							return false;
+						}
+					}
+					return true;
+				});
+
+			if (!isValidTimeRange) {
+				// 유효하지 않은 시간 범위 예외 발생
+				throw new IllegalArgumentException("운영 시간 '시작 시간(from)'은 '종료 시간(to)'보다 이후이거나 같을 수 없습니다.");
+			}
+
+			// 2) 유효성 검사 통과 후 DB 저장
 			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
 				SpaceOperation.builder()
 					.space(space)
@@ -353,7 +372,23 @@ public class SpaceAdminService {
 
 		// === 휴무일 저장 ===
 		if (req.getClosedDays() != null && !req.getClosedDays().isEmpty()) {
-			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME; // "2025-09-15T09:00:00"
+
+			// 1) 유효성 검사: closedFrom 날짜가 closedTo 날짜보다 이전인지 확인
+			boolean isValidDateRange = req.getClosedDays().stream()
+				.allMatch(c -> {
+					// from 날짜가 to 날짜보다 이후인 경우 (유효하지 않음)
+					if (c.getFrom().isAfter(c.getTo())) {
+						return false;
+					}
+					return true;
+				});
+
+			if (!isValidDateRange) {
+				// 유효하지 않은 날짜 범위 예외 발생
+				throw new IllegalArgumentException("휴무일 '시작일(from)'은 '종료일(to)'보다 이후일 수 없습니다.");
+			}
+
+			// 2) 유효성 검사 통과 후 DB 저장
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
 				SpaceClosedDay.builder()
 					.space(space)
@@ -572,7 +607,28 @@ public class SpaceAdminService {
 
 		// === 운영시간 ===
 		spaceOperationRepository.deleteBySpaceId(spaceId);
+
 		if (!req.getOperations().isEmpty()) {
+
+			// 1) 유효성 검사: operationFrom 시간이 operationTo 시간보다 이전인지 확인
+			boolean isValidTimeRange = req.getOperations().stream()
+				.allMatch(o -> {
+					// 운영 시간이 열려 있는 경우에만 검사합니다.
+					if (Boolean.TRUE.equals(o.getIsOpen())) {
+						// from 시간이 to 시간보다 같거나 이후인 경우 (유효하지 않음)
+						if (!o.getFrom().isBefore(o.getTo())) {
+							return false; // 유효성 검사 실패
+						}
+					}
+					return true; // 유효성 검사 통과 (닫혀 있거나, 시간이 유효함)
+				});
+
+			if (!isValidTimeRange) {
+				// 유효하지 않은 시간 범위가 발견된 경우 예외 발생
+				throw new IllegalArgumentException("운영 시간 '시작 시간(from)'은 '종료 시간(to)'보다 이후이거나 같을 수 없습니다.");
+			}
+
+			// 2) 유효성 검사 통과 후 DB 저장
 			List<SpaceOperation> ops = req.getOperations().stream().map(o ->
 				SpaceOperation.builder()
 					.space(space)
@@ -582,13 +638,31 @@ public class SpaceAdminService {
 					.isOpen(Boolean.TRUE.equals(o.getIsOpen()))
 					.build()
 			).toList();
+
 			spaceOperationRepository.saveAll(ops);
 		}
 
 		// === 휴무일 ===
 		spaceClosedDayRepository.deleteBySpaceId(spaceId);
+
 		if (!req.getClosedDays().isEmpty()) {
-			DateTimeFormatter f = DateTimeFormatter.ISO_DATE_TIME;
+
+			// 1) 유효성 검사: from 날짜가 to 날짜보다 이전인지 확인
+			boolean isValidDateRange = req.getClosedDays().stream()
+				.allMatch(c -> {
+					// from 날짜가 to 날짜보다 크거나 같은 경우 (유효하지 않음)
+					if (c.getFrom().isAfter(c.getTo())) {
+						return false; // 유효성 검사 실패
+					}
+					return true; // 유효성 검사 통과
+				});
+
+			if (!isValidDateRange) {
+				// 유효하지 않은 날짜 범위가 발견된 경우 예외 발생
+				throw new IllegalArgumentException("휴무일 '시작일(from)'은 '종료일(to)'보다 이후일 수 없습니다.");
+			}
+
+			// 2) 유효성 검사 통과 후 DB 저장
 			List<SpaceClosedDay> closedDay = req.getClosedDays().stream().map(c ->
 				SpaceClosedDay.builder()
 					.space(space)
@@ -596,6 +670,7 @@ public class SpaceAdminService {
 					.closedTo(c.getTo())
 					.build()
 			).toList();
+
 			spaceClosedDayRepository.saveAll(closedDay);
 		}
 
