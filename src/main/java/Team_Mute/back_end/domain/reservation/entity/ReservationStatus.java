@@ -22,7 +22,7 @@ public class ReservationStatus {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "reservation_status_id")
-	private Long reservationStatusId;
+	private Integer reservationStatusId;
 
 	@Column(name = "reservation_status_name", nullable = false)
 	private String reservationStatusName;

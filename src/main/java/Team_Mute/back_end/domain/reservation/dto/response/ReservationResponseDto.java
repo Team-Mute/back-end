@@ -16,7 +16,7 @@ public class ReservationResponseDto {
 	private String spaceName;
 	private Long userId;
 	private String userName;
-	private Long reservationStatusId;
+	private Integer reservationStatusId;
 	private String reservationStatusName;
 	private Integer reservationHeadcount;
 	private LocalDateTime reservationFrom;

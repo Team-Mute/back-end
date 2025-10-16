@@ -1,21 +1,5 @@
 package Team_Mute.back_end.domain.reservation.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.previsit.repository.PrevisitRepository;
@@ -39,7 +23,23 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
+import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 import lombok.RequiredArgsConstructor;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -184,9 +184,10 @@ public class ReservationService {
 
 		// 2. 현재 예약 상태 및 취소 가능 여부 확인
 		ReservationStatus currentStatus = reservation.getReservationStatus();
-		Long currentStatusId = currentStatus.getReservationStatusId();
-		List<Long> cancellableStatusIds = Arrays.asList(1L, 2L, 3L, 4L); // 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
+		Integer currentStatusId = currentStatus.getReservationStatusId();
 
+		// 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
+		List<Integer> cancellableStatusIds = Arrays.asList(ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId(), ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId(), ReservationStatusEnum.FINAL_APPROVAL.getId(), ReservationStatusEnum.REJECTED_STATUS.getId()); // 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
 		if (!cancellableStatusIds.contains(currentStatusId)) {
 			throw new IllegalArgumentException("이미 취소되었거나 이용 완료된 예약은 취소할 수 없습니다.");
 		}

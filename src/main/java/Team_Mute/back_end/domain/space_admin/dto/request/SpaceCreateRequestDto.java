@@ -124,6 +124,7 @@ public class SpaceCreateRequestDto {
 	 * - from/to: ISO-8601 DateTime
 	 * - 예: 2025-08-20T00:00:00 ~ 2025-08-20T23:59:59
 	 */
+	@NotNull(message = "휴무일 목록 필드(closedDays)가 누락되었습니다. 휴무일이 없을 경우 빈 배열([])로 보내야 합니다.")
 	private List<ClosedItem> closedDays;
 
 	/**
@@ -190,7 +191,7 @@ public class SpaceCreateRequestDto {
 	/**
 	 * 운영시간 유효성 검증
 	 * - 요일은 1~7 각각 1건씩 총 7개
-	 * - isOpen=true → from/to 필수, from==to 금지(0분 운영 금지)
+	 * - isOpen=true → from/to 필수
 	 * - 자정 넘김(from > to)은 정책에 따라 허용/금지 가능 (현재 주석 참고)
 	 */
 	@AssertTrue(message = "operations는 월(1)~일(7) 총 7개가 각각 1건씩 있어야 하며, 영업 요일은 시간 형식(HH:mm)이 유효해야 합니다.")
@@ -206,7 +207,6 @@ public class SpaceCreateRequestDto {
 
 			if (Boolean.TRUE.equals(o.getIsOpen())) {
 				if (o.getFrom() == null || o.getTo() == null) return false;
-				if (o.getFrom().equals(o.getTo())) return false; // 0분 운영 금지
 				// from > to는 '자정 넘김'으로 허용하려면 여기서 통과시킴
 				// 자정 넘김을 금지하려면: if (o.getFrom().isAfter(o.getTo())) return false;
 			} else {

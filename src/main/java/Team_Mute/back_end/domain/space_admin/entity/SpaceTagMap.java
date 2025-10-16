@@ -58,7 +58,7 @@ public class SpaceTagMap {
 	 * - 특정 태그가 여러 공간에 연결 가능
 	 */
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "tag_id")
+	@JoinColumn(name = "tag_id", nullable = false)
 	private SpaceTag tag;
 
 	/**

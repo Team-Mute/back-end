@@ -32,6 +32,8 @@ public class SpaceCommonDataController {
 
 	/**
 	 * 지역 전체 조회
+	 *
+	 * @return 지역 ID와 이름을 포함하는 DTO 리스트
 	 **/
 	@GetMapping("/regions")
 	@Operation(summary = "지역 리스트 조회", description = "인증 없이 지역 리스트를 조회합니다.")
@@ -41,6 +43,8 @@ public class SpaceCommonDataController {
 
 	/**
 	 * 카테고리 전체 조회
+	 *
+	 * @return 카테고리 ID와 이름을 포함하는 DTO 리스트
 	 **/
 	@GetMapping("/categories")
 	@Operation(summary = "카테고리 리스트 조회", description = "인증 없이 카테고리 리스트를 조회합니다.")
@@ -50,6 +54,8 @@ public class SpaceCommonDataController {
 
 	/**
 	 * 태그(편의시설) 전체 조회
+	 *
+	 * @return 태그 ID와 이름을 포함하는 DTO 리스트
 	 **/
 	@GetMapping("/tags")
 	@Operation(summary = "태그(편의시설) 조회", description = "인증 없이 태그 리스트를 조회합니다.")
@@ -59,6 +65,9 @@ public class SpaceCommonDataController {
 
 	/**
 	 * 지역 아이디로 건물 주소 조회
+	 *
+	 * @param regionId 조회할 지역 ID (Path Variable)
+	 * @return 주소 ID, 이름, 주소(도로명+지번 조합) 등을 포함하는 DTO 리스트
 	 **/
 	@GetMapping("locations/{regionId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)

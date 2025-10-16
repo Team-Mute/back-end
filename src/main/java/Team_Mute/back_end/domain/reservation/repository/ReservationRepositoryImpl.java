@@ -1,22 +1,20 @@
 package Team_Mute.back_end.domain.reservation.repository;
 
-import java.util.List;
+import Team_Mute.back_end.domain.member.entity.User;
+import Team_Mute.back_end.domain.reservation.entity.QReservation;
+import Team_Mute.back_end.domain.reservation.entity.Reservation;
+import lombok.RequiredArgsConstructor;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
-
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-
-import Team_Mute.back_end.domain.member.entity.User;
-import Team_Mute.back_end.domain.reservation.entity.QReservation;
-import Team_Mute.back_end.domain.reservation.entity.Reservation;
-import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor
@@ -27,11 +25,11 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 
 	@Override
 	public Page<Reservation> findReservationsByFilter(User user, String filterOption, Pageable pageable) {
-		List<Long> statusIds = getStatusIdsByFilter(filterOption);
+		List<Integer> statusIds = getStatusIdsByFilter(filterOption);
 
 		BooleanExpression predicate = reservation.user.eq(user);
 		if (statusIds != null && !statusIds.isEmpty()) {
-			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in(statusIds));
+			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in((Number) statusIds));
 		}
 
 		// 1. 기본 쿼리 생성
@@ -59,14 +57,14 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 		return new PageImpl<>(content, pageable, total == null ? 0 : total);
 	}
 
-	private List<Long> getStatusIdsByFilter(String filterOption) {
+	private List<Integer> getStatusIdsByFilter(String filterOption) {
 		if (filterOption == null)
 			return null;
 		return switch (filterOption) {
-			case "진행중" -> List.of(1L, 2L);
-			case "예약완료" -> List.of(3L);
-			case "이용완료" -> List.of(5L);
-			case "취소" -> List.of(4L, 6L);
+			case "진행중" -> List.of(1, 2);
+			case "예약완료" -> List.of(3);
+			case "이용완료" -> List.of(5);
+			case "취소" -> List.of(4, 6);
 			default -> null;
 		};
 	}

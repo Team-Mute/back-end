@@ -20,20 +20,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -74,7 +69,13 @@ public class SpaceAdminController {
 
 	/**
 	 * 공간 전체 조회 (페이징 적용)
-	 **/
+	 * - 관리자의 권한(1차/2차 승인자)에 따라 조회 범위가 다름
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보 ({@code adminId} 포함)
+	 * @param page           요청 페이지 번호 (기본값 1)
+	 * @param size           페이지당 항목 수 (기본값 6)
+	 * @return 페이징된 공간 리스트 DTO
+	 */
 	@GetMapping("/list")
 	@Operation(summary = "공간 전체 조회", description = "토큰을 확인하여 공간 리스트를 조회합니다.")
 	public ResponseEntity<PagedResponseDto<SpaceListResponseDto>> getAllSpaces(
@@ -97,7 +98,12 @@ public class SpaceAdminController {
 
 	/**
 	 * 지역별 공간 조회 (페이징 적용)
-	 **/
+	 *
+	 * @param regionId 조회할 지역 ID
+	 * @param page     요청 페이지 번호 (기본값 1)
+	 * @param size     페이지당 항목 수 (기본값 6)
+	 * @return 페이징된 지역별 공간 리스트 DTO
+	 */
 	@GetMapping("/list/{regionId}")
 	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
 	@Operation(summary = "지역별 공간 리스트 조회 (페이징)", description = "토큰을 확인하여 지역별 공간 리스트를 페이징하여 조회합니다.")
@@ -120,13 +126,18 @@ public class SpaceAdminController {
 
 	/**
 	 * 특정 공간 상세 조회
-	 **/
+	 *
+	 * @param spaceId 조회할 공간 ID
+	 * @return 공간 상세 정보 DTO 또는 404 에러 메시지
+	 */
 	@GetMapping("/detail/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 공간 ID", required = true)
 	@Operation(summary = "공간 단건 조회", description = "토큰을 확인하여 공간을 조회합니다.")
-	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId) {
+	public ResponseEntity<?> getSpaceById(@PathVariable Integer spaceId, Authentication authentication) {
 		try {
-			return ResponseEntity.ok(spaceAdminService.getSpaceById(spaceId));
+			Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+			return ResponseEntity.ok(spaceAdminService.getSpaceById(spaceId, adminId));
 		} catch (NoSuchElementException e) {
 			return ResponseEntity.status(404).body(java.util.Map.of("message", "공간을 찾을 수 없습니다."));
 		}
@@ -138,6 +149,13 @@ public class SpaceAdminController {
 
 	/**
 	 * 공간 등록 (이미지 여러 장 포함 - multipart/form-data)
+	 * - 요청 본문은 {@code multipart/form-data}로, 'space'(JSON), 'images'(파일 배열)로 구성
+	 * - 이미지는 'temp' 폴더에 먼저 업로드 후, DB 저장 성공 시 'spaces/{id}'로 이동
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param spaceJson      공간 정보가 담긴 JSON 문자열
+	 * @param images         업로드된 이미지 파일 리스트
+	 * @return 등록된 공간의 상세 정보와 성공 메시지
 	 **/
 	@PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(
@@ -166,6 +184,7 @@ public class SpaceAdminController {
 
 			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
+			request.setSpaceName(request.getSpaceName().trim()); // 공간명 앞, 뒤 공백 제거
 
 			// DTO에 대한 수동 유효성 검증 실행
 			Set<ConstraintViolation<SpaceCreateRequestDto>> violations = validator.validate(request);
@@ -205,18 +224,29 @@ public class SpaceAdminController {
 
 			return ResponseEntity.ok(Map.of(
 				"message", "등록 완료",
-				"data", spaceAdminService.getSpaceById(id)
+				"data", spaceAdminService.getSpaceById(id, adminId)
 			));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("등록 실패: " + e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+			// JSON 파싱/매핑 오류 (400 Bad Request) 처리
+			return ResponseEntity.badRequest().body("입력 오류: 공간 데이터(JSON) 형식이 올바르지 않습니다.");
 		}
 	}
 
 	/**
 	 * 공간 수정
-	 **/
+	 * <p>
+	 * - PUT 요청으로, 'space'(JSON), 'images'(신규 파일), 'keepUrlsOrder'(기존+신규 이미지의 최종 순서)를 받음
+	 * - 'keepUrlsOrder'를 통해 최종적으로 유지될 이미지 목록과 순서를 명시하는 것이 핵심 로직
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param spaceId        수정할 공간 ID
+	 * @param spaceJson      공간 정보가 담긴 JSON 문자열
+	 * @param images         새로 업로드할 이미지 파일 리스트 (Optional)
+	 * @param keepUrlsOrder  유지할 기존 URL과 신규 이미지 토큰("new:i")을 포함하는 최종 순서 목록
+	 * @return 수정된 공간의 상세 정보와 성공 메시지
+	 */
 	@PutMapping(value = "/{spaceId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@Operation(
 		summary = "공간 수정",
@@ -238,7 +268,7 @@ public class SpaceAdminController {
 		Authentication authentication,
 		@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "수정할 공간 ID", required = true)
 		@PathVariable Integer spaceId,
-		@RequestPart("space") @Valid String spaceJson,
+		@RequestPart("space") String spaceJson,
 		@RequestPart(value = "images", required = false) List<MultipartFile> images,
 		@RequestPart(value = "keepUrlsOrder", required = false) List<String> keepUrlsOrder // 유지할 기존 이미지 URL 목록 + 순서
 	) {
@@ -246,98 +276,51 @@ public class SpaceAdminController {
 			// 관리자 권한 아이디
 			Long adminId = Long.valueOf((String) authentication.getPrincipal());
 
-			// 0) DTO 파싱
+			// String 데이터를 SpaceCreateRequest 객체로 수동 변환
 			SpaceCreateRequestDto request = objectMapper.readValue(spaceJson, SpaceCreateRequestDto.class);
+			request.setSpaceName(request.getSpaceName().trim()); // 공간명 앞, 뒤 공백 제거
 
-			// 1) 파일 필터링
+			// 수동 유효성 검증 로직
+			Set<ConstraintViolation<SpaceCreateRequestDto>> violations = validator.validate(request);
+
+			if (!violations.isEmpty()) {
+				// 유효성 검증 실패 시, 400 Bad Request와 에러 메시지 반환
+				String errorMessage = violations.iterator().next().getMessage();
+				return ResponseEntity.badRequest().body("입력 오류: " + errorMessage);
+			}
+
+			// 이미지 처리: 파일 필터링
 			List<MultipartFile> usableImages = (images == null) ? List.of()
 				: images.stream().filter(f -> f != null && !f.isEmpty()).toList();
 
-			// 2) 신규 업로드
-			List<String> uploadedUrls = usableImages.isEmpty()
-				? List.of()
-				: s3Uploader.uploadAll(usableImages, "spaces/" + spaceId);
-
-			// 3) keepUrlsOrder 필수 사용 (없으면 400)
 			if (keepUrlsOrder == null) {
 				return ResponseEntity.badRequest().body(
 					"keepUrlsOrder는 필수입니다. 최종 순서를 JSON 배열로 보내주세요. (예: [\"기존URL\",\"new:0\",\"new:1\"])");
 			}
 
-			List<String> finalUrls = new ArrayList<>();
-
-			// 3-1) 빈 배열([])이면 전체 삭제 의도로 간주
-			if (keepUrlsOrder.isEmpty()) {
-				if (!uploadedUrls.isEmpty()) {
-					return ResponseEntity.badRequest().body(
-						"keepUrlsOrder가 빈 배열인데 새 이미지가 첨부되었습니다. new:i 토큰으로 순서를 명시하세요.");
-				}
-				// 전부 삭제 → 최종 목록은 빈 리스트
-			} else {
-				// 3-2) "new:i" 토큰 검증
-				Pattern p = Pattern.compile("^new:(\\d+)$");
-				Set<Integer> tokenIdx = new LinkedHashSet<>();
-
-				for (String item : keepUrlsOrder) {
-					if (item == null || item.isBlank()) continue;
-					Matcher m = p.matcher(item);
-					if (m.matches()) tokenIdx.add(Integer.parseInt(m.group(1)));
-				}
-
-				if (uploadedUrls.isEmpty()) {
-					if (!tokenIdx.isEmpty()) {
-						return ResponseEntity.badRequest().body("새 이미지가 없는데 keepUrlsOrder에 new:i 토큰이 포함되어 있습니다.");
-					}
-				} else {
-					// 토큰 인덱스 집합은 정확히 {0..n-1}와 동일해야 함
-					Set<Integer> expected = new LinkedHashSet<>();
-					for (int i = 0; i < uploadedUrls.size(); i++) expected.add(i);
-					if (!tokenIdx.equals(expected)) {
-						return ResponseEntity.badRequest().body(
-							"keepUrlsOrder의 new:i 토큰 수/인덱스가 업로드한 새 이미지 수와 일치하지 않습니다. " +
-								"(expected: new:0..new:" + (uploadedUrls.size() - 1) + ")"
-						);
-					}
-				}
-
-				// 3-3) 최종 리스트 조립 ("new:i" → 업로드 URL 치환, 나머지는 기존 URL로 간주)
-				for (String item : keepUrlsOrder) {
-					if (item == null || item.isBlank()) continue;
-					Matcher m = p.matcher(item);
-					if (m.matches()) {
-						int idx = Integer.parseInt(m.group(1));
-						if (idx < 0 || idx >= uploadedUrls.size()) {
-							return ResponseEntity.badRequest().body("잘못된 new 토큰 인덱스: " + item);
-						}
-						finalUrls.add(uploadedUrls.get(idx));
-					} else {
-						finalUrls.add(item); // 기존 URL
-					}
-				}
-			}
-
-			// 4) 최대 개수 제한
-			if (finalUrls.size() > 5) {
-				return ResponseEntity.badRequest().body("이미지는 최대 5장까지만 설정할 수 있습니다.");
-			}
-
 			// 5) 서비스 호출 (finalUrls가 곧 최종 상태/순서)
-			spaceAdminService.updateWithImages(adminId, spaceId, request, finalUrls);
+			spaceAdminService.updateWithImages(adminId, spaceId, request, keepUrlsOrder, usableImages);
 
 			return ResponseEntity.ok(Map.of(
 				"message", "수정 완료",
-				"data", spaceAdminService.getSpaceById(spaceId)
+				"data", spaceAdminService.getSpaceById(spaceId, adminId)
 			));
 		} catch (IllegalArgumentException e) {
 			return ResponseEntity.badRequest().body("수정 실패: " + e.getMessage());
-		} catch (Exception e) {
-			return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+		} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+			// JSON 파싱/매핑 오류 (400 Bad Request) 처리
+			return ResponseEntity.badRequest().body("입력 오류: 공간 데이터(JSON) 형식이 올바르지 않습니다.");
 		}
 	}
 
 	/**
 	 * 공간 삭제
-	 **/
+	 * - DB 데이터 삭제 및 S3 이미지 파일 삭제를 포함
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param spaceId        삭제할 공간 ID
+	 * @return 삭제 성공 메시지 및 삭제된 공간 ID
+	 */
 	@DeleteMapping("/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "삭제할 공간 ID", required = true)
 	@Operation(summary = "공간 삭제", description = "토큰을 확인하여 공간 삭제를 진행합니다.")
@@ -354,7 +337,11 @@ public class SpaceAdminController {
 
 	/**
 	 * 태그(편의시설) 추가
-	 **/
+	 *
+	 * @param authentication 현재 로그인한 관리자 정보
+	 * @param tagName        생성할 태그 이름
+	 * @return 생성된 {@code SpaceTag} 정보 또는 에러 메시지
+	 */
 	@PostMapping("/tags")
 	@Operation(summary = "태그(편의시설) 등록", description = "토큰을 확인하여 편의시설을 등록합니다.")
 	public ResponseEntity<?> createTag(Authentication authentication, @RequestParam String tagName) {
@@ -366,8 +353,11 @@ public class SpaceAdminController {
 			return ResponseEntity.badRequest().build();
 		}
 
+		String trimmedTagName = tagName.trim();
+
 		try {
-			SpaceTag createdTag = spaceAdminService.createTag(adminId, tagName);
+			SpaceTag createdTag = spaceAdminService.createTag(adminId, trimmedTagName);
+
 			return ResponseEntity.status(HttpStatus.CREATED).body(createdTag);
 		} catch (IllegalArgumentException e) {
 			Map<String, String> errorResponse = new HashMap<>();
@@ -379,7 +369,10 @@ public class SpaceAdminController {
 	}
 
 	/**
-	 * 지역 아이디로 승인자 리스트 조회
+	 * 지역 아이디로 관리자 리스트 조회
+	 *
+	 * @param regionId 조회할 지역 ID
+	 * @return 관리자 리스트 DTO
 	 **/
 	@GetMapping("/approvers/{regionId}")
 	@Parameter(name = "regionId", in = ParameterIn.PATH, description = "조회할 지역 ID", required = true)
