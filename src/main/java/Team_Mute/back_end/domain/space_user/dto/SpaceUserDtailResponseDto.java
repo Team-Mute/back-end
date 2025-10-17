@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
  */
 @JsonPropertyOrder({
 	"spaceId", "spaceName", "regionName", "categoryName", "spaceCapacity", "spaceDescription",
-	"spaceImageUrl", "reservationWay", "spaceRules", "manager",
+	"spaceImageUrl", "reservationWay", "spaceRules", "spaceIsAvailable", "manager",
 	"location", "detailImageUrls", "tagNames", "operations", "closedDays",
 })
 public interface SpaceUserDtailResponseDto {
@@ -75,6 +75,13 @@ public interface SpaceUserDtailResponseDto {
 	 * @return 공간 이용 수칙
 	 */
 	String getSpaceRules();
+
+	/**
+	 * 공간 활성화 여부 (예약 가능 여부 판단)
+	 *
+	 * @return 공간 활성화 여부 (예약 가능 여부 판단)
+	 */
+	boolean getSpaceIsAvailable();
 
 	/**
 	 * 공간 담당자 정보를 JSON 문자열로 반환
