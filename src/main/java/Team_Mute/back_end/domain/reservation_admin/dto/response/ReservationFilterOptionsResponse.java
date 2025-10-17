@@ -1,5 +1,7 @@
 package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

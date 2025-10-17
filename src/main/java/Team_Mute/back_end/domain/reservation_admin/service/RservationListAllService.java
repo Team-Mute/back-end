@@ -1,11 +1,21 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.*;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.entity.UserCompany;
 import Team_Mute.back_end.domain.member.repository.UserCompanyRepository;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
@@ -71,7 +81,8 @@ public class RservationListAllService {
 				// 1차 정렬: getStatusOrder 메서드를 통해 상태 우선순위 결정
 				Comparator.comparing(
 						// 람다식의 인자에 타입을 명시
-						(Reservation reservation) -> getStatusOrder(reservation.getReservationStatus().getReservationStatusId(), admin.getUserRole().getRoleId())
+						(Reservation reservation) -> getStatusOrder(
+							reservation.getReservationStatus().getReservationStatusId(), admin.getUserRole().getRoleId())
 					)
 					// 2차 정렬: 1차 정렬 결과가 같을 경우, 등록일(getRegDate)을 내림차순(최신순)으로 정렬
 					.thenComparing(
@@ -109,7 +120,8 @@ public class RservationListAllService {
 			.map(Reservation::getReservationId)
 			.toList();
 
-		List<PrevisitReservation> previsitList = adminPrevisitRepository.findByReservation_ReservationIdIn(reservationIds);
+		List<PrevisitReservation> previsitList = adminPrevisitRepository.findByReservation_ReservationIdIn(
+			reservationIds);
 
 		// 상태ID(Integer) → 상태명(String) 맵 생성
 		Map<Integer, String> statusNameById = adminStatusRepository.findAllById(statusIds).stream()
@@ -161,7 +173,8 @@ public class RservationListAllService {
 				// 버튼 클릭 활성화를 위한 권한 체크
 				Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
 
-				String statusName = statusNameById.getOrDefault(reservation.getReservationStatus().getReservationStatusId(), "UNKNOWN");
+				String statusName = statusNameById.getOrDefault(
+					reservation.getReservationStatus().getReservationStatusId(), "UNKNOWN");
 				String spaceName = spaceNameById.getOrDefault(reservation.getSpace().getSpaceId(), null);
 				String userName = userNameById.getOrDefault(reservation.getUser().getUserId(), null);
 				Long uid = reservation.getUser().getUserId();
@@ -172,7 +185,8 @@ public class RservationListAllService {
 				boolean isApprovable = isApprovableFor(reservationRegionId, adminRegionId, roleId, statusName);
 				boolean isRejectable = isRejectableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
-				return ReservationListResponseDto.from(reservation, statusName, spaceName, userName, isShinhan, isEmergency, isApprovable, isRejectable);
+				return ReservationListResponseDto.from(reservation, statusName, spaceName, userName, isShinhan,
+					isEmergency, isApprovable, isRejectable);
 			})
 			.toList();
 

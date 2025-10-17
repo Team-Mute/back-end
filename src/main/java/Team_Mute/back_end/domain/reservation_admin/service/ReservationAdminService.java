@@ -1,5 +1,23 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.*;
+
+import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
@@ -227,7 +245,8 @@ public class ReservationAdminService {
 			}
 
 			// 반려 상태 엔티티 조회
-			ReservationStatus rejectedStatus = adminStatusRepository.findById(ReservationStatusEnum.REJECTED_STATUS.getId())
+			ReservationStatus rejectedStatus = adminStatusRepository.findById(
+					ReservationStatusEnum.REJECTED_STATUS.getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rejected status not found"));
 
 			// 예약 상태 업데이트 및 로그 기록

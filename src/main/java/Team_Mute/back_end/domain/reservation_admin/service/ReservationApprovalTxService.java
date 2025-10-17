@@ -1,5 +1,13 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
@@ -104,7 +112,8 @@ public class ReservationApprovalTxService {
 			reservation.setUpdDate(LocalDateTime.now());
 
 			return new ApproveResponseDto(
-				reservationId, fromStatus, ReservationStatusEnum.WAITING_SECOND_APPROVAL.getDescription(), LocalDateTime.now(), "1차 승인 완료"
+				reservationId, fromStatus, ReservationStatusEnum.WAITING_SECOND_APPROVAL.getDescription(),
+				LocalDateTime.now(), "1차 승인 완료"
 			);
 		} else {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");
@@ -155,7 +164,8 @@ public class ReservationApprovalTxService {
 			reservation.setUpdDate(LocalDateTime.now());
 
 			return new ApproveResponseDto(
-				reservationId, fromStatus, ReservationStatusEnum.FINAL_APPROVAL.getDescription(), LocalDateTime.now(), "2차 승인 완료"
+				reservationId, fromStatus, ReservationStatusEnum.FINAL_APPROVAL.getDescription(), LocalDateTime.now(),
+				"2차 승인 완료"
 			);
 		} else {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");

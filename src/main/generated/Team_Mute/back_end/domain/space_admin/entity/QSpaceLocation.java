@@ -22,6 +22,10 @@ public class QSpaceLocation extends EntityPathBase<SpaceLocation> {
 
     public static final QSpaceLocation spaceLocation = new QSpaceLocation("spaceLocation");
 
+    public final StringPath accessInfo = createString("accessInfo");
+
+    public final StringPath addressJibun = createString("addressJibun");
+
     public final StringPath addressRoad = createString("addressRoad");
 
     public final Team_Mute.back_end.domain.member.entity.QAdminRegion adminRegion;

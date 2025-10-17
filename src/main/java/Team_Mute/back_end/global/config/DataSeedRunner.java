@@ -1,16 +1,20 @@
 package Team_Mute.back_end.global.config;
 
-import Team_Mute.back_end.domain.member.entity.AdminRegion;
-import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
-import Team_Mute.back_end.domain.space_admin.entity.SpaceLocation;
-import jakarta.persistence.EntityManager;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
-
 import java.util.List;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 
+import Team_Mute.back_end.domain.member.entity.AdminRegion;
+import Team_Mute.back_end.domain.member.entity.UserRole;
+import Team_Mute.back_end.domain.member.service.AdminService;
+import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceCategory;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceLocation;
+import Team_Mute.back_end.global.constants.ReservationStatusEnum;
+import jakarta.persistence.EntityManager;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 서버 기동 시 JPA 기반으로 초기 데이터 시드 (SQL 없이 JPQL/엔티티로 처리)
@@ -21,6 +25,7 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 public class DataSeedRunner implements CommandLineRunner {
 	private final EntityManager em;
+	private final AdminService userService;
 
 	/**
 	 * 애플리케이션 시작 시 실행되는 메인 시드(Seed) 함수
@@ -50,6 +55,18 @@ public class DataSeedRunner implements CommandLineRunner {
 			new LocSeed("대전", "신한 스퀘어브릿지 대전 S1", "대전광역시 유성구 대학로155번길 4", "궁동 426-12", "34138", "월평역 도보 20분", true)
 		);
 		seeds.forEach(this::upsertLocationByRegionName);
+
+		// 4) UserRole
+		upsertUserRole(0, "Master");
+		upsertUserRole(1, "Approver");
+		upsertUserRole(2, "Manager");
+		upsertUserRole(3, "Customer");
+
+		// 5) Master 관리자 계정 생성
+		userService.createInitialAdmin();
+
+		// 6) ReservationStatus
+		upsertReservationStatuses();
 	}
 
 	/**
@@ -120,7 +137,8 @@ public class DataSeedRunner implements CommandLineRunner {
 		if (region == null) {
 			ensureRegion(s.regionName);
 			region = getRegionByName(s.regionName);
-			if (region == null) throw new IllegalStateException("지역 매핑 실패: " + s.regionName);
+			if (region == null)
+				throw new IllegalStateException("지역 매핑 실패: " + s.regionName);
 		}
 
 		// 2. 위치 엔티티 조회 (locationName 기준)
@@ -140,6 +158,8 @@ public class DataSeedRunner implements CommandLineRunner {
 			e.setPostalCode(s.postalCode);
 			e.setAccessInfo(s.accessInfo);
 			e.setIsActive(s.active);
+			e.setAccessInfo(s.accessInfo);
+			e.setAddressJibun(s.addressJibun);
 			em.persist(e);
 		} else {
 			var e = found.get(0);
@@ -149,6 +169,8 @@ public class DataSeedRunner implements CommandLineRunner {
 			e.setPostalCode(s.postalCode);
 			e.setAccessInfo(s.accessInfo);
 			e.setIsActive(s.active);
+			e.setAccessInfo(s.accessInfo);
+			e.setAddressJibun(s.addressJibun);
 			em.merge(e);
 		}
 	}
@@ -177,6 +199,42 @@ public class DataSeedRunner implements CommandLineRunner {
 			this.postalCode = postalCode;
 			this.accessInfo = accessInfo;
 			this.active = active;
+		}
+	}
+
+	private void upsertUserRole(Integer roleId, String roleName) {
+		var found = em.createQuery(
+				"select r from UserRole r where r.roleId = :roleId", UserRole.class)
+			.setParameter("roleId", roleId)
+			.setMaxResults(1)
+			.getResultList();
+
+		if (found.isEmpty()) {
+			// 신규 삽입
+			UserRole u = new UserRole();
+			u.setRoleId(roleId);
+			u.setRoleName(roleName);
+			em.persist(u);
+		} else {
+			// roleName만 update (roleId는 PK)
+			UserRole u = found.get(0);
+			u.setRoleName(roleName);
+			em.merge(u);
+		}
+	}
+
+	private void upsertReservationStatuses() {
+		for (ReservationStatusEnum item : ReservationStatusEnum.values()) {
+			var found = em.find(ReservationStatus.class, item.getId());
+			if (found == null) {
+				ReservationStatus rs = new ReservationStatus();
+				rs.setReservationStatusId(item.getId());
+				rs.setReservationStatusName(item.getDescription());
+				em.persist(rs);
+			} else {
+				found.setReservationStatusName(item.getDescription());
+				// persist 또는 merge 호출 없이 변경 적용만 함
+			}
 		}
 	}
 }

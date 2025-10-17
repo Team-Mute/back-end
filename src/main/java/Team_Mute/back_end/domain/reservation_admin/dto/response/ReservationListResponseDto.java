@@ -1,5 +1,7 @@
 package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
+import java.time.LocalDateTime;
+
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

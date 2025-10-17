@@ -19,7 +19,7 @@ public class QReservationStatus extends EntityPathBase<ReservationStatus> {
 
     public static final QReservationStatus reservationStatus = new QReservationStatus("reservationStatus");
 
-    public final NumberPath<Long> reservationStatusId = createNumber("reservationStatusId", Long.class);
+    public final NumberPath<Integer> reservationStatusId = createNumber("reservationStatusId", Integer.class);
 
     public final StringPath reservationStatusName = createString("reservationStatusName");
 

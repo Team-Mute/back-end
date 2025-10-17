@@ -7,12 +7,14 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long>, ReservationRepositoryCustom {
@@ -48,6 +50,20 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 		@Param("from") LocalDateTime from,
 		@Param("to") LocalDateTime to,
 		@Param("statusIds") List<Long> statusIds // 상태 ID 리스트를 파라미터로 받음
+	);
+
+	// 비관적 락을 사용한 중복 예약 조회 쿼리 추가
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT r FROM Reservation r " +
+		"WHERE r.space.spaceId = :spaceId " +
+		"AND r.reservationStatus.reservationStatusId IN :statusIds " +
+		"AND r.reservationTo > :from " +
+		"AND r.reservationFrom < :to")
+	List<Reservation> findOverlappingReservationsWithLock(
+		@Param("spaceId") Integer spaceId,
+		@Param("from") LocalDateTime from,
+		@Param("to") LocalDateTime to,
+		@Param("statusIds") List<Long> statusIds
 	);
 
 	@Query("SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END " +

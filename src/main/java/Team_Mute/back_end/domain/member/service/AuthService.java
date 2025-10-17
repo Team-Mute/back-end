@@ -102,7 +102,7 @@ public class AuthService {
 
 		store.revokeRt(rtJti, rtTtl);
 		store.setCurrentRtJti(sid, newRtJti, rtTtl);
-		
+
 		return new TokenPair(newAT, newRT);
 	}
 

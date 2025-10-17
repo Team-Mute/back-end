@@ -1,15 +1,17 @@
-package Team_Mute.back_end.domain.previsit.repository;
+package Team_Mute.back_end.domain.reservation.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface PrevisitRepository extends JpaRepository<PrevisitReservation, Long> {
@@ -26,6 +28,21 @@ public interface PrevisitRepository extends JpaRepository<PrevisitReservation, L
 		"AND p.previsitTo > :from " +
 		"AND p.previsitFrom < :to")
 	boolean existsOverlappingPrevisitWithStatus(
+		@Param("spaceId") Integer spaceId,
+		@Param("from") LocalDateTime from,
+		@Param("to") LocalDateTime to,
+		@Param("statusIds") List<Long> statusIds
+	);
+
+	// 비관적 락을 사용한 중복 사전답사 조회 쿼리 추가
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("SELECT p FROM PrevisitReservation p " +
+		"JOIN p.reservation r " +
+		"WHERE r.space.spaceId = :spaceId " +
+		"AND r.reservationStatus.reservationStatusId IN :statusIds " +
+		"AND p.previsitTo > :from " +
+		"AND p.previsitFrom < :to")
+	List<PrevisitReservation> findOverlappingPrevisitsWithLock(
 		@Param("spaceId") Integer spaceId,
 		@Param("from") LocalDateTime from,
 		@Param("to") LocalDateTime to,

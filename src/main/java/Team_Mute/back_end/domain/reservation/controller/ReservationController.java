@@ -30,9 +30,12 @@ import Team_Mute.back_end.domain.reservation.dto.response.ReservationDetailRespo
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationResponseDto;
 import Team_Mute.back_end.domain.reservation.service.ReservationScheduleService;
 import Team_Mute.back_end.domain.reservation.service.ReservationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Tag(name = "관리자 인증 API", description = "관리자 인증 관련 API 명세")
 @RestController
 @RequestMapping("/api/reservations")
 @RequiredArgsConstructor
@@ -41,6 +44,7 @@ public class ReservationController {
 	private final ReservationService reservationService;
 	private final ReservationScheduleService reservationScheduleService;
 
+	@Operation(summary = "예약 가능 시간", description = "특정 일의 예약 가능 시간을 응답합니다.")
 	@PostMapping("/available-times")
 	public ResponseEntity<AvailableTimeResponse> getAvailableTimes(@Valid @RequestBody AvailableTimeRequest request) {
 		List<AvailableTimeResponse.TimeSlot> availableTimes = reservationScheduleService.getAvailableTimes(
@@ -52,6 +56,7 @@ public class ReservationController {
 		return ResponseEntity.ok(new AvailableTimeResponse(availableTimes));
 	}
 
+	@Operation(summary = "예약 가능 날짜", description = "특정 달의 예약 가능 일을 응답합니다.")
 	@PostMapping("/available-dates")
 	public ResponseEntity<AvailableDateResponse> getAvailableDates(@Valid @RequestBody AvailableDateRequest request) {
 		List<Integer> availableDays = reservationScheduleService.getAvailableDays(
@@ -62,7 +67,7 @@ public class ReservationController {
 		return ResponseEntity.ok(new AvailableDateResponse(availableDays));
 	}
 
-	// 1. 예약 생성
+	@Operation(summary = "예약 생성", description = "예약 정보를 받아 예약을 저장합니다.")
 	@PostMapping(consumes = {"multipart/form-data"})
 	public ResponseEntity<ReservationResponseDto> createReservation(
 		@AuthenticationPrincipal String userId,
@@ -75,7 +80,7 @@ public class ReservationController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
 	}
 
-	// 2. 예약 목록 조회 (전체 or 내 예약)
+	@Operation(summary = "전체 예약 목록 조회", description = "페이지네이션이 적용된 예약 목록을 조회합니다.")
 	@GetMapping
 	public ResponseEntity<PagedReservationResponse> getReservations(
 		@AuthenticationPrincipal String userId,
@@ -100,6 +105,7 @@ public class ReservationController {
 		return ResponseEntity.ok(response);
 	}
 
+	@Operation(summary = "개별 예약 조회", description = "예약ID를 받아 하나의 예약 정보를 조회 합니다.")
 	@GetMapping("/{reservation_id}")
 	public ResponseEntity<ReservationDetailResponseDto> getReservationById(
 		@AuthenticationPrincipal String userId,
@@ -109,7 +115,7 @@ public class ReservationController {
 		return ResponseEntity.ok(responseDto);
 	}
 
-	// 5. 예약 삭제
+	@Operation(summary = "예약 삭제", description = "저장된 예약 정보를 삭제합니다.")
 	@DeleteMapping("/{reservation_id}") // 경로 변수명 복귀
 	public ResponseEntity<Void> deleteReservation(
 		@AuthenticationPrincipal String userId,
@@ -118,7 +124,7 @@ public class ReservationController {
 		return ResponseEntity.noContent().build();
 	}
 
-	// 6. 예약 취소
+	@Operation(summary = "예약 취소", description = "예약 상태를 취소 상태로 수정합니다.")
 	@PostMapping("/cancel/{reservation_id}")
 	public ResponseEntity<ReservationCancelResponseDto> cancelReservation(
 		@AuthenticationPrincipal String userId,
@@ -128,6 +134,7 @@ public class ReservationController {
 		return ResponseEntity.ok(responseDto);
 	}
 
+	@Operation(summary = "반려 메세지 확인", description = "관리자가 작성한 특정 예약에 대한 반려 메세지를 조회합니다.")
 	@GetMapping("/rejectMassage/{reservation_id}")
 	public ResponseEntity<RejectReasonResponseDto> getRejectReason(
 		@AuthenticationPrincipal String userId,

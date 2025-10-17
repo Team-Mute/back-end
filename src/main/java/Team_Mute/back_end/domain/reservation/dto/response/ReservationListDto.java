@@ -1,9 +1,8 @@
 package Team_Mute.back_end.domain.reservation.dto.response;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.Builder;
 import lombok.Data;
@@ -17,9 +16,12 @@ public class ReservationListDto {
 	private String spaceName;
 	private LocalDateTime reservationFrom;
 	private LocalDateTime reservationTo;
-	private List<PrevisitInfo> previsits; // 사전 방문 목록
+	private PrevisitInfo previsits; // 사전 방문 목록
 
 	public static ReservationListDto fromEntity(Reservation reservation) {
+		PrevisitReservation previsit = reservation.getPrevisitReservation(); // OneToOne or appropriate 매핑 필드
+		PrevisitInfo previsitDto = PrevisitInfo.fromEntity(previsit);
+
 		return ReservationListDto.builder()
 			.reservationId(reservation.getReservationId())
 			.reservationStatusName(mapStatusIdToName(reservation.getReservationStatus().getReservationStatusId()))
@@ -27,14 +29,12 @@ public class ReservationListDto {
 			.spaceName(reservation.getSpace().getSpaceName()) // Space 엔티티에서 이름 가져오기
 			.reservationFrom(reservation.getReservationFrom())
 			.reservationTo(reservation.getReservationTo())
-			.previsits(reservation.getPrevisitReservations().stream()
-				.map(PrevisitInfo::fromEntity)
-				.collect(Collectors.toList()))
+			.previsits(previsitDto)
 			.build();
 	}
 
 	private static String mapStatusIdToName(Integer statusId) {
-		return switch (statusId) {
+		return switch (statusId.intValue()) {
 			case 1, 2 -> "진행중";
 			case 3 -> "예약완료";
 			case 4 -> "반려";

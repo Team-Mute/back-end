@@ -1,5 +1,6 @@
 package Team_Mute.back_end.global;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -24,9 +25,10 @@ import Team_Mute.back_end.domain.member.exception.CompanyNotFoundException;
 import Team_Mute.back_end.domain.member.exception.DuplicateEmailException;
 import Team_Mute.back_end.domain.member.exception.ExternalApiException;
 import Team_Mute.back_end.domain.member.exception.UserRegistrationException;
-import Team_Mute.back_end.domain.previsit.exception.PrevisitAlreadyExistsException;
 import Team_Mute.back_end.domain.reservation.exception.ForbiddenAccessException;
 import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
+import Team_Mute.back_end.domain.reservation.exception.PrevisitAlreadyExistsException;
+import Team_Mute.back_end.domain.reservation.exception.ReservationConflictException;
 import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,6 +36,17 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+	@ExceptionHandler(ReservationConflictException.class)
+	public ResponseEntity<ErrorResponseDto> handleReservationConflict(ReservationConflictException ex) {
+		ErrorResponseDto errorResponse = new ErrorResponseDto(
+			ex.getMessage(),
+			HttpStatus.CONFLICT.value(),
+			LocalDateTime.now()
+		);
+
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+	}
+
 	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
 	public ResponseEntity<ErrorResponseDto> handleHttpRequestMethodNotSupported(
 		HttpRequestMethodNotSupportedException e) {

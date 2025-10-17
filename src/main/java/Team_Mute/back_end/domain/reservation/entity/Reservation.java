@@ -1,7 +1,6 @@
 package Team_Mute.back_end.domain.reservation.entity;
 
 import Team_Mute.back_end.domain.member.entity.User;
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.global.util.StringListConverter;
 import jakarta.persistence.CascadeType;
@@ -14,7 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -55,9 +54,8 @@ public class Reservation {
 	@JoinColumn(name = "reservation_status_id", nullable = false)
 	private ReservationStatus reservationStatus;
 
-	@OneToMany(mappedBy = "reservation", cascade = CascadeType.REMOVE, orphanRemoval = true)
-	@Builder.Default
-	private List<PrevisitReservation> previsitReservations = new ArrayList<>();
+	@OneToOne(mappedBy = "reservation", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+	private PrevisitReservation previsitReservation;
 
 	@Column(name = "reservation_headcount", nullable = false)
 	private Integer reservationHeadcount;

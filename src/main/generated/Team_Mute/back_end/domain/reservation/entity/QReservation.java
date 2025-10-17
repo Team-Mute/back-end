@@ -24,7 +24,7 @@ public class QReservation extends EntityPathBase<Reservation> {
 
     public final StringPath orderId = createString("orderId");
 
-    public final ListPath<Team_Mute.back_end.domain.previsit.entity.PrevisitReservation, Team_Mute.back_end.domain.previsit.entity.QPrevisitReservation> previsitReservations = this.<Team_Mute.back_end.domain.previsit.entity.PrevisitReservation, Team_Mute.back_end.domain.previsit.entity.QPrevisitReservation>createList("previsitReservations", Team_Mute.back_end.domain.previsit.entity.PrevisitReservation.class, Team_Mute.back_end.domain.previsit.entity.QPrevisitReservation.class, PathInits.DIRECT2);
+    public final QPrevisitReservation previsitReservation;
 
     public final DateTimePath<java.time.LocalDateTime> regDate = createDateTime("regDate", java.time.LocalDateTime.class);
 
@@ -66,6 +66,7 @@ public class QReservation extends EntityPathBase<Reservation> {
 
     public QReservation(Class<? extends Reservation> type, PathMetadata metadata, PathInits inits) {
         super(type, metadata, inits);
+        this.previsitReservation = inits.isInitialized("previsitReservation") ? new QPrevisitReservation(forProperty("previsitReservation"), inits.get("previsitReservation")) : null;
         this.reservationStatus = inits.isInitialized("reservationStatus") ? new QReservationStatus(forProperty("reservationStatus")) : null;
         this.space = inits.isInitialized("space") ? new Team_Mute.back_end.domain.space_admin.entity.QSpace(forProperty("space")) : null;
         this.user = inits.isInitialized("user") ? new Team_Mute.back_end.domain.member.entity.QUser(forProperty("user"), inits.get("user")) : null;
