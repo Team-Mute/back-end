@@ -5,7 +5,6 @@ import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import jakarta.persistence.LockModeType;
 
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -145,9 +144,9 @@ public interface SpaceRepository extends JpaRepository<Space, Integer> {
 		   WHERE s.region_id = :regionId
 		   ORDER BY s.reg_date DESC
 		""",
-		countQuery = "SELECT COUNT(*) FROM tb_spaces",
+		countQuery = "SELECT COUNT(*) FROM tb_spaces WHERE region_id = :regionId",
 		nativeQuery = true)
-	List<SpaceListResponseDto> findAllWithRegion(@Param("regionId") Integer regionId);
+	Page<SpaceListResponseDto> findAllWithRegion(Pageable pageable, @Param("regionId") Integer regionId);
 
 	/**
 	 * 공간 단건 상세 조회 (+ 연관 데이터 조인/조립)

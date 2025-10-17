@@ -1,12 +1,5 @@
 package Team_Mute.back_end.domain.reservation.entity;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.global.util.StringListConverter;
@@ -26,6 +19,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "tb_reservations")
@@ -85,7 +84,7 @@ public class Reservation {
 
 	// 수정 메서드 (내용 동일)
 	public void updateDetails(Space space, ReservationStatus status, Integer headcount, LocalDateTime from,
-		LocalDateTime to, String purpose, List<String> attachment) {
+							  LocalDateTime to, String purpose, List<String> attachment) {
 		this.space = space;
 		this.reservationStatus = status;
 		this.reservationHeadcount = headcount;

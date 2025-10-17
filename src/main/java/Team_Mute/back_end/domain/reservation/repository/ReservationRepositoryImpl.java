@@ -1,22 +1,20 @@
 package Team_Mute.back_end.domain.reservation.repository;
 
-import java.util.List;
+import Team_Mute.back_end.domain.member.entity.User;
+import Team_Mute.back_end.domain.reservation.entity.QReservation;
+import Team_Mute.back_end.domain.reservation.entity.Reservation;
+import lombok.RequiredArgsConstructor;
 
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
-
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-
-import Team_Mute.back_end.domain.member.entity.User;
-import Team_Mute.back_end.domain.reservation.entity.QReservation;
-import Team_Mute.back_end.domain.reservation.entity.Reservation;
-import lombok.RequiredArgsConstructor;
 
 @Repository
 @RequiredArgsConstructor
@@ -31,7 +29,7 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 
 		BooleanExpression predicate = reservation.user.eq(user);
 		if (statusIds != null && !statusIds.isEmpty()) {
-			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in(statusIds));
+			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in((Number) statusIds));
 		}
 
 		// 1. 기본 쿼리 생성

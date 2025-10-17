@@ -54,16 +54,16 @@ public enum ReservationStatusEnum {
 	 * 예약 상태 ID를 반환
 	 * 이 ID는 필터링 로직에서 예약 상태를 비교하는 데 사용
 	 *
-	 * @return 예약 상태 ID (Long)
+	 * @return 예약 상태 ID (Integer)
 	 */
 	public Integer getId() {
 		return id;
 	}
 
 	/**
-	 * 예약 상태 Description을 반환
+	 * 예약 상태명을 반환
 	 *
-	 * @return 예약 상태 ID (Long)
+	 * @return 예약 상태명 (String)
 	 */
 	public String getDescription() {
 		return description;

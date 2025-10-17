@@ -44,7 +44,7 @@ public class SpaceTag {
 	 * - 최대 50자 제한
 	 * - 예: "WIFI", "화이트보드"
 	 */
-	@Column(name = "tag_name", nullable = false, length = 50)
+	@Column(name = "tag_name", unique = true, nullable = false, length = 50)
 	private String tagName;
 
 	/**
