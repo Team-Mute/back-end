@@ -4,6 +4,8 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
+
 /**
  * [예약 관리 -> 예약 상태] 리포지토리
  * * 예약 상태(ReservationStatus) 엔티티에 대한 데이터 접근을 담당

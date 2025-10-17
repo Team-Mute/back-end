@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
+
 /**
  * [예약 관리 -> 사전 답사] 리포지토리
  * * 사전 답사(PrevisitReservation) 엔티티에 대한 데이터 접근을 담당
