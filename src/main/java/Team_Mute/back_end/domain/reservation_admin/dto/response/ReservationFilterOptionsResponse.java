@@ -1,11 +1,11 @@
 package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
+import java.util.List;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Getter
 @NoArgsConstructor
@@ -22,7 +22,7 @@ public class ReservationFilterOptionsResponse {
 	@AllArgsConstructor
 	@Builder
 	public static class StatusOptionDto {
-		private Long id;
+		private Integer id;
 		private String label;
 	}
 

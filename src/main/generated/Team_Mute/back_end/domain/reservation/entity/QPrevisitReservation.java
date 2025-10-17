@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.previsit.entity;
+package Team_Mute.back_end.domain.reservation.entity;
 
 import static com.querydsl.core.types.PathMetadataFactory.*;
 
@@ -16,7 +16,7 @@ import com.querydsl.core.types.dsl.PathInits;
 @Generated("com.querydsl.codegen.DefaultEntitySerializer")
 public class QPrevisitReservation extends EntityPathBase<PrevisitReservation> {
 
-    private static final long serialVersionUID = 56450573L;
+    private static final long serialVersionUID = 1693361837L;
 
     private static final PathInits INITS = PathInits.DIRECT2;
 
@@ -30,7 +30,7 @@ public class QPrevisitReservation extends EntityPathBase<PrevisitReservation> {
 
     public final DateTimePath<java.time.LocalDateTime> regDate = createDateTime("regDate", java.time.LocalDateTime.class);
 
-    public final Team_Mute.back_end.domain.reservation.entity.QReservation reservation;
+    public final QReservation reservation;
 
     public final DateTimePath<java.time.LocalDateTime> updDate = createDateTime("updDate", java.time.LocalDateTime.class);
 
@@ -52,7 +52,7 @@ public class QPrevisitReservation extends EntityPathBase<PrevisitReservation> {
 
     public QPrevisitReservation(Class<? extends PrevisitReservation> type, PathMetadata metadata, PathInits inits) {
         super(type, metadata, inits);
-        this.reservation = inits.isInitialized("reservation") ? new Team_Mute.back_end.domain.reservation.entity.QReservation(forProperty("reservation"), inits.get("reservation")) : null;
+        this.reservation = inits.isInitialized("reservation") ? new QReservation(forProperty("reservation"), inits.get("reservation")) : null;
     }
 
 }

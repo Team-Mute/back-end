@@ -1,13 +1,13 @@
 package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
+import java.time.LocalDateTime;
+
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -31,7 +31,7 @@ public class ReservationListResponseDto {
 
 	// 예약 관리 필터링을 위해 추가한 필드
 	private Integer regionId;
-	private Long statusId;
+	private Integer statusId;
 
 	public static ReservationListResponseDto from(
 		Reservation r,

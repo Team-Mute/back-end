@@ -1,5 +1,23 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.*;
+
+import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
@@ -26,24 +44,6 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.global.constants.AdminRoleEnum;
 import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 import lombok.extern.slf4j.Slf4j;
-
-import java.text.Normalizer;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Locale;
-import java.util.stream.Collectors;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.mail.MailException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isApprovableFor;
-import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.isRejectableFor;
 
 @Slf4j
 @Service
@@ -162,9 +162,10 @@ public class ReservationAdminService {
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
 
 		// 현재 승인 상태
-		Long currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
+		Integer currentStatusId = reservation.getReservationStatusId().getReservationStatusId();
 
-		if (roleId.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId()) || roleId.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {
+		if (roleId.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId()) || roleId.equals(
+			AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {
 			// 1차 승인자일 경우 담당 지역만 승인 가능
 			if (roleId.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {
 				Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
@@ -196,7 +197,8 @@ public class ReservationAdminService {
 			}
 
 			// 반려 상태 엔티티 조회
-			ReservationStatus rejectedStatus = adminStatusRepository.findById(ReservationStatusEnum.REJECTED_STATUS.getId())
+			ReservationStatus rejectedStatus = adminStatusRepository.findById(
+					ReservationStatusEnum.REJECTED_STATUS.getId())
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Rejected status not found"));
 
 			// 예약 및 사전답사 상태 변경
@@ -377,7 +379,7 @@ public class ReservationAdminService {
 			.toList();
 
 		// 3. 수동으로 페이징 처리
-		int start = (int) pageable.getOffset();
+		int start = (int)pageable.getOffset();
 		int end = Math.min((start + pageable.getPageSize()), filteredList.size());
 		List<ReservationListResponseDto> pagedContent;
 		if (start > filteredList.size()) {

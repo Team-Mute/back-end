@@ -9,34 +9,34 @@ public enum ReservationStatusEnum {
 	/**
 	 * 1차 승인 대기 상태 (ID: 1)
 	 */
-	WAITING_FIRST_APPROVAL(1L, "1차 승인 대기"),
+	WAITING_FIRST_APPROVAL(1, "1차 승인 대기"),
 
 	/**
 	 * 2차 승인 대기 상태 (ID: 2)
 	 */
-	WAITING_SECOND_APPROVAL(2L, "2차 승인 대기"),
+	WAITING_SECOND_APPROVAL(2, "2차 승인 대기"),
 
 	/**
 	 * 최종 승인 완료 상태 (ID: 3)
 	 */
-	FINAL_APPROVAL(3L, "최종 승인 완료"),
+	FINAL_APPROVAL(3, "최종 승인 완료"),
 
 	/**
 	 * 반려 상태 (ID: 4)
 	 */
-	REJECTED_STATUS(4L, "반려"),
+	REJECTED_STATUS(4, "반려"),
 
 	/**
 	 * 이용 완료 상태 (ID: 5)
 	 */
-	USER_COMPLETED(5L, "이용 완료"),
+	USER_COMPLETED(5, "이용 완료"),
 
 	/**
 	 * 예약 취소 상태 (ID: 6)
 	 */
-	CANCELED_STATUS(6L, "예약 취소");
+	CANCELED_STATUS(6, "예약 취소");
 
-	private final Long id;
+	private final Integer id;
 	private final String description;
 
 	/**
@@ -45,7 +45,7 @@ public enum ReservationStatusEnum {
 	 * @param id          예약 상태 ID
 	 * @param description 예약 상태에 대한 설명
 	 */
-	ReservationStatusEnum(Long id, String description) {
+	ReservationStatusEnum(Integer id, String description) {
 		this.id = id;
 		this.description = description;
 	}
@@ -56,7 +56,7 @@ public enum ReservationStatusEnum {
 	 *
 	 * @return 예약 상태 ID (Long)
 	 */
-	public Long getId() {
+	public Integer getId() {
 		return id;
 	}
 

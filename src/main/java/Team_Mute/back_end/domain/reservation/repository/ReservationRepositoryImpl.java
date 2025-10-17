@@ -27,7 +27,7 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 
 	@Override
 	public Page<Reservation> findReservationsByFilter(User user, String filterOption, Pageable pageable) {
-		List<Long> statusIds = getStatusIdsByFilter(filterOption);
+		List<Integer> statusIds = getStatusIdsByFilter(filterOption);
 
 		BooleanExpression predicate = reservation.user.eq(user);
 		if (statusIds != null && !statusIds.isEmpty()) {
@@ -59,14 +59,14 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 		return new PageImpl<>(content, pageable, total == null ? 0 : total);
 	}
 
-	private List<Long> getStatusIdsByFilter(String filterOption) {
+	private List<Integer> getStatusIdsByFilter(String filterOption) {
 		if (filterOption == null)
 			return null;
 		return switch (filterOption) {
-			case "진행중" -> List.of(1L, 2L);
-			case "예약완료" -> List.of(3L);
-			case "이용완료" -> List.of(5L);
-			case "취소" -> List.of(4L, 6L);
+			case "진행중" -> List.of(1, 2);
+			case "예약완료" -> List.of(3);
+			case "이용완료" -> List.of(5);
+			case "취소" -> List.of(4, 6);
 			default -> null;
 		};
 	}

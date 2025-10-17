@@ -1,5 +1,13 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
@@ -12,13 +20,6 @@ import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-
 @Service
 @RequiredArgsConstructor // (로봇이 Lombok 사용 중이라면 유지, 아니라면 생성자 직접 작성)
 public class ReservationApprovalTxService {
@@ -28,9 +29,9 @@ public class ReservationApprovalTxService {
 	private final AdminReservationStatusRepository adminStatusRepository;
 
 	// name -> id 캐시 (간단 캐시)
-	private final Map<String, Long> statusIdCache = new HashMap<>();
+	private final Map<String, Integer> statusIdCache = new HashMap<>();
 
-	private Long statusId(String name) {
+	private Integer statusId(String name) {
 		return statusIdCache.computeIfAbsent(name, key ->
 			adminStatusRepository.findByReservationStatusName(key)
 				.map(ReservationStatus::getReservationStatusId)
@@ -53,7 +54,7 @@ public class ReservationApprovalTxService {
 
 		Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
 
-		Long fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
+		Integer fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
 		String fromStatus = adminStatusRepository.findById(fromStatusId)
 			.map(ReservationStatus::getReservationStatusName).orElse("UNKNOWN");
 
@@ -62,7 +63,8 @@ public class ReservationApprovalTxService {
 				"1차 승인 불가(이미 처리 완료된 대상인지 확인하세요): " + fromStatus);
 		}
 
-		if (AdminRoleEnum.ROLE_FIRST_APPROVER.getId().equals(roleId) || AdminRoleEnum.ROLE_SECOND_APPROVER.getId().equals(roleId)) { // 승인 권한 체크
+		if (AdminRoleEnum.ROLE_FIRST_APPROVER.getId().equals(roleId) || AdminRoleEnum.ROLE_SECOND_APPROVER.getId()
+			.equals(roleId)) { // 승인 권한 체크
 			// 1차 승인자일 경우 담당 지역만 승인 가능
 			if (AdminRoleEnum.ROLE_FIRST_APPROVER.getId().equals(roleId)) {
 				Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 관리자의 담당 지역 ID
@@ -72,7 +74,8 @@ public class ReservationApprovalTxService {
 				}
 			}
 
-			ReservationStatus toStatus = adminStatusRepository.findById(statusId(ReservationStatusEnum.WAITING_SECOND_APPROVAL.getDescription()))
+			ReservationStatus toStatus = adminStatusRepository.findById(
+					statusId(ReservationStatusEnum.WAITING_SECOND_APPROVAL.getDescription()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Status not found"));
 
 			// 예약 상태 변경
@@ -80,7 +83,8 @@ public class ReservationApprovalTxService {
 			reservation.setUpdDate(LocalDateTime.now());
 
 			return new ApproveResponseDto(
-				reservationId, fromStatus, ReservationStatusEnum.WAITING_SECOND_APPROVAL.getDescription(), LocalDateTime.now(), "1차 승인 완료"
+				reservationId, fromStatus, ReservationStatusEnum.WAITING_SECOND_APPROVAL.getDescription(),
+				LocalDateTime.now(), "1차 승인 완료"
 			);
 		} else {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");
@@ -98,25 +102,28 @@ public class ReservationApprovalTxService {
 		Reservation reservation = adminReservationRepository.findById(reservationId)
 			.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reservation not found"));
 
-		Long fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
+		Integer fromStatusId = reservation.getReservationStatusId().getReservationStatusId();
 		String fromStatus = adminStatusRepository.findById(fromStatusId)
 			.map(ReservationStatus::getReservationStatusName).orElse("UNKNOWN");
 
 		// 허용 전이: FIRST_PENDING or SECOND_PENDING -> FINAL_APPROVED
-		if (!ReservationStatusEnum.WAITING_FIRST_APPROVAL.getDescription().equals(fromStatus) && !ReservationStatusEnum.FINAL_APPROVAL.getDescription().equals(fromStatus)) {
+		if (!ReservationStatusEnum.WAITING_FIRST_APPROVAL.getDescription().equals(fromStatus)
+			&& !ReservationStatusEnum.FINAL_APPROVAL.getDescription().equals(fromStatus)) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
 				"2차 승인 불가(이미 처리 완료된 대상인지 확인하세요): " + fromStatus);
 		}
 
 		if (AdminRoleEnum.ROLE_SECOND_APPROVER.getId().equals(roleId)) {
-			ReservationStatus toStatus = adminStatusRepository.findById(statusId(ReservationStatusEnum.FINAL_APPROVAL.getDescription()))
+			ReservationStatus toStatus = adminStatusRepository.findById(
+					statusId(ReservationStatusEnum.FINAL_APPROVAL.getDescription()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Status not found"));
 
 			reservation.setReservationStatusId(toStatus);
 			reservation.setUpdDate(LocalDateTime.now());
 
 			return new ApproveResponseDto(
-				reservationId, fromStatus, ReservationStatusEnum.FINAL_APPROVAL.getDescription(), LocalDateTime.now(), "2차 승인 완료"
+				reservationId, fromStatus, ReservationStatusEnum.FINAL_APPROVAL.getDescription(), LocalDateTime.now(),
+				"2차 승인 완료"
 			);
 		} else {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "승인 권한이 없습니다.");

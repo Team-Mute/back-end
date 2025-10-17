@@ -2,7 +2,7 @@ package Team_Mute.back_end.domain.reservation.dto.response;
 
 import java.time.LocalDateTime;
 
-import Team_Mute.back_end.domain.previsit.entity.PrevisitReservation;
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import lombok.Builder;
 import lombok.Data;
 

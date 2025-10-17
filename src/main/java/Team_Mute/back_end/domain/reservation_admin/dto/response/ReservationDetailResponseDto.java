@@ -14,6 +14,6 @@ public record ReservationDetailResponseDto(
 	String reservationStatusName,
 	boolean isApprovable,
 	boolean isRejectable,
-	Long statusId
+	Integer statusId
 ) {
 }

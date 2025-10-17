@@ -1,5 +1,20 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
@@ -29,20 +44,6 @@ import Team_Mute.back_end.domain.space_admin.repository.SpaceTagRepository;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.extern.slf4j.Slf4j;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 공간 관리 Service
@@ -121,7 +122,8 @@ public class SpaceAdminService {
 	/**
 	 * 공간 전체 조회 (페이징 적용)
 	 **/
-	public Page<SpaceListResponseDto> getAllSpaces(Pageable pageable, Long adminId) { // This `Pageable` is the Spring one
+	public Page<SpaceListResponseDto> getAllSpaces(Pageable pageable,
+		Long adminId) { // This `Pageable` is the Spring one
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
@@ -308,9 +310,9 @@ public class SpaceAdminService {
 	 **/
 	@Transactional
 	public void updateWithImages(Long adminId,
-								 Integer spaceId,
-								 SpaceCreateRequestDto req,
-								 java.util.List<String> urls) {
+		Integer spaceId,
+		SpaceCreateRequestDto req,
+		java.util.List<String> urls) {
 		// 관리자 권한 체크
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID

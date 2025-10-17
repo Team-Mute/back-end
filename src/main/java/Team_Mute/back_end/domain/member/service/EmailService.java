@@ -21,8 +21,8 @@ public class EmailService {
 	private final JavaMailSender mailSender;
 	@Value("${invite.base-url}")
 	private String inviteBaseURL;
-	private static final Long APPROVED_FINAL_ID = 3L; // 최종 승인
-	private static final Long REJECTED_STATUS_ID = 4L;
+	private static final Integer APPROVED_FINAL_ID = 3; // 최종 승인
+	private static final Integer REJECTED_STATUS_ID = 4;
 
 	public void sendTemporaryPassword(String toEmail, String temporaryPassword) {
 		try {
@@ -62,7 +62,7 @@ public class EmailService {
 		}
 	}
 
-	public void sendMailForReservationAdmin(Reservation reservation, Long statusId, String rejectMsg) {
+	public void sendMailForReservationAdmin(Reservation reservation, Integer statusId, String rejectMsg) {
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 		String OrderId = reservation.getOrderId();
 		String userName = reservation.getUser().getUserName();

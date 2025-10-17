@@ -3,6 +3,7 @@ package Team_Mute.back_end.domain.reservation.dto.response;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +17,7 @@ public class ReservationResponseDto {
 	private String spaceName;
 	private Long userId;
 	private String userName;
-	private Long reservationStatusId;
+	private Integer reservationStatusId;
 	private String reservationStatusName;
 	private Integer reservationHeadcount;
 	private LocalDateTime reservationFrom;
@@ -26,10 +27,15 @@ public class ReservationResponseDto {
 	private LocalDateTime regDate;
 	private LocalDateTime updDate;
 
+	private PrevisitInfo previsit;
+
 	public static ReservationResponseDto fromEntity(Reservation reservation) {
+		PrevisitReservation previsit = reservation.getPrevisitReservation(); // OneToOne or appropriate 매핑 필드
+		PrevisitInfo previsitDto = PrevisitInfo.fromEntity(previsit);
+
 		return ReservationResponseDto.builder()
-			.reservationId(reservation.getReservationId()) // 추가
-			.orderId(reservation.getOrderId())             // 추가
+			.reservationId(reservation.getReservationId())
+			.orderId(reservation.getOrderId())
 			.spaceId(reservation.getSpace().getSpaceId())
 			.spaceName(reservation.getSpace().getSpaceName())
 			.userId(reservation.getUser().getUserId())
@@ -43,6 +49,7 @@ public class ReservationResponseDto {
 			.reservationAttachment(reservation.getReservationAttachment())
 			.regDate(reservation.getRegDate())
 			.updDate(reservation.getUpdDate())
+			.previsit(previsitDto)
 			.build();
 	}
 }

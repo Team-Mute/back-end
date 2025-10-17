@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -13,7 +14,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
-@Setter // @ModelAttribute를 위해 Setter 추가
+@Setter
 public class ReservationRequestDto {
 
 	@NotNull(message = "공간 ID는 필수입니다.")
@@ -37,11 +38,32 @@ public class ReservationRequestDto {
 
 	private List<String> existingAttachments;
 
+	@Valid
+	private PrevisitInfoDto previsitInfo;  // 사전답사 예약 관련 필드 추가
+
 	public List<String> getExistingAttachments() {
 		return existingAttachments;
 	}
 
 	public void setExistingAttachments(List<String> existingAttachments) {
 		this.existingAttachments = existingAttachments;
+	}
+
+	public PrevisitInfoDto getPrevisitInfo() {
+		return previsitInfo;
+	}
+
+	public void setPrevisitInfo(PrevisitInfoDto previsitInfo) {
+		this.previsitInfo = previsitInfo;
+	}
+
+	@Getter
+	@Setter
+	public static class PrevisitInfoDto {
+		@NotNull(message = "사전답사 시작 시간은 필수입니다.")
+		private LocalDateTime previsitFrom;
+
+		@NotNull(message = "사전답사 종료 시간은 필수입니다.")
+		private LocalDateTime previsitTo;
 	}
 }

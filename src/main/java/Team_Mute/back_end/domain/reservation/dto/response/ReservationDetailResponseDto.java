@@ -2,8 +2,8 @@ package Team_Mute.back_end.domain.reservation.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.Builder;
 import lombok.Data;
@@ -20,11 +20,13 @@ public class ReservationDetailResponseDto {
 	private LocalDateTime reservationTo;
 	private Integer reservationHeadcount;
 	private String reservationPurpose;
-	private List<PrevisitInfo> previsits;
+	private PrevisitInfo previsits;
 	private List<String> reservationAttachment;
 
 	public static ReservationDetailResponseDto fromEntity(Reservation reservation) {
 		String mainImageUrl = reservation.getSpace().getSpaceImageUrl(); // 대표 이미지가 없으면 null
+		PrevisitReservation previsit = reservation.getPrevisitReservation(); // OneToOne or appropriate 매핑 필드
+		PrevisitInfo previsitDto = PrevisitInfo.fromEntity(previsit);
 
 		return ReservationDetailResponseDto.builder()
 			.reservationId(reservation.getReservationId())
@@ -35,9 +37,7 @@ public class ReservationDetailResponseDto {
 			.reservationTo(reservation.getReservationTo())
 			.reservationHeadcount(reservation.getReservationHeadcount())
 			.reservationPurpose(reservation.getReservationPurpose())
-			.previsits(reservation.getPrevisitReservations().stream()
-				.map(PrevisitInfo::fromEntity)
-				.collect(Collectors.toList()))
+			.previsits(previsitDto)
 			.reservationAttachment(reservation.getReservationAttachment())
 			.build();
 	}

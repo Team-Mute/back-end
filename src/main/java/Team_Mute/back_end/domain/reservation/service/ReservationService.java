@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
-import Team_Mute.back_end.domain.previsit.repository.PrevisitRepository;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
 import Team_Mute.back_end.domain.reservation.dto.response.PagedReservationResponse;
 import Team_Mute.back_end.domain.reservation.dto.response.RejectReasonResponseDto;
@@ -26,11 +24,14 @@ import Team_Mute.back_end.domain.reservation.dto.response.ReservationCancelRespo
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationDetailResponseDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationListDto;
 import Team_Mute.back_end.domain.reservation.dto.response.ReservationResponseDto;
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation.exception.ForbiddenAccessException;
 import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
+import Team_Mute.back_end.domain.reservation.exception.ReservationConflictException;
 import Team_Mute.back_end.domain.reservation.exception.ResourceNotFoundException;
+import Team_Mute.back_end.domain.reservation.repository.PrevisitRepository;
 import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
 import Team_Mute.back_end.domain.reservation.repository.ReservationStatusRepository;
 import Team_Mute.back_end.domain.reservation_admin.entity.ReservationLog;
@@ -68,25 +69,25 @@ public class ReservationService {
 		Space space = spaceRepository.findById(requestDto.getSpaceId())
 			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
 
-		// '본 예약' 시간이 겹치는지 확인 (상태 필터링 적용)
-		boolean isReservationOverlapping = reservationRepository.existsOverlappingReservationWithStatus(
+		// 공간 예약 시간대에 대한 락 획득
+		List<Reservation> overlappingReservations = reservationRepository.findOverlappingReservationsWithLock(
 			space.getSpaceId(),
 			requestDto.getReservationFrom(),
 			requestDto.getReservationTo(),
-			validStatusIds // 상태 ID 리스트 전달
+			validStatusIds
 		);
 
-		// '사전 답사 예약' 시간이 겹치는지 확인 (상태 필터링 적용)
-		boolean isPrevisitOverlapping = previsitReservationRepository.existsOverlappingPrevisitWithStatus(
+		// 사전답사 예약 시간대에 대한 락 획득
+		List<PrevisitReservation> overlappingPrevisits = previsitReservationRepository.findOverlappingPrevisitsWithLock(
 			space.getSpaceId(),
 			requestDto.getReservationFrom(),
 			requestDto.getReservationTo(),
-			validStatusIds // 상태 ID 리스트 전달
+			validStatusIds
 		);
 
-		// 4. 두 예약 중 하나라도 겹치면 예외 발생
-		if (isReservationOverlapping || isPrevisitOverlapping) {
-			throw new DataIntegrityViolationException("해당 시간에는 확정된 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
+		// 겹치는 예약이 있으면 예외 발생
+		if (!overlappingReservations.isEmpty() || !overlappingPrevisits.isEmpty()) {
+			throw new ReservationConflictException("해당 시간에는 확정된 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
 		}
 
 		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
@@ -122,6 +123,48 @@ public class ReservationService {
 
 		// 변경된 내용을 최종 저장
 		Reservation finalReservation = reservationRepository.save(savedReservation);
+
+		if (requestDto.getPrevisitInfo() != null) {
+			var pReq = requestDto.getPrevisitInfo();
+
+			// 4-1) 사전답사 시간 유효성 검증: 사전답사 시간이 공간예약 시간 보다 앞서야 함.
+			if (pReq.getPrevisitTo().isAfter(requestDto.getReservationFrom())) {
+				throw new InvalidInputValueException("사전답사 종료 시간은 공간 예약 시작 시간 이전이어야 합니다.");
+			}
+
+			if (pReq.getPrevisitFrom().isAfter(pReq.getPrevisitTo()) || pReq.getPrevisitFrom()
+				.isEqual(pReq.getPrevisitTo())) {
+				throw new InvalidInputValueException("사전답사 시작 시간은 종료 시간보다 이전이어야 합니다.");
+			}
+
+			// 사전답사 예약 시간대에 대한 락 획득 (동시성 제어)
+			List<Reservation> overlappingReservationsForPrevisit = reservationRepository.findOverlappingReservationsWithLock(
+				space.getSpaceId(),
+				pReq.getPrevisitFrom(),
+				pReq.getPrevisitTo(),
+				validStatusIds
+			);
+
+			List<PrevisitReservation> overlappingPrevisitsForPrevisit = previsitReservationRepository.findOverlappingPrevisitsWithLock(
+				space.getSpaceId(),
+				pReq.getPrevisitFrom(),
+				pReq.getPrevisitTo(),
+				validStatusIds
+			);
+
+			if (!overlappingReservationsForPrevisit.isEmpty() || !overlappingPrevisitsForPrevisit.isEmpty()) {
+				throw new ReservationConflictException("해당 시간에는 확정된 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
+			}
+
+			PrevisitReservation previsit = new PrevisitReservation();
+			previsit.setReservation(finalReservation);
+			previsit.setPrevisitFrom(pReq.getPrevisitFrom());
+			previsit.setPrevisitTo(pReq.getPrevisitTo());
+
+			PrevisitReservation savedPrevisit = previsitReservationRepository.save(previsit);
+
+			finalReservation.setPrevisitReservation(savedPrevisit);
+		}
 
 		return ReservationResponseDto.fromEntity(finalReservation);
 	}
@@ -184,8 +227,8 @@ public class ReservationService {
 
 		// 2. 현재 예약 상태 및 취소 가능 여부 확인
 		ReservationStatus currentStatus = reservation.getReservationStatus();
-		Long currentStatusId = currentStatus.getReservationStatusId();
-		List<Long> cancellableStatusIds = Arrays.asList(1L, 2L, 3L, 4L); // 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
+		Integer currentStatusId = currentStatus.getReservationStatusId();
+		List<Integer> cancellableStatusIds = Arrays.asList(1, 2, 3, 4); // 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
 
 		if (!cancellableStatusIds.contains(currentStatusId)) {
 			throw new IllegalArgumentException("이미 취소되었거나 이용 완료된 예약은 취소할 수 없습니다.");
