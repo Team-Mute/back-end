@@ -1,25 +1,12 @@
 package Team_Mute.back_end.domain.space_admin.service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.exception.UserNotFoundException;
 import Team_Mute.back_end.domain.member.repository.AdminRegionRepository;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
+import Team_Mute.back_end.domain.reservation.repository.PrevisitRepository;
+import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.AdminListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceDatailResponseDto;
@@ -85,6 +72,8 @@ public class SpaceAdminService {
 	private final SpaceLocationRepository spaceLocationRepository;
 	private final AdminRepository adminRepository;
 	private final EntityManager entityManager;
+	private final ReservationRepository reservationRepository;
+	private final PrevisitRepository previsitRepository;
 
 	// Constructor Injection (생성자를 통한 의존성 주입)
 	public SpaceAdminService(
@@ -100,7 +89,9 @@ public class SpaceAdminService {
 		SpaceClosedDayRepository spaceClosedDayRepository,
 		SpaceLocationRepository spaceLocationRepository,
 		AdminRepository adminRepository,
-		EntityManager entityManager
+		EntityManager entityManager,
+		ReservationRepository reservationRepository,
+		PrevisitRepository previsitRepository
 	) {
 		this.spaceRepository = spaceRepository;
 		this.categoryRepository = categoryRepository;
@@ -115,6 +106,8 @@ public class SpaceAdminService {
 		this.spaceLocationRepository = spaceLocationRepository;
 		this.adminRepository = adminRepository;
 		this.entityManager = entityManager;
+		this.reservationRepository = reservationRepository;
+		this.previsitRepository = previsitRepository;
 	}
 
 	/**
@@ -128,7 +121,7 @@ public class SpaceAdminService {
 	 * @throws UserNotFoundException 관리자 ID에 해당하는 사용자가 없을 경우
 	 **/
 	public Page<SpaceListResponseDto> getAllSpaces(Pageable pageable,
-		Long adminId) { // This `Pageable` is the Spring one
+												   Long adminId) { // This `Pageable` is the Spring one
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
 
@@ -451,7 +444,11 @@ public class SpaceAdminService {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "공간 수정 권한이 없습니다.");
 		}
 
-		Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 로그인된 관리자의 지역 아이디
+		// 로그인된 관리자의 지역 아이디
+		Integer adminRegionId = (admin.getAdminRegion() != null)
+			? admin.getAdminRegion().getRegionId()
+			: null;
+
 		Integer spaceRegionId = space.getRegionId(); // 수정할 지역의 지역 아이디
 
 		// 1차 승인자({@code ROLE_FIRST_APPROVER,role_id = 2})은 담당 지역이 아닐 경우 공간 등록 권한이 없음
@@ -779,13 +776,14 @@ public class SpaceAdminService {
 	 * 공간 삭제
 	 * - 공간을 삭제하고, 연관된 모든 데이터를 정리하며, S3에 저장된 이미지 파일도 삭제합니다.
 	 *
-	 * @param adminId 공간 삭제를 요청한 관리자 ID
-	 * @param spaceId 삭제할 공간 ID
+	 * @param adminId       공간 삭제를 요청한 관리자 ID
+	 * @param spaceId       삭제할 공간 ID
+	 * @param confirmDelete 과거 예약 데이터 삭제를 정말로 진행할지 확인하는 플래그 (true일 때만 삭제 진행)
 	 * @throws ResponseStatusException 권한이 없는 경우 (403 FORBIDDEN)
 	 * @throws NoSuchElementException  공간 ID에 해당하는 데이터가 없을 경우
 	 **/
 	@Transactional
-	public void deleteSpace(Long adminId, Integer spaceId) {
+	public void deleteSpace(Long adminId, Integer spaceId, boolean confirmDelete) {
 		// 관리자 권한 체크
 		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
 		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
@@ -799,12 +797,36 @@ public class SpaceAdminService {
 		Space space = spaceRepository.findById(spaceId)
 			.orElseThrow(() -> new IllegalArgumentException("해당 공간이 존재하지 않습니다: " + spaceId));
 
-		Integer adminRegionId = admin.getAdminRegion().getRegionId(); // 로그인된 관리자의 지역 아이디
+		// 로그인된 관리자의 지역 아이디
+		Integer adminRegionId = (admin.getAdminRegion() != null)
+			? admin.getAdminRegion().getRegionId()
+			: null;
+
 		Integer spaceRegionId = space.getRegionId(); // 수정할 지역의 지역 아이디
 
 		// 1차 승인자({@code ROLE_FIRST_APPROVER,role_id = 2})은 담당 지역이 아닐 경우 공간 삭제 권한이 없음
 		if (adminRole.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId()) && !adminRegionId.equals(spaceRegionId)) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "해당 공간 삭제 권한이 없습니다.");
+		}
+
+		// 활성 예약 (상태 ID 1, 2, 3) 존재 여부 체크
+		if (reservationRepository.findCountOfActiveReservations(spaceId)) {
+			throw new ResponseStatusException(
+				HttpStatus.CONFLICT,
+				"현재 승인 대기 또는 이용 예정인 예약이 존재하여 공간을 삭제할 수 없습니다." +
+					"\n신규 예약 요청이나 검색 노출을 중단하시려면 공간 수정에서 비활성화 처리해 주세요."
+			);
+		}
+
+
+		// 과거 데이터 삭제 최종 확인 요청
+		if (!confirmDelete) {
+			// 최종 확인 플래그(confirmDelete) 검증
+			// 플래그가 false인 경우, 클라이언트에게 과거 데이터 삭제 경고 메시지와 함께 409 Conflict 응답을 반환
+			throw new ResponseStatusException(
+				HttpStatus.CONFLICT,
+				"해당 공간의 과거 예약 데이터도 함께 삭제됩니다. 정말 삭제하시겠습니까?"
+					+ "\n데이터 삭제 없이 신규 예약 요청이나 검색 노출만 중단하시려면, 공간 수정에서 비활성화 처리해 주세요.");
 		}
 
 		// 2) S3 먼저 삭제 (실패 시 예외 → 트랜잭션 롤백)
@@ -825,6 +847,8 @@ public class SpaceAdminService {
 		}
 
 		// 3) DB 삭제 (연관 테이블은 CASCADE/ON DELETE CASCADE로 함께 정리)
+		previsitRepository.deletePrevisitReservationsBySpaceId(spaceId);
+		reservationRepository.deleteReservationsBySpaceId(spaceId);
 		spaceRepository.delete(space);
 	}
 

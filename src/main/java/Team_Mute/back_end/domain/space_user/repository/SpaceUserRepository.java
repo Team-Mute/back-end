@@ -114,8 +114,9 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  s.space_capacity     AS spaceCapacity,
 		  s.space_description  AS spaceDescription,
 		  s.space_image_url    AS spaceImageUrl,
-		  s.reservation_way    AS  reservationWay,
+		  s.reservation_way    AS reservationWay,
 		  s.space_rules        AS spaceRules,
+		  s.space_is_available AS spaceIsAvailable,
 		  /* 담당자 정보 추가 */
 		   COALESCE(
 			   json_build_object(
@@ -181,7 +182,6 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		JOIN tb_locations        l ON l.location_id = s.location_id
 		LEFT JOIN tb_admins       a ON a.admin_id    = s.user_id
 		WHERE s.space_id = :spaceId
-		AND   s.space_is_available = true
 		""", nativeQuery = true)
 	Optional<SpaceUserDtailResponseDto> findSpaceDetail(@Param("spaceId") Integer spaceId);
 }

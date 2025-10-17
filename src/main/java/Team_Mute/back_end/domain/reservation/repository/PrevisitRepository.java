@@ -1,17 +1,18 @@
 package Team_Mute.back_end.domain.reservation.repository;
 
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
+import jakarta.persistence.LockModeType;
+import jakarta.transaction.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
-import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
-import jakarta.persistence.LockModeType;
 
 @Repository
 public interface PrevisitRepository extends JpaRepository<PrevisitReservation, Long> {
@@ -74,4 +75,14 @@ public interface PrevisitRepository extends JpaRepository<PrevisitReservation, L
 		@Param("endOfDay") LocalDateTime endOfDay,
 		@Param("statusIds") List<Long> statusIds // 유효한 상태 ID 목록을 파라미터로 받음
 	);
+
+	/**
+	 * [공간 삭제] 시 사용되는 메소드 그룹
+	 * Space를 삭제하기 전, 관련된 예약 및 연관 데이터를 처리합니다.
+	 *
+	 **/
+	@Modifying(clearAutomatically = true)
+	@Transactional
+	@Query("DELETE FROM PrevisitReservation pr WHERE pr.reservation.space.id = :spaceId")
+	void deletePrevisitReservationsBySpaceId(@Param("spaceId") Integer spaceId);
 }

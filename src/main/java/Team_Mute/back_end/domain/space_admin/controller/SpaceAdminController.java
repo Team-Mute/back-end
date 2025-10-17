@@ -319,16 +319,21 @@ public class SpaceAdminController {
 	 *
 	 * @param authentication 현재 로그인한 관리자 정보
 	 * @param spaceId        삭제할 공간 ID
+	 * @param confirmDelete  과거 예약 데이터 삭제를 승인하는 플래그 (쿼리 파라미터로 받음)
 	 * @return 삭제 성공 메시지 및 삭제된 공간 ID
 	 */
 	@DeleteMapping("/{spaceId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "삭제할 공간 ID", required = true)
+	@Parameter(name = "confirmDelete", in = ParameterIn.QUERY, description = "과거 예약 데이터 삭제 최종 확인 (true/false)", required = true)
 	@Operation(summary = "공간 삭제", description = "토큰을 확인하여 공간 삭제를 진행합니다.")
-	public ResponseEntity<DeleteSpaceResponseDto> delete(Authentication authentication, @PathVariable Integer spaceId) {
+	public ResponseEntity<DeleteSpaceResponseDto> delete(
+		Authentication authentication,
+		@PathVariable Integer spaceId,
+		@RequestParam(name = "confirmDelete", required = true) boolean confirmDelete) {
 		// 관리자 권한 아이디
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 
-		spaceAdminService.deleteSpace(adminId, spaceId);
+		spaceAdminService.deleteSpace(adminId, spaceId, confirmDelete);
 		return ResponseEntity.ok(new DeleteSpaceResponseDto(
 			"공간 삭제 완료",
 			spaceId
