@@ -2,6 +2,7 @@ package Team_Mute.back_end.domain.dashboard_admin.service;
 
 import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCalendarResponseDto;
 import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCountResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.repository.DashboardAdminRepository;
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
@@ -11,6 +12,8 @@ import Team_Mute.back_end.domain.reservation_admin.service.RservationListAllServ
 import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -30,6 +33,7 @@ public class DashboardAdminService {
 	private final AdminReservationRepository adminReservationRepository;
 	private final AdminRepository adminRepository;
 	private final RservationListAllService rservationListAllService;
+	private final DashboardAdminRepository dashboardAdminRepository;
 
 	/**
 	 * DashboardAdminService의 생성자
@@ -41,11 +45,13 @@ public class DashboardAdminService {
 	public DashboardAdminService(
 		AdminReservationRepository adminReservationRepository,
 		AdminRepository adminRepository,
-		RservationListAllService rservationListAllService
+		RservationListAllService rservationListAllService,
+		DashboardAdminRepository dashboardAdminRepository
 	) {
 		this.adminReservationRepository = adminReservationRepository;
 		this.adminRepository = adminRepository;
 		this.rservationListAllService = rservationListAllService;
+		this.dashboardAdminRepository = dashboardAdminRepository;
 	}
 
 	/**
@@ -79,12 +85,12 @@ public class DashboardAdminService {
 
 		// 긴급 예약 건수 집계
 		long emergencyCount = allContent.stream()
-			.filter(dto -> Boolean.TRUE.equals(dto.isEmergency))
+			.filter(dto -> dto.isEmergency)
 			.count();
 
 		// 신한 관련 예약 건수 집계
 		long shinhanCount = allContent.stream()
-			.filter(dto -> Boolean.TRUE.equals(dto.isShinhan))
+			.filter(dto -> dto.isShinhan)
 			.count();
 
 		// DTO에 담아서 반환
@@ -105,20 +111,45 @@ public class DashboardAdminService {
 	 * @return 캘린더 표시에 필요한 핵심 정보만 담은 예약 리스트 DTO 목록
 	 */
 	@Transactional(readOnly = true)
-	public List<ReservationCalendarResponseDto> getAllReservations(Long adminId) {
+	public List<ReservationCalendarResponseDto> getAllReservations(
+		Long adminId,
+		Integer year,
+		Integer month,
+		List<Integer> statusIds
+	) {
 		// 관리자 유효성 검사
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(Team_Mute.back_end.domain.member.exception.UserNotFoundException::new);
 
-		// DB에서 모든 예약 데이터를 가져옴
-		List<Reservation> allReservations = adminReservationRepository.findAll();
+		// 연도와 월을 기반으로 조회 기간 계산
+		LocalDateTime startDateTime;
+		LocalDateTime endDateTime;
 
-		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환 (관리자 권한 필터링 적용)
+		try {
+			YearMonth yearMonth = YearMonth.of(year, month);
+			startDateTime = yearMonth.atDay(1).atStartOfDay();
+			endDateTime = yearMonth.atEndOfMonth().atTime(23, 59, 59);
+		} catch (Exception e) {
+			throw new IllegalArgumentException("유효하지 않은 조회 연도 또는 월입니다.");
+		}
+
+		// 필터링할 상태 ID 리스트 정의 (statusIds가 없을 경우 전체 조회)
+		List<Integer> finalStatusIds = statusIds != null && !statusIds.isEmpty() ?
+			statusIds :
+			ReservationStatusEnum.getAllStatusIds();
+
+		// DB 조회
+		List<Reservation> allReservations = dashboardAdminRepository.findReservationsByPeriodAndStatus(
+			startDateTime,
+			endDateTime,
+			finalStatusIds
+		);
+
+		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환 (관리자 권한 필터링은 이 서비스에서 수행)
 		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		// 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 이용 완료인 리스트만 추출 후 새로운 DTO로 변환
+		// 최종 DTO 변환 및 반환
 		List<ReservationCalendarResponseDto> responseDtos = allContent.stream()
-			.filter(dto -> dto.getStatusId().equals(ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId()) || dto.getStatusId().equals(ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId()) || dto.getStatusId().equals(ReservationStatusEnum.FINAL_APPROVAL.getId()) || dto.getStatusId().equals(ReservationStatusEnum.USER_COMPLETED.getId()))
 			.map(ReservationCalendarResponseDto::from)
 			.collect(Collectors.toList());
 
