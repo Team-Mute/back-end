@@ -1,10 +1,5 @@
 package Team_Mute.back_end.global.config;
 
-import java.util.List;
-
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Configuration;
-
 import Team_Mute.back_end.domain.member.entity.AdminRegion;
 import Team_Mute.back_end.domain.member.entity.UserRole;
 import Team_Mute.back_end.domain.member.service.AdminService;
@@ -15,6 +10,10 @@ import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 import jakarta.persistence.EntityManager;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Configuration;
 
 /**
  * 서버 기동 시 JPA 기반으로 초기 데이터 시드 (SQL 없이 JPQL/엔티티로 처리)
@@ -202,6 +201,13 @@ public class DataSeedRunner implements CommandLineRunner {
 		}
 	}
 
+	/**
+	 * 주어진 역할 ID(roleId)를 기준으로 UserRole 엔티티를 생성하거나 갱신(Upsert)
+	 * - roleId를 PK로 조회하여 없으면 삽입(Insert), 있으면 roleName을 갱신(Update)
+	 *
+	 * @param roleId   확인할 역할 ID (PK)
+	 * @param roleName 갱신할 역할 이름
+	 */
 	private void upsertUserRole(Integer roleId, String roleName) {
 		var found = em.createQuery(
 				"select r from UserRole r where r.roleId = :roleId", UserRole.class)
@@ -223,6 +229,10 @@ public class DataSeedRunner implements CommandLineRunner {
 		}
 	}
 
+	/**
+	 * ReservationStatusEnum에 정의된 모든 예약 상태 목록을 DB에 Upsert
+	 * - ID 기준(1~6)으로 존재하지 않으면 삽입하고, 존재하면 Description(이름)을 갱신
+	 */
 	private void upsertReservationStatuses() {
 		for (ReservationStatusEnum item : ReservationStatusEnum.values()) {
 			var found = em.find(ReservationStatus.class, item.getId());

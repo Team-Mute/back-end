@@ -1,15 +1,5 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
-import static Team_Mute.back_end.domain.reservation_admin.util.ReservationApprovalPolicy.*;
-
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Service;
-
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.entity.UserCompany;
@@ -18,6 +8,7 @@ import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
+import Team_Mute.back_end.domain.reservation_admin.dto.response.PrevisitItemResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminPrevisitReservationRepository;
 import Team_Mute.back_end.domain.reservation_admin.repository.AdminReservationStatusRepository;
@@ -27,6 +18,7 @@ import Team_Mute.back_end.domain.space_admin.entity.Space;
 import Team_Mute.back_end.domain.space_admin.repository.SpaceRepository;
 import Team_Mute.back_end.global.constants.AdminRoleEnum;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -173,6 +165,15 @@ public class RservationListAllService {
 				// 버튼 클릭 활성화를 위한 권한 체크
 				Integer reservationRegionId = reservation.getSpace().getRegionId(); // 예약된 공간의 지역ID 조회
 
+				Long currentReservationId = reservation.getReservationId(); // 현재 예약의 ID를 가져옵니다.
+
+				// 사전답사 DTO 변환
+				List<PrevisitItemResponseDto> previsitDtos = previsitMap
+					.getOrDefault(currentReservationId, Collections.emptyList()) // 맵에서 현재 예약 ID에 해당하는 리스트를 가져옵니다. 없으면 빈 리스트를 반환합니다.
+					.stream()
+					.map(PrevisitItemResponseDto::from) // 각 PrevisitReservation을 DTO로 변환합니다.
+					.toList();
+
 				String statusName = statusNameById.getOrDefault(
 					reservation.getReservationStatus().getReservationStatusId(), "UNKNOWN");
 				String spaceName = spaceNameById.getOrDefault(reservation.getSpace().getSpaceId(), null);
@@ -186,7 +187,7 @@ public class RservationListAllService {
 				boolean isRejectable = isRejectableFor(reservationRegionId, adminRegionId, roleId, statusName);
 
 				return ReservationListResponseDto.from(reservation, statusName, spaceName, userName, isShinhan,
-					isEmergency, isApprovable, isRejectable);
+					isEmergency, isApprovable, isRejectable, previsitDtos);
 			})
 			.toList();
 

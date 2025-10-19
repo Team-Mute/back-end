@@ -158,13 +158,13 @@ public class ReservationAdminController {
 	@GetMapping("/search")
 	@Operation(
 		summary = "예약 검색(복합 조건)",
-		description = "키워드와 함께 지역, 승인 상태, 플래그 등으로 복합 검색합니다."
+		description = "키워드(예약자명, 공간명)와 함께 지역, 승인 상태, 플래그 등으로 복합 검색합니다."
 	)
 	public ResponseEntity<PagedResponseDto<ReservationListResponseDto>> searchReservations(
 		Authentication authentication,
 		@RequestParam(name = "keyword", required = false) String keyword,
 		@RequestParam(name = "regionId", required = false) Integer regionId,
-		@RequestParam(name = "statusId", required = false) Long statusId,
+		@RequestParam(name = "statusId", required = false) Integer statusId,
 		@RequestParam(name = "isShinhan", required = false) Boolean isShinhan,
 		@RequestParam(name = "isEmergency", required = false) Boolean isEmergency,
 		@RequestParam(defaultValue = "1") int page,
