@@ -139,24 +139,9 @@ public class ReservationAdminService {
 			for (Long id : ids) {
 				try {
 					ApproveResponseDto r = approvalTxService.approveSecondTx(adminId, id); // 개별 Tx 서비스 호출
-					// 승인 성공 시 Email 시도 (실패해도 승인 유지)
 					String finalMsg = r.getMessage(); // "2차 승인 완료"
-					try {
-						Reservation reservation = adminReservationRepository.findById(id)
-							.orElseThrow(() -> new IllegalArgumentException("예약을 찾을 수 없습니다."));
-
-						emailService.sendMailForReservationAdmin(
-							reservation,
-							ReservationStatusEnum.FINAL_APPROVAL.getId(),
-							null
-						);
-
-					} catch (MailException e) {
-						log.error("2차 승인 완료 후 이메일 발송 실패: 예약ID={}", id, e);
-					}
 
 					resp.add(new BulkApproveItemResultDto(id, true, finalMsg));
-
 					resp.setSuccessCount(resp.getSuccessCount() + 1);
 				} catch (Exception ex) {
 					resp.add(new BulkApproveItemResultDto(id, false, toClientMessage(ex)));
@@ -236,23 +221,21 @@ public class ReservationAdminService {
 			reservation.setUpdDate(LocalDateTime.now());
 
 			// 반려 사유를 로그 테이블에 저장
-			ReservationLog log = new ReservationLog();
-			log.setReservation(reservation);
-			log.setChangedStatus(rejectedStatus);
-			log.setMemo(rejectionReason);
-			log.setRegDate(LocalDateTime.now());
+			ReservationLog reservationLog = new ReservationLog();
+			reservationLog.setReservation(reservation);
+			reservationLog.setChangedStatus(rejectedStatus);
+			reservationLog.setMemo(rejectionReason);
+			reservationLog.setRegDate(LocalDateTime.now());
 
-			reservationLogRepository.save(log);
+			reservationLogRepository.save(reservationLog);
 
-			// 반려 성공 시 Email 발송 시도 (실패해도 반려 유지)
-			String smsMsg;
+			// 반려 성공 시 Email 발송 시도 (실패하면 반려도 실패)
 			try {
 				emailService.sendMailForReservationAdmin(
 					reservation,
 					ReservationStatusEnum.REJECTED_STATUS.getId(),
 					rejectionReason
 				);
-				smsMsg = " + 반려 메세지 전송 완료";
 			} catch (MailException e) {
 				throw new RuntimeException(e.getMessage(), e);
 			}

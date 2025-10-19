@@ -1,15 +1,8 @@
 package Team_Mute.back_end.domain.reservation_admin.service;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
+import Team_Mute.back_end.domain.member.service.EmailService;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import Team_Mute.back_end.domain.reservation.entity.ReservationStatus;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ApproveResponseDto;
@@ -38,6 +31,7 @@ public class ReservationApprovalTxService {
 	private final AdminRepository adminRepository;
 	private final AdminReservationRepository adminReservationRepository;
 	private final AdminReservationStatusRepository adminStatusRepository;
+	private final EmailService emailService;
 
 	// 상태명(Description) -> 상태ID(Long) 캐시: DB 반복 조회를 줄이기 위한 간단한 메모리 캐시
 	private final Map<String, Integer> statusIdCache = new HashMap<>();
@@ -162,6 +156,13 @@ public class ReservationApprovalTxService {
 
 			reservation.setReservationStatusId(toStatus);
 			reservation.setUpdDate(LocalDateTime.now());
+
+			// 승인 성공 시 Email 시도 (실패하면 승인도 실패)
+			emailService.sendMailForReservationAdmin(
+				reservation,
+				ReservationStatusEnum.FINAL_APPROVAL.getId(),
+				null
+			);
 
 			return new ApproveResponseDto(
 				reservationId, fromStatus, ReservationStatusEnum.FINAL_APPROVAL.getDescription(), LocalDateTime.now(),
