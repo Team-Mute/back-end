@@ -1,5 +1,9 @@
 package Team_Mute.back_end.global.constants;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /**
  * 예약 상태를 정의하는 Enum 클래스
  * 각 상태는 불변의 ID 값을 가지며, 해당 값은 DB의 예약 상태 코드와 매핑됩니다.
@@ -67,5 +71,19 @@ public enum ReservationStatusEnum {
 	 */
 	public String getDescription() {
 		return description;
+	}
+
+	/**
+	 * Enum에 정의된 모든 예약 상태 ID 목록을 반환
+	 * 이 메서드는 [관리자 대시보드 캘린더] 조회 시,
+	 * 클라이언트가 필터링할 상태 ID를 지정하지 않았을 때 (statusIds가 비어있을 때),
+	 * 모든 상태를 조회 대상으로 포함시키기 위해 사용
+	 *
+	 * @return 모든 예약 상태 ID(1부터 6까지)를 포함하는 {@code List<Integer>}
+	 */
+	public static List<Integer> getAllStatusIds() {
+		return Stream.of(ReservationStatusEnum.values())
+			.map(ReservationStatusEnum::getId)
+			.collect(Collectors.toList());
 	}
 }

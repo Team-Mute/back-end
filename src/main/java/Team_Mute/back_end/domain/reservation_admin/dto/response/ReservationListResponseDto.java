@@ -1,7 +1,5 @@
 package Team_Mute.back_end.domain.reservation_admin.dto.response;
 
-import java.time.LocalDateTime;
-
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * [예약 관리 리스트] 개별 항목 응답 DTO
@@ -82,6 +81,8 @@ public class ReservationListResponseDto {
 	 */
 	public boolean isRejectable;
 
+	public List<PrevisitItemResponseDto> previsits;
+
 	// 예약 관리 필터링을 위해 추가한 필드
 	/**
 	 * 예약된 공간의 지역 ID (필터링 및 권한 체크용)
@@ -104,7 +105,8 @@ public class ReservationListResponseDto {
 		boolean isShinhan,
 		boolean isEmergency,
 		boolean isApprovable,
-		boolean isRejectable
+		boolean isRejectable,
+		List<PrevisitItemResponseDto> previsitDtos
 	) {
 		return ReservationListResponseDto.builder()
 			.reservationId(r.getReservationId())
@@ -115,11 +117,11 @@ public class ReservationListResponseDto {
 			.reservationFrom(r.getReservationFrom())
 			.reservationTo(r.getReservationTo())
 			.regDate(r.getRegDate())
+			.previsits(previsitDtos)
 			.isShinhan(isShinhan)
 			.isEmergency(isEmergency)
 			.isApprovable(isApprovable)
 			.isRejectable(isRejectable)
-			// DTO에 누락된 필드들을 추가
 			.regionId(r.getSpace().getRegionId())
 			.statusId(r.getReservationStatus().getReservationStatusId())
 			.build();
