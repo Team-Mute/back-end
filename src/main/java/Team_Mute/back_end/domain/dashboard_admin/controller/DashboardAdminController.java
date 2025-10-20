@@ -1,8 +1,9 @@
 package Team_Mute.back_end.domain.dashboard_admin.controller;
 
-import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCalendarResponseDto;
-import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCountResponseDto;
-import Team_Mute.back_end.domain.dashboard_admin.dto.SelectItemResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.CalendernFilterItemResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.ReservationCalendarResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.ReservationCountResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.SelectItemResponseDto;
 import Team_Mute.back_end.domain.dashboard_admin.service.DashboardAdminService;
 import Team_Mute.back_end.domain.reservation_admin.dto.response.ReservationListResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,6 +70,16 @@ public class DashboardAdminController {
 	}
 
 	/**
+	 * 캘린더 커스터마이징 화면 구성을 위한 리스트 조회
+	 */
+	@GetMapping("/filters")
+	@Operation(summary = "캘린더 설정 필터링 리스트 조회", description = "토큰을 확인하여 캘린더 설정 필터링 리스트를 조회합니다.")
+	public ResponseEntity<List<CalendernFilterItemResponseDto>> getReservationFilterItemList() {
+		List<CalendernFilterItemResponseDto> statusList = dashboardAdminService.getReservationFilterItemList();
+		return ResponseEntity.ok(statusList);
+	}
+
+	/**
 	 * 대시보드 캘린더 리스트 조회
 	 * - 관리자 대시보드 캘린더에 표시할 전체 예약 리스트를 조회
 	 * - 인증 토큰에서 관리자 ID를 추출하여 권한에 맞는 예약 목록을 캘린더 DTO 형태로 반환
@@ -85,12 +96,14 @@ public class DashboardAdminController {
 		Authentication authentication,
 		@RequestParam(required = true) @Min(value = 1900, message = "연도는 1900년 이상이어야 합니다.") Integer year,
 		@RequestParam(required = true) @Min(value = 1, message = "월은 1월 이상이어야 합니다.") @Max(value = 12, message = "월은 12월 이하여야 합니다.") Integer month,
-		@RequestParam(required = false) List<Integer> statusIds
+		@RequestParam(required = false) List<Integer> statusIds, // 예약 상태
+		@RequestParam(required = false) Boolean isShinhan, // 신한 예약 플래그
+		@RequestParam(required = false) Boolean isEmergency   // 긴급 예약 플래그
 	) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 		// 서비스 계층으로 변경된 파라미터를 전달
 		List<ReservationCalendarResponseDto> reservationList =
-			dashboardAdminService.getAllReservations(adminId, year, month, statusIds);
+			dashboardAdminService.getAllReservations(adminId, year, month, statusIds, isShinhan, isEmergency);
 
 		return ResponseEntity.ok(reservationList);
 	}

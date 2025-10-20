@@ -1,7 +1,8 @@
 package Team_Mute.back_end.domain.dashboard_admin.service;
 
-import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCalendarResponseDto;
-import Team_Mute.back_end.domain.dashboard_admin.dto.ReservationCountResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.CalendernFilterItemResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.ReservationCalendarResponseDto;
+import Team_Mute.back_end.domain.dashboard_admin.dto.response.ReservationCountResponseDto;
 import Team_Mute.back_end.domain.dashboard_admin.repository.DashboardAdminRepository;
 import Team_Mute.back_end.domain.member.entity.Admin;
 import Team_Mute.back_end.domain.member.repository.AdminRepository;
@@ -14,6 +15,8 @@ import Team_Mute.back_end.global.constants.ReservationStatusEnum;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -103,19 +106,43 @@ public class DashboardAdminService {
 	}
 
 	/**
+	 * 캘린더 커스터마이징을 위한 필터링 항목 리스트를 조회
+	 * (예약 상태 Enum 항목 + 별도 커스터마이징 플래그 항목 포함)
+	 */
+	public List<CalendernFilterItemResponseDto> getReservationFilterItemList() {
+		// 1. Enum에 정의된 예약 상태 (ID 1~6)를 먼저 추가
+		List<CalendernFilterItemResponseDto> list = Arrays.stream(ReservationStatusEnum.values())
+			.map(CalendernFilterItemResponseDto::fromStatusEnum)
+			.collect(Collectors.toCollection(ArrayList::new));
+
+		// 2. 별도의 커스터마이징 항목 (신한 예약, 긴급) 추가
+		list.add(CalendernFilterItemResponseDto.fromCustomFlag("isEmergency", "긴급"));
+		list.add(CalendernFilterItemResponseDto.fromCustomFlag("isShinha", "신한 예약"));
+
+		return list;
+	}
+
+	/**
 	 * 대시보드 캘린더 리스트 조회
 	 * - 관리자 대시보드 캘린더에 표시할 전체 예약 리스트를 조회
 	 * - 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 이용 완료 상태의 예약만 추출하여 캘린더 형식 DTO로 변환
 	 *
-	 * @param adminId 현재 로그인한 관리자의 ID
-	 * @return 캘린더 표시에 필요한 핵심 정보만 담은 예약 리스트 DTO 목록
+	 * @param adminId     관리자 ID
+	 * @param year        필수: 연도
+	 * @param month       필수: 월
+	 * @param statusIds   선택: 예약 상태 ID 목록
+	 * @param isShinhan   선택: 신한 예약 여부
+	 * @param isEmergency 선택: 긴급 예약 여부
+	 * @return 필터링된 예약 리스트 DTO
 	 */
 	@Transactional(readOnly = true)
 	public List<ReservationCalendarResponseDto> getAllReservations(
 		Long adminId,
 		Integer year,
 		Integer month,
-		List<Integer> statusIds
+		List<Integer> statusIds, // 예약 상태
+		Boolean isShinhan, // 신한 예약 플래그
+		Boolean isEmergency // 긴급 예약 플래그
 	) {
 		// 관리자 유효성 검사
 		Admin admin = adminRepository.findById(adminId)
@@ -141,15 +168,41 @@ public class DashboardAdminService {
 		// DB 조회
 		List<Reservation> allReservations = dashboardAdminRepository.findReservationsByPeriodAndStatus(
 			startDateTime,
-			endDateTime,
-			finalStatusIds
+			endDateTime
 		);
 
 		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환 (관리자 권한 필터링은 이 서비스에서 수행)
 		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
 
+		// 필터링 로직 통합 및 OR 조건 적용
+		List<ReservationListResponseDto> filteredContent = allContent.stream()
+			.filter(dto -> {
+				// 1) 예약 상태 필터 (statusIds)
+				// statusIds가 제공된 경우, DTO의 상태가 해당 목록에 포함되는지 확인
+				boolean meetsStatus = statusIds == null || statusIds.isEmpty() || statusIds.contains(dto.getStatusId());
+
+				// 2) 신한 예약 필터 (isShinhan)
+				// isShinhan이 제공된 경우, DTO의 신한 플래그가 요청 값과 일치하는지 확인
+				boolean meetsShinhan = (isShinhan != null) &&
+					(dto.getIsShinhan() != null && dto.getIsShinhan().equals(isShinhan));
+
+				// 3) 긴급 예약 필터 (isEmergency)
+				// isEmergency가 제공된 경우, DTO의 긴급 플래그가 요청 값과 일치하는지 확인
+				boolean meetsEmergency = (isEmergency != null) &&
+					(dto.getIsEmergency() != null && dto.getIsEmergency().equals(isEmergency));
+
+				//  아무 필터도 선택하지 않은 경우 (기본: 기간 내 모든 예약)
+				if ((statusIds == null || statusIds.isEmpty()) && isShinhan == null && isEmergency == null) {
+					return true;
+				}
+
+				// 필터를 하나라도 선택한 경우: (A OR B OR C) 조건 적용
+				return meetsStatus || meetsShinhan || meetsEmergency;
+			})
+			.toList();
+
 		// 최종 DTO 변환 및 반환
-		List<ReservationCalendarResponseDto> responseDtos = allContent.stream()
+		List<ReservationCalendarResponseDto> responseDtos = filteredContent.stream()
 			.map(ReservationCalendarResponseDto::from)
 			.collect(Collectors.toList());
 

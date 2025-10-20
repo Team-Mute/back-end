@@ -1,4 +1,4 @@
-package Team_Mute.back_end.domain.dashboard_admin.dto;
+package Team_Mute.back_end.domain.dashboard_admin.dto.response;
 
 /**
  * 대시보드 카운트와 같이 레이블(이름)과 값(건수) 쌍으로 구성된 항목을 표현하는 DTO
