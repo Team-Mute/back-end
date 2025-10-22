@@ -94,7 +94,11 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long>,
 	@Query("SELECT CASE WHEN COUNT(r) > 0 THEN TRUE ELSE FALSE END FROM Reservation r WHERE r.space.id = :spaceId AND r.reservationStatus.id IN (1, 2, 3)")
 	boolean findCountOfActiveReservations(@Param("spaceId") Integer spaceId);
 
-	// 2. Space를 참조하는 예약 데이터 모두 삭제 (Deletion)
+	// 2. 과거 예약 (4, 5, 6) 존재 여부 체크
+	@Query("SELECT CASE WHEN COUNT(r) > 0 THEN TRUE ELSE FALSE END FROM Reservation r WHERE r.space.id = :spaceId AND r.reservationStatus.id IN (4, 5, 6)")
+	boolean findCountOfPastReservations(@Param("spaceId") Integer spaceId);
+
+	// 3. Space를 참조하는 예약 데이터 모두 삭제 (Deletion)
 	@Modifying(clearAutomatically = true)
 	@Transactional
 	@Query("DELETE FROM Reservation r WHERE r.space.id = :spaceId")
