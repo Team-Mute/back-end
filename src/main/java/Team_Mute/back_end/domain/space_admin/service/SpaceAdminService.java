@@ -812,7 +812,8 @@ public class SpaceAdminService {
 		// 활성 예약 (상태 ID 1, 2, 3) 존재 여부 체크
 		if (reservationRepository.findCountOfActiveReservations(spaceId)) {
 			throw new ResponseStatusException(
-				HttpStatus.CONFLICT,
+				// 422 Unprocessable Entity(비즈니스 규칙 위반)
+				HttpStatus.UNPROCESSABLE_ENTITY,
 				"현재 승인 대기 또는 이용 예정인 예약이 존재하여 공간을 삭제할 수 없습니다." +
 					"\n신규 예약 요청이나 검색 노출을 중단하시려면 공간 수정에서 비활성화 처리해 주세요."
 			);
@@ -820,7 +821,7 @@ public class SpaceAdminService {
 
 
 		// 과거 데이터 삭제 최종 확인 요청
-		if (!confirmDelete) {
+		if (reservationRepository.findCountOfPastReservations(spaceId) && !confirmDelete) {
 			// 최종 확인 플래그(confirmDelete) 검증
 			// 플래그가 false인 경우, 클라이언트에게 과거 데이터 삭제 경고 메시지와 함께 409 Conflict 응답을 반환
 			throw new ResponseStatusException(
