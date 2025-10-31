@@ -331,9 +331,15 @@ public class SpaceAdminService {
 
 		// === 태그 처리 ===
 		for (String tagName : req.getTagNames()) {
-			// 태그명으로 조회 -> 없으면 예외 발생
+			// 태그명으로 조회 -> 없으면 새로 생성 및 저장
 			SpaceTag tag = tagRepository.findByTagName(tagName)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 태그입니다: " + tagName));
+				.orElseGet(() -> {
+					SpaceTag newTag = SpaceTag.builder()
+						.tagName(tagName)
+						.regDate(LocalDateTime.now())
+						.build();
+					return tagRepository.save(newTag);
+				});
 
 			// Space와 Tag의 매핑 엔티티 생성 및 저장
 			SpaceTagMap map = SpaceTagMap.builder()
@@ -606,9 +612,15 @@ public class SpaceAdminService {
 		// === 태그 전량 교체 ===
 		tagMapRepository.deleteBySpace(space);
 		for (String tagName : req.getTagNames()) {
-			// 태그명으로 조회 -> 없으면 예외 발생
+			// 태그명으로 조회 -> 없으면 새로 생성 및 저장
 			SpaceTag tag = tagRepository.findByTagName(tagName)
-				.orElseThrow(() -> new IllegalArgumentException("존재하지 않는 태그입니다. " + tagName));
+				.orElseGet(() -> {
+					SpaceTag newTag = SpaceTag.builder()
+						.tagName(tagName)
+						.regDate(LocalDateTime.now())
+						.build();
+					return tagRepository.save(newTag);
+				});
 
 			SpaceTagMap map = SpaceTagMap.builder()
 				.space(space)
@@ -851,38 +863,6 @@ public class SpaceAdminService {
 		previsitRepository.deletePrevisitReservationsBySpaceId(spaceId);
 		reservationRepository.deleteReservationsBySpaceId(spaceId);
 		spaceRepository.delete(space);
-	}
-
-	/**
-	 * 태그(편의시설) 추가
-	 * - 새로운 태그(편의시설)를 생성하고 DB에 저장합니다.
-	 *
-	 * @param adminId 태그 생성을 요청한 관리자 ID
-	 * @param tagName 생성할 태그 이름
-	 * @return 생성된 {@code SpaceTag} 엔티티
-	 * @throws ResponseStatusException  권한이 없는 경우 (403 FORBIDDEN)
-	 * @throws IllegalArgumentException 이미 존재하는 태그명인 경우
-	 **/
-	public SpaceTag createTag(Long adminId, String tagName) {
-		// 관리자 권한 체크
-		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
-		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
-
-		if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId())) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리 권한이 없습니다.");
-		}
-
-		// 중복 태그 검증
-		if (tagRepository.findByTagName(tagName).isPresent()) {
-			throw new IllegalArgumentException("이미 존재하는 태그입니다.");
-		}
-
-		SpaceTag newTag = SpaceTag.builder()
-			.tagName(tagName)
-			.regDate(LocalDateTime.now())
-			.build();
-
-		return tagRepository.save(newTag);
 	}
 
 	/**

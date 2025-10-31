@@ -6,7 +6,6 @@ import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.AdminListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.DeleteSpaceResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
-import Team_Mute.back_end.domain.space_admin.entity.SpaceTag;
 import Team_Mute.back_end.domain.space_admin.service.SpaceAdminService;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
@@ -24,7 +23,6 @@ import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -33,7 +31,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -338,39 +335,6 @@ public class SpaceAdminController {
 			"공간 삭제 완료",
 			spaceId
 		));
-	}
-
-	/**
-	 * 태그(편의시설) 추가
-	 *
-	 * @param authentication 현재 로그인한 관리자 정보
-	 * @param tagName        생성할 태그 이름
-	 * @return 생성된 {@code SpaceTag} 정보 또는 에러 메시지
-	 */
-	@PostMapping("/tags")
-	@Operation(summary = "태그(편의시설) 등록", description = "토큰을 확인하여 편의시설을 등록합니다.")
-	public ResponseEntity<?> createTag(Authentication authentication, @RequestParam String tagName) {
-		// 관리자 권한 아이디
-		Long adminId = Long.valueOf((String) authentication.getPrincipal());
-
-		// 입력 파라미터 유효성 검사
-		if (tagName == null || tagName.trim().isEmpty()) {
-			return ResponseEntity.badRequest().build();
-		}
-
-		String trimmedTagName = tagName.trim();
-
-		try {
-			SpaceTag createdTag = spaceAdminService.createTag(adminId, trimmedTagName);
-
-			return ResponseEntity.status(HttpStatus.CREATED).body(createdTag);
-		} catch (IllegalArgumentException e) {
-			Map<String, String> errorResponse = new HashMap<>();
-			errorResponse.put("error", "Conflict");
-			errorResponse.put("message", "이미 존재하는 태그입니다.");
-
-			return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
-		}
 	}
 
 	/**
