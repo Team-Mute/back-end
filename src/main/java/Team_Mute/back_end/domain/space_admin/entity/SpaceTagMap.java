@@ -68,6 +68,6 @@ public class SpaceTagMap {
 	 *
 	 */
 	@CreationTimestamp
-	@Column(name = "reg_date")
+	@Column(name = "reg_date", nullable = false)
 	private LocalDateTime regDate;
 }
