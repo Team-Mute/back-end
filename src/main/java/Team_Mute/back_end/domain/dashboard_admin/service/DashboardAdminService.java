@@ -110,14 +110,10 @@ public class DashboardAdminService {
 	 * (예약 상태 Enum 항목 + 별도 커스터마이징 플래그 항목 포함)
 	 */
 	public List<CalendernFilterItemResponseDto> getReservationFilterItemList() {
-		// 1. Enum에 정의된 예약 상태 (ID 1~6)를 먼저 추가
+		// 1. Enum에 정의된 예약 상태 (ID 1~6)를 추가
 		List<CalendernFilterItemResponseDto> list = Arrays.stream(ReservationStatusEnum.values())
 			.map(CalendernFilterItemResponseDto::fromStatusEnum)
 			.collect(Collectors.toCollection(ArrayList::new));
-
-		// 2. 별도의 커스터마이징 항목 (신한 예약, 긴급) 추가
-		list.add(CalendernFilterItemResponseDto.fromCustomFlag("isEmergency", "긴급"));
-		list.add(CalendernFilterItemResponseDto.fromCustomFlag("isShinha", "신한 예약"));
 
 		return list;
 	}
@@ -127,12 +123,10 @@ public class DashboardAdminService {
 	 * - 관리자 대시보드 캘린더에 표시할 전체 예약 리스트를 조회
 	 * - 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 이용 완료 상태의 예약만 추출하여 캘린더 형식 DTO로 변환
 	 *
-	 * @param adminId     관리자 ID
-	 * @param year        필수: 연도
-	 * @param month       필수: 월
-	 * @param statusIds   선택: 예약 상태 ID 목록
-	 * @param isShinhan   선택: 신한 예약 여부
-	 * @param isEmergency 선택: 긴급 예약 여부
+	 * @param adminId   관리자 ID
+	 * @param year      필수: 연도
+	 * @param month     필수: 월
+	 * @param statusIds 선택: 예약 상태 ID 목록
 	 * @return 필터링된 예약 리스트 DTO
 	 */
 	@Transactional(readOnly = true)
@@ -140,9 +134,7 @@ public class DashboardAdminService {
 		Long adminId,
 		Integer year,
 		Integer month,
-		List<Integer> statusIds, // 예약 상태
-		Boolean isShinhan, // 신한 예약 플래그
-		Boolean isEmergency // 긴급 예약 플래그
+		List<Integer> statusIds // 예약 상태
 	) {
 		// 관리자 유효성 검사
 		Admin admin = adminRepository.findById(adminId)
@@ -181,23 +173,13 @@ public class DashboardAdminService {
 				// statusIds가 제공된 경우, DTO의 상태가 해당 목록에 포함되는지 확인
 				boolean meetsStatus = statusIds == null || statusIds.isEmpty() || statusIds.contains(dto.getStatusId());
 
-				// 2) 신한 예약 필터 (isShinhan)
-				// isShinhan이 제공된 경우, DTO의 신한 플래그가 요청 값과 일치하는지 확인
-				boolean meetsShinhan = (isShinhan != null) &&
-					(dto.getIsShinhan() != null && dto.getIsShinhan().equals(isShinhan));
-
-				// 3) 긴급 예약 필터 (isEmergency)
-				// isEmergency가 제공된 경우, DTO의 긴급 플래그가 요청 값과 일치하는지 확인
-				boolean meetsEmergency = (isEmergency != null) &&
-					(dto.getIsEmergency() != null && dto.getIsEmergency().equals(isEmergency));
-
 				//  아무 필터도 선택하지 않은 경우 (기본: 기간 내 모든 예약)
-				if ((statusIds == null || statusIds.isEmpty()) && isShinhan == null && isEmergency == null) {
+				if ((statusIds == null || statusIds.isEmpty())) {
 					return true;
 				}
 
 				// 필터를 하나라도 선택한 경우: (A OR B OR C) 조건 적용
-				return meetsStatus || meetsShinhan || meetsEmergency;
+				return meetsStatus;
 			})
 			.toList();
 

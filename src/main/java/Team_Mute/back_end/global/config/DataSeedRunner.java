@@ -56,10 +56,10 @@ public class DataSeedRunner implements CommandLineRunner {
 		seeds.forEach(this::upsertLocationByRegionName);
 
 		// 4) UserRole
-		upsertUserRole(0, "Master");
-		upsertUserRole(1, "Approver");
-		upsertUserRole(2, "Manager");
-		upsertUserRole(3, "Customer");
+		upsertUserRole(0, "Master"); // 마스터 관리자 (관리자 계정 생성용 계정)
+		upsertUserRole(1, "Approver"); // 2차 승인자
+		upsertUserRole(2, "Manager"); // 1차 승인자
+		upsertUserRole(3, "Customer"); // 사용자
 
 		// 5) Master 관리자 계정 생성
 		userService.createInitialAdmin();

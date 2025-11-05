@@ -1,17 +1,5 @@
 package Team_Mute.back_end.domain.member.service;
 
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import Team_Mute.back_end.domain.member.dto.request.AdminAccountDeleteRequest;
 import Team_Mute.back_end.domain.member.dto.request.AdminAccountUpdateRequest;
 import Team_Mute.back_end.domain.member.dto.request.AdminPasswordResetRequest;
@@ -40,11 +28,36 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
+
 public class AdminService {
+
+	@Value("${master.account.email}")
+	private String masterEmail;
+
+	@Value("${master.account.name}")
+	private String masterName;
+
+	@Value("${master.account.password}")
+	private String masterPassword;
+
+	@Value("${master.account.phone}")
+	private String masterPhone;
 
 	private final UserRepository userRepository;
 	private final AdminRepository adminRepository;
@@ -238,7 +251,7 @@ public class AdminService {
 	}
 
 	private Admin checkMasterAuthority(Authentication authentication) {
-		Long callerId = Long.valueOf((String)authentication.getPrincipal());
+		Long callerId = Long.valueOf((String) authentication.getPrincipal());
 		Admin caller = adminRepository.findById(callerId)
 			.orElseThrow(UserNotFoundException::new);
 
@@ -318,27 +331,26 @@ public class AdminService {
 
 		if (!adminRepository.existsByUserRole(adminRole)) {
 			log.info("최초 관리자 계정이 존재하지 않아 새로 생성합니다.");
-			String adminEmail = "songh6508@gmail.com";
 
-			if (adminRepository.existsByAdminEmail(adminEmail)) {
-				log.info("이미 {} 계정이 존재하여 생성을 건너뜁니다.", adminEmail);
+			if (adminRepository.existsByAdminEmail(masterEmail)) {
+				log.info("이미 {} 계정이 존재하여 생성을 건너뜁니다.", masterEmail);
 				return;
 			}
 
 			UserCompany userCompany = getOrCreateCompany("신한금융희망재단");
 
 			Admin admin = Admin.builder()
-				.adminEmail(adminEmail)
-				.adminName("master1")
-				.adminPwd(passwordService.encodePassword("master1234!"))
-				.adminPhone("01074181170")
+				.adminEmail(masterEmail)
+				.adminName(masterName)
+				.adminPwd(passwordService.encodePassword(masterPassword))
+				.adminPhone(masterPhone)
 				.tokenVer(1)
 				.userCompany(userCompany)
 				.userRole(adminRole)
 				.build();
 
 			adminRepository.save(admin);
-			log.info("최초 관리자 계정({}) 생성이 완료되었습니다.", adminEmail);
+			log.info("최초 관리자 계정({}) 생성이 완료되었습니다.", masterEmail);
 		}
 	}
 }

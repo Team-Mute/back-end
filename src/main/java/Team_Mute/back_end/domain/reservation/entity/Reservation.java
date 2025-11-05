@@ -75,7 +75,7 @@ public class Reservation {
 	private List<String> reservationAttachment = new ArrayList<>();
 
 	@CreationTimestamp
-	@Column(name = "reg_date", updatable = false)
+	@Column(name = "reg_date", updatable = false, nullable = false)
 	private LocalDateTime regDate;
 
 	@UpdateTimestamp

@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -63,13 +64,13 @@ public class SpaceImage {
 	 * 등록일 (Entity 최초 생성 시 자동 입력)
 	 */
 	@CreationTimestamp
-	@Column(name = "reg_date", insertable = false, updatable = false)
-	private java.sql.Timestamp regDate;
+	@Column(name = "reg_date", insertable = false, updatable = false, nullable = false)
+	private LocalDateTime regDate;
 
 	/**
 	 * 수정일 (Entity 변경 시 자동 갱신)
 	 */
 	@UpdateTimestamp
 	@Column(name = "upd_date", insertable = true, updatable = true)
-	private java.sql.Timestamp updDate;
+	private LocalDateTime updDate;
 }

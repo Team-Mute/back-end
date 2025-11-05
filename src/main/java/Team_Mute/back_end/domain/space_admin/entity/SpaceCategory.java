@@ -49,7 +49,7 @@ public class SpaceCategory {
 	 * 등록일 (Entity 최초 생성 시 자동 입력)
 	 */
 	@CreationTimestamp
-	@Column(name = "reg_date")
+	@Column(name = "reg_date", nullable = false)
 	private LocalDateTime regDate;
 
 	/**

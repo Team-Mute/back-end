@@ -1,10 +1,5 @@
 package Team_Mute.back_end.domain.member.entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -18,6 +13,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "tb_admins")
@@ -45,7 +44,7 @@ public class Admin {
 	private String adminPwd;
 
 	@CreationTimestamp
-	@Column(name = "reg_date")
+	@Column(name = "reg_date", nullable = false)
 	private LocalDateTime regDate;
 
 	@UpdateTimestamp
@@ -53,7 +52,7 @@ public class Admin {
 	private LocalDateTime updDate;
 
 	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "role_id")
+	@JoinColumn(name = "role_id", nullable = false)
 	private UserRole userRole;
 
 	@ManyToOne(fetch = FetchType.LAZY)
