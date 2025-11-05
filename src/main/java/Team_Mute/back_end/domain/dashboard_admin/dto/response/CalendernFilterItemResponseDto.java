@@ -21,7 +21,7 @@ public class CalendernFilterItemResponseDto {
 	 * - @JsonInclude(JsonInclude.Include.NON_NULL)에 의해 이 필드는 항상 출력
 	 * - Integer 또는 String 값을 담기 위해 Object 타입 사용
 	 */
-	private final Object id;
+	private final Integer id;
 
 	/**
 	 * 필터링 항목의 사용자 친화적인 설명 (UI 표시용)
@@ -46,21 +46,6 @@ public class CalendernFilterItemResponseDto {
 			.id(statusEnum.getId())
 			.description(statusEnum.getDescription())
 			.type("STATUS")
-			.build();
-	}
-
-	/**
-	 * [팩토리 메서드] 커스텀 플래그 항목을 DTO로 변환
-	 * * @param id 플래그 이름 (Controller 파라미터 이름과 일치해야 함, 예: "isEmergency")
-	 *
-	 * @param description 사용자 친화적인 설명 (예: "긴급")
-	 * @return type이 "FLAG"인 DTO
-	 */
-	public static CalendernFilterItemResponseDto fromCustomFlag(String idString, String description) {
-		return CalendernFilterItemResponseDto.builder()
-			.id(idString) // String ID (파라미터 이름) 그대로 사용
-			.description(description)
-			.type("FLAG")
 			.build();
 	}
 }

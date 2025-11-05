@@ -96,14 +96,12 @@ public class DashboardAdminController {
 		Authentication authentication,
 		@RequestParam(required = true) @Min(value = 1900, message = "연도는 1900년 이상이어야 합니다.") Integer year,
 		@RequestParam(required = true) @Min(value = 1, message = "월은 1월 이상이어야 합니다.") @Max(value = 12, message = "월은 12월 이하여야 합니다.") Integer month,
-		@RequestParam(required = false) List<Integer> statusIds, // 예약 상태
-		@RequestParam(required = false) Boolean isShinhan, // 신한 예약 플래그
-		@RequestParam(required = false) Boolean isEmergency   // 긴급 예약 플래그
+		@RequestParam(required = false) List<Integer> statusIds // 예약 상태
 	) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 		// 서비스 계층으로 변경된 파라미터를 전달
 		List<ReservationCalendarResponseDto> reservationList =
-			dashboardAdminService.getAllReservations(adminId, year, month, statusIds, isShinhan, isEmergency);
+			dashboardAdminService.getAllReservations(adminId, year, month, statusIds);
 
 		return ResponseEntity.ok(reservationList);
 	}
