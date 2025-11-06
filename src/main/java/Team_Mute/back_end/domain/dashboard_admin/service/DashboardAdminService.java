@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -136,6 +138,11 @@ public class DashboardAdminService {
 		Integer month,
 		List<Integer> statusIds // 예약 상태
 	) {
+		// 빈 리스트일 때 (statusIds= 또는 파라미터 아예 없을 때)
+		if (statusIds.isEmpty()) {
+			return Collections.emptyList(); // 데이터 없음 (빈 리스트) 반환
+		}
+
 		// 관리자 유효성 검사
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(Team_Mute.back_end.domain.member.exception.UserNotFoundException::new);
@@ -201,7 +208,12 @@ public class DashboardAdminService {
 	 * @return 특정 날짜에 해당하는 상세 예약 리스트 DTO 목록
 	 */
 	@Transactional(readOnly = true)
-	public List<ReservationListResponseDto> getReservationsByDate(Long adminId, LocalDate date) {
+	public List<ReservationListResponseDto> getReservationsByDate(Long adminId, LocalDate date, List<Integer> statusIds) {
+		// 빈 리스트일 때 (statusIds= 또는 파라미터 아예 없을 때)
+		if (statusIds.isEmpty()) {
+			return Collections.emptyList(); // 데이터 없음 (빈 리스트) 반환
+		}
+
 		// 관리자 유효성 검사
 		Admin admin = adminRepository.findById(adminId)
 			.orElseThrow(Team_Mute.back_end.domain.member.exception.UserNotFoundException::new);
@@ -209,14 +221,28 @@ public class DashboardAdminService {
 		// DB에서 모든 예약 데이터를 가져옴
 		List<Reservation> allReservations = adminReservationRepository.findAll();
 
-		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환 (관리자 권한 필터링 적용)
+		// 1차 승인자 필터링 로직을 포함한 전체 리스트 변환
 		List<ReservationListResponseDto> allContent = rservationListAllService.getReservationListAll(allReservations, admin);
 
-		// 특정 날짜(예약 시작일 또는 종료일)에 해당하는 리스트만 추출
-		List<ReservationListResponseDto> responseDtos = allContent.stream()
-			.filter(dto -> dto.getReservationFrom().toLocalDate().isEqual(date) || dto.getReservationTo().toLocalDate().isEqual(date))
-			.toList();
+		// Stream을 사용하여 필터링 및 정렬을 순차적으로 수행
+		List<ReservationListResponseDto> resultList = allContent.stream()
 
-		return responseDtos;
+			// 1. 날짜 기간 포함 필터링
+			.filter(dto -> {
+				LocalDate reservationFromDate = dto.getReservationFrom().toLocalDate();
+				LocalDate reservationToDate = dto.getReservationTo().toLocalDate();
+				// date가 [reservationFromDate, reservationToDate] 범위에 포함되는지 확인
+				return !date.isBefore(reservationFromDate) && !date.isAfter(reservationToDate);
+			})
+
+			// 2. 예약 상태 ID 필터링
+			.filter(dto -> statusIds.isEmpty() || statusIds.contains(dto.getStatusId()))
+
+			// 3. 예약 상태 내림차순 정렬, 예약 시작 시간 오름차순 정렬
+			.sorted(Comparator.comparingInt(ReservationListResponseDto::getStatusId) // 1차 정렬: 예약 상태
+				.thenComparing(ReservationListResponseDto::getReservationFrom))       // 2차 정렬: 예약 시작 시간
+			.collect(Collectors.toList());
+
+		return resultList;
 	}
 }

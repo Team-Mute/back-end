@@ -119,11 +119,13 @@ public class DashboardAdminController {
 	@Operation(summary = "특정 날짜 예약 리스트 조회", description = "토큰을 확인하여 선택된 날짜(캘린더)의 예약 리스트를 조회합니다.")
 	public ResponseEntity<List<ReservationListResponseDto>> getReservationsByDate(
 		Authentication authentication,
-		@RequestParam("date") String dateString
+		@RequestParam("date") String dateString,
+		@RequestParam(value = "statusIds", required = false) List<Integer> statusIds
 	) {
 		Long adminId = Long.valueOf((String) authentication.getPrincipal());
 		LocalDate date = LocalDate.parse(dateString); // "YYYY-MM-DD" 형식의 문자열을 LocalDate로 변환
-		List<ReservationListResponseDto> reservationList = dashboardAdminService.getReservationsByDate(adminId, date);
+
+		List<ReservationListResponseDto> reservationList = dashboardAdminService.getReservationsByDate(adminId, date, statusIds);
 
 		return ResponseEntity.ok(reservationList);
 	}
