@@ -188,12 +188,16 @@ public class DashboardAdminService {
 				// 필터를 하나라도 선택한 경우: (A OR B OR C) 조건 적용
 				return meetsStatus;
 			})
+			// 예약 상태 오름차순 정렬, 예약 시작 시간 오름차순 정렬
+			.sorted(Comparator.comparingInt(ReservationListResponseDto::getStatusId) // 1차 정렬: 예약 상태
+				.thenComparing(ReservationListResponseDto::getReservationFrom)) // 2차 정렬: 예약 시작 시간
 			.toList();
 
 		// 최종 DTO 변환 및 반환
 		List<ReservationCalendarResponseDto> responseDtos = filteredContent.stream()
 			.map(ReservationCalendarResponseDto::from)
 			.collect(Collectors.toList());
+
 
 		return responseDtos;
 	}
@@ -238,7 +242,7 @@ public class DashboardAdminService {
 			// 2. 예약 상태 ID 필터링
 			.filter(dto -> statusIds.isEmpty() || statusIds.contains(dto.getStatusId()))
 
-			// 3. 예약 상태 내림차순 정렬, 예약 시작 시간 오름차순 정렬
+			// 3. 예약 상태 오름차순 정렬, 예약 시작 시간 오름차순 정렬
 			.sorted(Comparator.comparingInt(ReservationListResponseDto::getStatusId) // 1차 정렬: 예약 상태
 				.thenComparing(ReservationListResponseDto::getReservationFrom))       // 2차 정렬: 예약 시작 시간
 			.collect(Collectors.toList());
