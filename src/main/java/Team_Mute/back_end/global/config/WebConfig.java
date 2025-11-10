@@ -1,7 +1,6 @@
 package Team_Mute.back_end.global.config;
 
 import java.util.List;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -17,10 +16,7 @@ public class WebConfig {
 
 		config.setAllowedOriginPatterns(List.of(
 			"https://localhost:3000",
-			"http://localhost:3000",
-			"https://shinhan-reservation-app.vercel.app",
-			"https://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/",
-			"http://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/"
+			"http://localhost:3000"
 		));
 		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 		config.setAllowedHeaders(List.of("*"));
