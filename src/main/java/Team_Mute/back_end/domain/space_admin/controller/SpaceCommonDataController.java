@@ -42,17 +42,6 @@ public class SpaceCommonDataController {
 	}
 
 	/**
-	 * 카테고리 전체 조회
-	 *
-	 * @return 카테고리 ID와 이름을 포함하는 DTO 리스트
-	 **/
-	@GetMapping("/categories")
-	@Operation(summary = "카테고리 리스트 조회", description = "인증 없이 카테고리 리스트를 조회합니다.")
-	public List<CategoryListResponseDto> getCategories() {
-		return spaceCommonDataService.getAllCategories();
-	}
-
-	/**
 	 * 태그(편의시설) 전체 조회
 	 *
 	 * @return 태그 ID와 이름을 포함하는 DTO 리스트
@@ -63,6 +52,18 @@ public class SpaceCommonDataController {
 		return spaceCommonDataService.getAllTags();
 	}
 
+
+	/**
+	 * 카테고리 전체 조회
+	 *
+	 * @return 카테고리 ID와 이름을 포함하는 DTO 리스트
+	 **/
+	@GetMapping("/categories")
+	@Operation(summary = "카테고리 리스트 조회", description = "토큰을 확인하여 카테고리 리스트를 조회합니다.")
+	public List<CategoryListResponseDto> getCategories() {
+		return spaceCommonDataService.getAllCategories();
+	}
+
 	/**
 	 * 지역 아이디로 건물 주소 조회
 	 *
@@ -71,7 +72,7 @@ public class SpaceCommonDataController {
 	 **/
 	@GetMapping("locations/{regionId}")
 	@Parameter(name = "spaceId", in = ParameterIn.PATH, description = "조회할 지점 ID", required = true)
-	@Operation(summary = "지역 아이디로 주소 조회", description = "인증 없이 주소를 조회합니다.")
+	@Operation(summary = "지역 아이디로 주소 조회", description = "토큰을 확인하여 주소를 조회합니다.")
 	public List<LocationListResponseDto> getLocationByRegionId(@PathVariable Integer regionId) {
 		return spaceCommonDataService.getLocationByRegionId(regionId);
 	}
