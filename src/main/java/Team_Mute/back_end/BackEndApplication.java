@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.servers.Server;
 
 @OpenAPIDefinition(servers = {
-	@Server(url = "https://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app", description = "Default Server URL")})
+	@Server(url = "http://localhost:8080", description = "Default Server URL")})
 @SpringBootApplication
 public class BackEndApplication {
 
