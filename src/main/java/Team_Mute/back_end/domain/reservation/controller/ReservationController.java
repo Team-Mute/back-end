@@ -361,7 +361,7 @@ public class ReservationController {
 	 * @return ResponseEntity<RejectReasonResponseDto> (반려 사유 정보)
 	 */
 	@Operation(summary = "반려 메세지 확인", description = "관리자가 작성한 특정 예약에 대한 반려 메세지를 조회합니다.")
-	@GetMapping("/rejectMassage/{reservation_id}")
+	@GetMapping("/rejectMessage/{reservation_id}")
 	public ResponseEntity<RejectReasonResponseDto> getRejectReason(
 		@AuthenticationPrincipal String userId,
 		@PathVariable("reservation_id") Long reservationId) {
