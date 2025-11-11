@@ -1,13 +1,13 @@
 package Team_Mute.back_end.global.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class SwaggerConfig {
@@ -24,7 +24,7 @@ public class SwaggerConfig {
 				.bearerFormat("JWT"));
 
 		return new OpenAPI()
-			.info(new Info().title("신한재단 공간 대여 API").description("API 명세서").version("1.0.0"))
+			.info(new Info().title("신한금융희망재단 공간 대여 API").description("API 명세서").version("1.0.0"))
 			.addSecurityItem(securityRequirement)
 			.components(components);
 	}
