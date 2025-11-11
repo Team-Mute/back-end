@@ -28,11 +28,11 @@ public class QSpaceImage extends EntityPathBase<SpaceImage> {
 
     public final StringPath imageUrl = createString("imageUrl");
 
-    public final DateTimePath<java.sql.Timestamp> regDate = createDateTime("regDate", java.sql.Timestamp.class);
+    public final DateTimePath<java.time.LocalDateTime> regDate = createDateTime("regDate", java.time.LocalDateTime.class);
 
     public final QSpace space;
 
-    public final DateTimePath<java.sql.Timestamp> updDate = createDateTime("updDate", java.sql.Timestamp.class);
+    public final DateTimePath<java.time.LocalDateTime> updDate = createDateTime("updDate", java.time.LocalDateTime.class);
 
     public QSpaceImage(String variable) {
         this(SpaceImage.class, forVariable(variable), INITS);

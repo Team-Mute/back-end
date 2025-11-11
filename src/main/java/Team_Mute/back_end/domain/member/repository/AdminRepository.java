@@ -1,16 +1,17 @@
 package Team_Mute.back_end.domain.member.repository;
 
-import Team_Mute.back_end.domain.member.entity.Admin;
-import Team_Mute.back_end.domain.member.entity.AdminRegion;
-import Team_Mute.back_end.domain.member.entity.UserCompany;
-import Team_Mute.back_end.domain.member.entity.UserRole;
-
 import java.util.List;
 import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import Team_Mute.back_end.domain.member.entity.Admin;
+import Team_Mute.back_end.domain.member.entity.AdminRegion;
+import Team_Mute.back_end.domain.member.entity.UserCompany;
+import Team_Mute.back_end.domain.member.entity.UserRole;
 
 @Repository
 public interface AdminRepository extends JpaRepository<Admin, Long> {
