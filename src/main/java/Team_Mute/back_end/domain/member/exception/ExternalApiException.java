@@ -7,4 +7,3 @@ public class ExternalApiException extends CustomException {
 		super(502, message);
 	}
 }
-

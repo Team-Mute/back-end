@@ -7,4 +7,3 @@ public class DuplicateEmailException extends CustomException {
 		super(400, message);
 	}
 }
-

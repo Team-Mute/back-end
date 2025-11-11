@@ -42,6 +42,10 @@ import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 예약 비즈니스 로직 서비스
+ * 예약 CRUD, 중복 검증, 파일 업로드, 상태 관리 기능 제공
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -56,10 +60,30 @@ public class ReservationService {
 	private final ReservationLogRepository reservationLogRepository;
 	private final PrevisitRepository previsitReservationRepository;
 
+	/**
+	 * 예약 생성
+	 *
+	 * 처리 흐름:
+	 * 1. 사용자 권한 확인 (roleId=3)
+	 * 2. 비관적 락으로 중복 예약 검증 (일반 + 사전답사)
+	 * 3. 예약 생성 및 저장 (초기 상태: 승인 대기)
+	 * 4. 첨부 파일 S3 업로드
+	 * 5. 사전답사 예약 생성 (선택적)
+	 *
+	 * 동시성 제어:
+	 * - PESSIMISTIC_WRITE 락으로 중복 예약 방지
+	 *
+	 * @param userId 사용자 ID
+	 * @param requestDto 예약 요청 DTO
+	 * @return 생성된 예약 DTO
+	 * @throws ForbiddenAccessException 권한 없음
+	 * @throws ReservationConflictException 중복 예약
+	 */
 	@Transactional
 	public ReservationResponseDto createReservation(String userId, ReservationRequestDto requestDto) {
 		User user = findUserById(userId);
 
+		// 1. 일반 사용자만 예약 생성 가능
 		if (user.getUserRole().getRoleId() != 3) {
 			throw new ForbiddenAccessException("예약을 생성할 권한이 없습니다.");
 		}
@@ -69,7 +93,7 @@ public class ReservationService {
 		Space space = spaceRepository.findById(requestDto.getSpaceId())
 			.orElseThrow(() -> new ResourceNotFoundException("해당 공간을 찾을 수 없습니다."));
 
-		// 공간 예약 시간대에 대한 락 획득
+		// 2. 비관적 락으로 중복 예약 검증 (공간 예약)
 		List<Reservation> overlappingReservations = reservationRepository.findOverlappingReservationsWithLock(
 			space.getSpaceId(),
 			requestDto.getReservationFrom(),
@@ -77,7 +101,7 @@ public class ReservationService {
 			validStatusIds
 		);
 
-		// 사전답사 예약 시간대에 대한 락 획득
+		// 3. 비관적 락으로 중복 검증 (사전답사)
 		List<PrevisitReservation> overlappingPrevisits = previsitReservationRepository.findOverlappingPrevisitsWithLock(
 			space.getSpaceId(),
 			requestDto.getReservationFrom(),
@@ -85,17 +109,16 @@ public class ReservationService {
 			validStatusIds
 		);
 
-		// 겹치는 예약이 있으면 예외 발생
 		if (!overlappingReservations.isEmpty() || !overlappingPrevisits.isEmpty()) {
 			throw new ReservationConflictException("해당 시간에는 확정된 예약 또는 사전 답사가 존재하여 예약할 수 없습니다.");
 		}
 
+		// 4. 예약 객체 생성 및 저장 (초기 상태: 승인 대기)
 		final Long INITIAL_RESERVATION_STATUS_ID = 1L;
 		ReservationStatus status = reservationStatusRepository.findById(INITIAL_RESERVATION_STATUS_ID)
 			.orElseThrow(
 				() -> new ResourceNotFoundException("기본 예약 상태(ID: " + INITIAL_RESERVATION_STATUS_ID + ")를 찾을 수 없습니다."));
 
-		// 1. 첨부파일 정보 없이 예약 객체 먼저 생성 및 저장 (ID 확보 목적)
 		Reservation reservation = Reservation.builder()
 			.orderId(generateOrderId(space.getSpaceName()))
 			.space(space)
@@ -108,26 +131,23 @@ public class ReservationService {
 			.reservationAttachment(new ArrayList<>())
 			.build();
 
-		Reservation savedReservation = reservationRepository.save(reservation); // ID를 즉시 할당받기 위해 flush
+		Reservation savedReservation = reservationRepository.save(reservation);
 
-		// 2. 파일 업로드 및 URL 저장
+		// 5. 첨부 파일 S3 업로드
 		List<String> attachmentUrls = new ArrayList<>();
 		if (requestDto.getReservationAttachments() != null && !requestDto.getReservationAttachments().isEmpty()) {
-			// S3 디렉토리 경로: attachment/{reservation_id}/
 			String dirName = "attachment/" + savedReservation.getReservationId();
 			attachmentUrls = s3Uploader.uploadAll(requestDto.getReservationAttachments(), dirName);
 		}
 
-		// 3. 파일 URL 리스트를 예약 정보에 업데이트
 		savedReservation.setReservationAttachment(attachmentUrls);
-
-		// 변경된 내용을 최종 저장
 		Reservation finalReservation = reservationRepository.save(savedReservation);
 
+		// 6. 사전답사 예약 생성 (선택적)
 		if (requestDto.getPrevisitInfo() != null) {
 			var pReq = requestDto.getPrevisitInfo();
 
-			// 4-1) 사전답사 시간 유효성 검증: 사전답사 시간이 공간예약 시간 보다 앞서야 함.
+			// 사전답사 시간 유효성 검증
 			if (pReq.getPrevisitTo().isAfter(requestDto.getReservationFrom())) {
 				throw new InvalidInputValueException("사전답사 종료 시간은 공간 예약 시작 시간 이전이어야 합니다.");
 			}
@@ -137,7 +157,7 @@ public class ReservationService {
 				throw new InvalidInputValueException("사전답사 시작 시간은 종료 시간보다 이전이어야 합니다.");
 			}
 
-			// 사전답사 예약 시간대에 대한 락 획득 (동시성 제어)
+			// 사전답사 시간대 중복 검증
 			List<Reservation> overlappingReservationsForPrevisit = reservationRepository.findOverlappingReservationsWithLock(
 				space.getSpaceId(),
 				pReq.getPrevisitFrom(),
@@ -162,56 +182,73 @@ public class ReservationService {
 			previsit.setPrevisitTo(pReq.getPrevisitTo());
 
 			PrevisitReservation savedPrevisit = previsitReservationRepository.save(previsit);
-
 			finalReservation.setPrevisitReservation(savedPrevisit);
 		}
 
 		return ReservationResponseDto.fromEntity(finalReservation);
 	}
 
+	/**
+	 * 예약 목록 조회 (페이징 및 필터링)
+	 *
+	 * @param userId 사용자 ID
+	 * @param filterOption 필터 옵션 ("진행중", "예약완료", "이용완료", "취소", null)
+	 * @param pageable 페이징 정보 (null이면 unpaged)
+	 * @return 페이징된 예약 목록
+	 * @throws ForbiddenAccessException 일반 사용자 아님
+	 */
 	@Transactional(readOnly = true)
 	public PagedReservationResponse findReservations(String userId, String filterOption, Pageable pageable) {
 		User user = findUserById(userId);
 
-		// 2. 일반 사용자만 접근 가능하도록 권한 확인
 		if (user.getUserRole().getRoleId() != 3) {
 			throw new ForbiddenAccessException("일반 사용자만 접근 가능한 기능입니다.");
 		}
 
-		// pageable이 null이면 unpaged, 아니면 받은 값 사용
 		Pageable pageableToUse = (pageable != null) ? pageable : Pageable.unpaged();
 
-		// 3, 4. 필터 옵션에 따라 동적 쿼리 실행
+		// QueryDSL 동적 쿼리 실행
 		Page<Reservation> reservationPage = reservationRepository.findReservationsByFilter(user, filterOption,
 			pageableToUse);
 
-		// 5. 응답 DTO로 변환
 		Page<ReservationListDto> dtoPage = reservationPage.map(ReservationListDto::fromEntity);
 
 		return PagedReservationResponse.fromPage(dtoPage);
 	}
 
+	/**
+	 * 예약 상세 조회
+	 *
+	 * @param userId 사용자 ID
+	 * @param reservationId 예약 ID
+	 * @return 예약 상세 DTO
+	 * @throws ForbiddenAccessException 권한 없음
+	 */
 	@Transactional(readOnly = true)
 	public ReservationDetailResponseDto findReservationById(String userId, Long reservationId) {
 		User user = findUserById(userId);
 
-		// 2. 일반 사용자(role_id=3)만 접근 가능하도록 권한 확인
 		if (user.getUserRole().getRoleId() != 3) {
 			throw new ForbiddenAccessException("일반 사용자만 접근 가능한 기능입니다.");
 		}
 
-		// findReservationAndVerifyAccess는 관리자 또는 소유주만 허용하므로,
-		// 일반 사용자이면서 소유주인 경우만 통과시키기 위해 findReservationAndVerifyOwnership 사용
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
-		// 새로운 DTO로 변환하여 반환
 		return ReservationDetailResponseDto.fromEntity(reservation);
 	}
 
+	/**
+	 * 예약 삭제 (Hard Delete)
+	 * S3 첨부 파일도 함께 삭제
+	 *
+	 * @param userId 사용자 ID
+	 * @param reservationId 예약 ID
+	 */
 	public void deleteReservation(String userId, Long reservationId) {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
+		// S3 첨부 파일 삭제
 		List<String> attachmentUrls = reservation.getReservationAttachment();
 		if (attachmentUrls != null && !attachmentUrls.isEmpty()) {
 			attachmentUrls.forEach(s3Deleter::deleteByUrl);
@@ -220,31 +257,38 @@ public class ReservationService {
 		reservationRepository.delete(reservation);
 	}
 
+	/**
+	 * 예약 취소 (상태 변경: 취소됨)
+	 *
+	 * 취소 가능 상태: 1,2,3,4 (1차, 2차 승인 대기, 최종 승인, 반려)
+	 *
+	 * @param userId 사용자 ID
+	 * @param reservationId 예약 ID
+	 * @return 취소 결과 DTO
+	 * @throws IllegalArgumentException 취소 불가능한 상태
+	 */
 	public ReservationCancelResponseDto cancelReservation(String userId, Long reservationId) {
-		// 1. 사용자 조회 및 예약 소유권 확인
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
-		// 2. 현재 예약 상태 및 취소 가능 여부 확인
+		// 취소 가능 상태 확인
 		ReservationStatus currentStatus = reservation.getReservationStatus();
 		Integer currentStatusId = currentStatus.getReservationStatusId();
-		List<Integer> cancellableStatusIds = Arrays.asList(1, 2, 3, 4); // 1차 승인 대기, 2차 승인 대기, 최종 승인 완료, 반려됨
+		List<Integer> cancellableStatusIds = Arrays.asList(1, 2, 3, 4);
 
 		if (!cancellableStatusIds.contains(currentStatusId)) {
 			throw new IllegalArgumentException("이미 취소되었거나 이용 완료된 예약은 취소할 수 없습니다.");
 		}
 
-		// 3. '취소됨' 상태 객체 조회
+		// 상태를 '취소됨'(6)으로 변경
 		final Long CANCELLED_STATUS_ID = 6L;
 		ReservationStatus cancelledStatus = reservationStatusRepository.findById(CANCELLED_STATUS_ID)
 			.orElseThrow(
 				() -> new ResourceNotFoundException("예약 상태 '취소됨'(ID: " + CANCELLED_STATUS_ID + ")을 찾을 수 없습니다."));
 
-		// 4. 예약 상태를 '취소됨'으로 변경
 		reservation.setReservationStatusId(cancelledStatus);
 		reservationRepository.save(reservation);
 
-		// 5. 성공 응답 DTO 생성 및 반환
 		return ReservationCancelResponseDto.builder()
 			.reservationId(reservation.getReservationId())
 			.fromStatus(currentStatus.getReservationStatusName())
@@ -254,8 +298,36 @@ public class ReservationService {
 			.build();
 	}
 
-	// --- Private Helper Methods ---
+	/**
+	 * 반려 사유 조회
+	 * 반려 상태(4)의 예약에 대한 관리자 메모 조회
+	 *
+	 * @param userId 사용자 ID
+	 * @param reservationId 예약 ID
+	 * @return 반려 사유 DTO
+	 * @throws IllegalArgumentException 반려 상태가 아님
+	 */
+	@Transactional(readOnly = true)
+	public RejectReasonResponseDto findRejectReason(String userId, Long reservationId) {
+		User user = findUserById(userId);
+		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
+		final Long REJECTED_STATUS_ID = 4L;
+		if (!reservation.getReservationStatus().getReservationStatusId().equals(REJECTED_STATUS_ID)) {
+			throw new IllegalArgumentException("반려 상태의 예약이 아닙니다.");
+		}
+
+		ReservationLog rejectLog = reservationLogRepository
+			.findTopByReservationReservationIdAndChangedStatusReservationStatusIdOrderByRegDateDesc(
+				reservationId, REJECTED_STATUS_ID)
+			.orElseThrow(() -> new ResourceNotFoundException("반려 사유를 찾을 수 없습니다."));
+
+		return new RejectReasonResponseDto(rejectLog.getMemo());
+	}
+
+	/**
+	 * 사용자 ID로 사용자 조회
+	 */
 	private User findUserById(String userId) {
 		try {
 			Long parsedUserId = Long.parseLong(userId);
@@ -267,6 +339,10 @@ public class ReservationService {
 		}
 	}
 
+	/**
+	 * 주문 ID 생성
+	 * 형식: {공간코드}-{yyMMddHHmmss}
+	 */
 	private String generateOrderId(String spaceName) {
 		LocalDateTime now = LocalDateTime.now();
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyMMddHHmmss");
@@ -274,6 +350,9 @@ public class ReservationService {
 		return spaceCode + "-" + now.format(formatter);
 	}
 
+	/**
+	 * 공간 코드 생성 (SHA-256 해시의 앞 3자리)
+	 */
 	private String generateSpaceCode(String spaceName) {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -288,12 +367,13 @@ public class ReservationService {
 			}
 			return hexString.toString().substring(0, 3).toUpperCase();
 		} catch (NoSuchAlgorithmException e) {
-			// "SHA-256"은 표준 알고리즘이므로 이 예외가 발생할 가능성은 거의 없습니다.
-			// 발생 시 JRE 구성 문제일 수 있으므로 RuntimeException으로 처리합니다.
 			throw new RuntimeException("Could not generate hash", e);
 		}
 	}
 
+	/**
+	 * 예약 조회 및 접근 권한 검증 (관리자 또는 소유주)
+	 */
 	private Reservation findReservationAndVerifyAccess(User user, Long reservationId) {
 		Reservation reservation = reservationRepository.findById(reservationId)
 			.orElseThrow(() -> new ResourceNotFoundException("해당 예약을 찾을 수 없습니다."));
@@ -302,7 +382,6 @@ public class ReservationService {
 		boolean isOwner = reservation.getUser().getUserId().equals(user.getUserId());
 		boolean isAdmin = adminRoles.contains(user.getUserRole().getRoleId());
 
-		// 관리자이거나 예약 소유주가 아니면 접근 불가
 		if (!isAdmin && !isOwner) {
 			throw new ForbiddenAccessException("해당 예약에 대한 접근 권한이 없습니다.");
 		}
@@ -310,6 +389,9 @@ public class ReservationService {
 		return reservation;
 	}
 
+	/**
+	 * 예약 조회 및 소유권 검증 (소유주만)
+	 */
 	private Reservation findReservationAndVerifyOwnership(User user, Long reservationId) {
 		Reservation reservation = reservationRepository.findById(reservationId)
 			.orElseThrow(() -> new ResourceNotFoundException("해당 예약을 찾을 수 없습니다."));
@@ -319,27 +401,4 @@ public class ReservationService {
 		}
 		return reservation;
 	}
-
-	@Transactional(readOnly = true)
-	public RejectReasonResponseDto findRejectReason(String userId, Long reservationId) {
-		// 1. 사용자 인증 및 예약 소유권 확인
-		User user = findUserById(userId);
-		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
-
-		// 2. 예약 상태가 '반려'(ID: 4)인지 확인
-		final Long REJECTED_STATUS_ID = 4L;
-		if (!reservation.getReservationStatus().getReservationStatusId().equals(REJECTED_STATUS_ID)) {
-			throw new IllegalArgumentException("반려 상태의 예약이 아닙니다.");
-		}
-
-		// 3. 해당 예약의 '반려' 상태 로그 조회
-		ReservationLog rejectLog = reservationLogRepository
-			.findTopByReservationReservationIdAndChangedStatusReservationStatusIdOrderByRegDateDesc(
-				reservationId, REJECTED_STATUS_ID)
-			.orElseThrow(() -> new ResourceNotFoundException("반려 사유를 찾을 수 없습니다."));
-
-		// 4. 로그에서 memo(반려 사유)를 추출하여 응답
-		return new RejectReasonResponseDto(rejectLog.getMemo());
-	}
-
 }
