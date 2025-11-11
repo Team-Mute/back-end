@@ -57,7 +57,6 @@
 ```
 Team-Mute-back-end
 ├── build.gradle
-├── config               # Checkstyle 규칙
 ├── src
 │   ├── main
 │   │   ├── java/Team_Mute/back_end
@@ -71,8 +70,7 @@ Team-Mute-back-end
 │   │   │       ├── invitation        # 사용자 - 예약 초대장 도메인
 │   │   │       └── dashboard_admin   # 관리자 - 대시보드 도메인
 │   │   └── resources
-│   │       └── application.properties
-│   └── test
+│   │       └── application.properties # 환경 설정
 └── README.md
 
 ```
@@ -86,10 +84,6 @@ Team-Mute-back-end
 - **global/**
   - 전역적으로 사용되는 설정 및 공통 로직을 관리합니다.  
   - `SecurityConfig`, `DataSeedRunner`, `GlobalExceptionHandler`, `SwaggerConfig`, `Enum` 등 모든 도메인에서 참조할 수 있는 코드를 포함합니다.
-
-- **config/**
-  - 코드 컨벤션, Checkstyle 등 스타일 규칙을 정의합니다.  
-  - Naver Java Style Guide 기반의 품질 관리 설정을 유지합니다.
 
 - **resources/**
   - 애플리케이션 실행에 필요한 설정 파일 및 리소스를 관리합니다.  
