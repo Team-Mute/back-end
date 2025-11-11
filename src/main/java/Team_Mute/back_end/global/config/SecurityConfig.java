@@ -59,7 +59,7 @@ public class SecurityConfig {
 					"/swagger-ui/**",
 					"/swagger-resources/**",
 					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh",
-					"/api/reservations/available-dates", "/api/reservations/available-times", "/api/spaces/**",
+					"/api/reservations/available-dates", "/api/reservations/available-times", "/api/spaces/regions", "/api/spaces/tags",
 					"/api/spaces-user/**", "/api/invitations/**")
 				.permitAll()
 
@@ -69,7 +69,7 @@ public class SecurityConfig {
 
 				// 모든 관리자(ROLE_0, 1, 2) 접근 가능
 				.requestMatchers("/api/admin/**", "/api/admin/account/**", "/api/spaces-admin/**",
-					"/api/reservations-admin/**", "/api/dashboard-admin/**")
+					"/api/reservations-admin/**", "/api/dashboard-admin/**", "/api/spaces/categories", "/api/spaces/locations/{regionId}")
 				.hasAnyRole("0", "1", "2")
 
 				// 일반 사용자(ROLE_3)만 접근 가능
