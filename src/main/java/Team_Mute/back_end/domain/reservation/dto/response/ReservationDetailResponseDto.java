@@ -1,22 +1,22 @@
 package Team_Mute.back_end.domain.reservation.dto.response;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 /**
  * 예약 상세 조회 응답 DTO
  * 특정 예약의 상세 정보를 클라이언트에 전달
- *
+ * <p>
  * 사용 목적:
  * - 예약 상세 페이지에서 전체 정보 표시
  * - 공간 정보, 예약 시간, 인원, 목적, 첨부파일 등 포함
  * - 사전답사 정보 포함 (있는 경우)
- *
+ * <p>
  * API 엔드포인트:
  * - GET /api/reservations/{reservationId}
  *
@@ -47,6 +47,12 @@ public class ReservationDetailResponseDto {
 	 * - AWS S3에 저장된 이미지 URL
 	 */
 	private String spaceImageUrl;
+
+	/**
+	 * 공간 ID
+	 * - 예약한 공간의 ID
+	 */
+	private Integer spaceId;
 
 	/**
 	 * 공간명
@@ -98,7 +104,7 @@ public class ReservationDetailResponseDto {
 	 * Reservation 엔티티로부터 ReservationDetailResponseDto 생성
 	 * - 정적 팩토리 메서드
 	 * - 엔티티를 DTO로 변환
-	 *
+	 * <p>
 	 * 처리 로직:
 	 * 1. Space 엔티티에서 대표 이미지 URL 추출
 	 * 2. PrevisitReservation 엔티티를 PrevisitInfo DTO로 변환
@@ -120,6 +126,7 @@ public class ReservationDetailResponseDto {
 			.reservationId(reservation.getReservationId())
 			.orderId(reservation.getOrderId())
 			.spaceImageUrl(mainImageUrl)
+			.spaceId(reservation.getSpace().getSpaceId())
 			.spaceName(reservation.getSpace().getSpaceName())
 			.reservationFrom(reservation.getReservationFrom())
 			.reservationTo(reservation.getReservationTo())

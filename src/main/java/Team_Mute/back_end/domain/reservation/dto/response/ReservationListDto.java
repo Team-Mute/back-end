@@ -1,21 +1,21 @@
 package Team_Mute.back_end.domain.reservation.dto.response;
 
-import java.time.LocalDateTime;
-
 import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
 import Team_Mute.back_end.domain.reservation.entity.Reservation;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
  * 예약 목록 항목 DTO
  * 예약 목록 조회 시 각 예약의 요약 정보 전달
- *
+ * <p>
  * 사용 목적:
  * - 마이페이지 예약 목록에서 사용
  * - 상세 정보는 제외하고 핵심 정보만 포함
  * - 페이징된 목록 조회 시 사용
- *
+ * <p>
  * ReservationDetailResponseDto와의 차이:
  * - 목록용: 핵심 정보만 (ID, 상태, 공간명, 시간)
  * - 상세용: 전체 정보 (첨부파일, 목적, 인원 등)
@@ -36,7 +36,7 @@ public class ReservationListDto {
 	 * 예약 상태명
 	 * - 현재 예약 상태의 이름 (한글)
 	 * - statusId를 이름으로 매핑
-	 *
+	 * <p>
 	 * 상태 매핑:
 	 * - 1, 2: "진행중" (1차 승인 대기, 2차 승인 대기)
 	 * - 3: "예약완료" (최종 승인)
@@ -51,6 +51,12 @@ public class ReservationListDto {
 	 * - 예약의 고유 주문 번호
 	 */
 	private String orderId;
+
+	/**
+	 * 공간 ID
+	 * - 예약한 공간의 ID
+	 */
+	private Integer spaceId;
 
 	/**
 	 * 공간명
@@ -82,7 +88,7 @@ public class ReservationListDto {
 	 * Reservation 엔티티로부터 ReservationListDto 생성
 	 * - 정적 팩토리 메서드
 	 * - 목록용 DTO로 변환
-	 *
+	 * <p>
 	 * 처리 로직:
 	 * 1. PrevisitReservation을 PrevisitInfo DTO로 변환
 	 * 2. statusId를 상태명으로 매핑 (mapStatusIdToName)
@@ -101,6 +107,7 @@ public class ReservationListDto {
 			.reservationId(reservation.getReservationId())
 			.reservationStatusName(mapStatusIdToName(reservation.getReservationStatus().getReservationStatusId()))
 			.orderId(reservation.getOrderId())
+			.spaceId(reservation.getSpace().getSpaceId())
 			.spaceName(reservation.getSpace().getSpaceName())
 			.reservationFrom(reservation.getReservationFrom())
 			.reservationTo(reservation.getReservationTo())
@@ -112,7 +119,7 @@ public class ReservationListDto {
 	 * 예약 상태 ID를 상태명으로 매핑
 	 * - statusId를 한글 상태명으로 변환
 	 * - switch 표현식 사용
-	 *
+	 * <p>
 	 * 매핑 규칙:
 	 * - 1: 1차 승인 대기 → "진행중"
 	 * - 2: 2차 승인 대기 → "진행중"
