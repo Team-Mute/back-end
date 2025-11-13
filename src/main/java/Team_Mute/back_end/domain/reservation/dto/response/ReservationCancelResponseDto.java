@@ -15,7 +15,7 @@ import lombok.Data;
  * - 사용자에게 취소 완료 메시지 전달
  *
  * API 엔드포인트:
- * - POST /api/reservations/cancel/{reservation_id}
+ * - POST /api/reservations/cancel/{reservationId}
  *
  * @author Team Mute
  * @since 1.0

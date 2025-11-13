@@ -33,9 +33,9 @@ public class InvitationController {
 	 * @return 초대장 상세 정보 DTO를 포함하는 {@code ResponseEntity}
 	 */
 	@Operation(summary = "초대장 조회", description = "예약 완료된 예약에 대한 초대장을 조회합니다.")
-	@GetMapping("/{reservation_id}")
+	@GetMapping("/{reservationId}")
 	public ResponseEntity<InvitationResponseDto> getInvitation(
-		@PathVariable("reservation_id") Long reservationId
+		@PathVariable("reservationId") Long reservationId
 	) {
 		InvitationResponseDto invitationDetails = invitationService.getInvitationDetails(reservationId);
 		return ResponseEntity.ok(invitationDetails);
