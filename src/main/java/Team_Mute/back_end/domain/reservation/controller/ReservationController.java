@@ -261,10 +261,10 @@ public class ReservationController {
 	 * @return ResponseEntity<ReservationDetailResponseDto> (예약 상세 정보)
 	 */
 	@Operation(summary = "개별 예약 조회", description = "예약ID를 받아 하나의 예약 정보를 조회 합니다.")
-	@GetMapping("/{reservation_id}")
+	@GetMapping("/{reservationId}")
 	public ResponseEntity<ReservationDetailResponseDto> getReservationById(
 		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId) {
+		@PathVariable("reservationId") Long reservationId) {
 
 		// 1. ReservationService에서 예약 상세 정보 조회
 		ReservationDetailResponseDto responseDto = reservationService.findReservationById(userId, reservationId);
@@ -296,10 +296,10 @@ public class ReservationController {
 	 * @return ResponseEntity<Void> (204 No Content)
 	 */
 	@Operation(summary = "예약 삭제", description = "저장된 예약 정보를 삭제합니다.")
-	@DeleteMapping("/{reservation_id}")
+	@DeleteMapping("/{reservationId}")
 	public ResponseEntity<Void> deleteReservation(
 		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId) {
+		@PathVariable("reservationId") Long reservationId) {
 
 		// 1. ReservationService에서 예약 삭제 처리
 		reservationService.deleteReservation(userId, reservationId);
@@ -331,10 +331,10 @@ public class ReservationController {
 	 * @return ResponseEntity<ReservationCancelResponseDto> (취소 완료 정보)
 	 */
 	@Operation(summary = "예약 취소", description = "예약 상태를 취소 상태로 수정합니다.")
-	@PostMapping("/cancel/{reservation_id}")
+	@PostMapping("/cancel/{reservationId}")
 	public ResponseEntity<ReservationCancelResponseDto> cancelReservation(
 		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId) {
+		@PathVariable("reservationId") Long reservationId) {
 
 		// 1. ReservationService에서 예약 취소 처리
 		ReservationCancelResponseDto responseDto = reservationService.cancelReservation(userId, reservationId);
@@ -361,10 +361,10 @@ public class ReservationController {
 	 * @return ResponseEntity<RejectReasonResponseDto> (반려 사유 정보)
 	 */
 	@Operation(summary = "반려 메세지 확인", description = "관리자가 작성한 특정 예약에 대한 반려 메세지를 조회합니다.")
-	@GetMapping("/rejectMassage/{reservation_id}")
+	@GetMapping("/rejectMessage/{reservationId}")
 	public ResponseEntity<RejectReasonResponseDto> getRejectReason(
 		@AuthenticationPrincipal String userId,
-		@PathVariable("reservation_id") Long reservationId) {
+		@PathVariable("reservationId") Long reservationId) {
 
 		// 1. ReservationService에서 반려 사유 조회
 		RejectReasonResponseDto responseDto = reservationService.findRejectReason(userId, reservationId);

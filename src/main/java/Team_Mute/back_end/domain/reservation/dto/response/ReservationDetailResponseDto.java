@@ -18,7 +18,7 @@ import lombok.Data;
  * - 사전답사 정보 포함 (있는 경우)
  *
  * API 엔드포인트:
- * - GET /api/reservations/{reservation_id}
+ * - GET /api/reservations/{reservationId}
  *
  * @author Team Mute
  * @since 1.0

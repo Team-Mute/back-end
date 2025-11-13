@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
  * - 재예약 시 참고 자료 제공
  *
  * API 엔드포인트:
- * - GET /api/reservations/rejectMassage/{reservation_id}
+ * - GET /api/reservations/rejectMessage/{reservationId}
  *
  * @author Team Mute
  * @since 1.0

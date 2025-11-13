@@ -92,7 +92,7 @@ public class ReservationScheduleService {
 
 		// 5. 오늘이면 과거 시간 제외, 과거 날짜면 빈 리스트 반환
 		if (requestedDate.isEqual(LocalDate.now())) {
-			LocalTime nowTime = LocalTime.now();
+			LocalTime nowTime = LocalTime.now().withNano(0);
 			return allSlots.stream()
 				.filter(slot -> slot.getEndTime().isAfter(nowTime))
 				.map(slot -> {
