@@ -33,8 +33,7 @@ public class WebConfig {
 			"https://localhost:3000",  // HTTPS 개발 환경
 			"http://localhost:3000",    // HTTP 개발 환경
 			"https://shinhan-booking-frontend-admin.vercel.app",
-			"https://shinhan-reservation-app.vercel.app",
-			"http://shinhan-reservation-app.vercel.app",
+			"https://shinhan-booking-frontend-user.vercel.app/",
 			"https://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/",
 			"http://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/"
 		));
