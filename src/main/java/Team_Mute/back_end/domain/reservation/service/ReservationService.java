@@ -312,7 +312,7 @@ public class ReservationService {
 		User user = findUserById(userId);
 		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
 
-		final Long REJECTED_STATUS_ID = 4L;
+		final Integer REJECTED_STATUS_ID = 4;
 		if (!reservation.getReservationStatus().getReservationStatusId().equals(REJECTED_STATUS_ID)) {
 			throw new IllegalArgumentException("반려 상태의 예약이 아닙니다.");
 		}

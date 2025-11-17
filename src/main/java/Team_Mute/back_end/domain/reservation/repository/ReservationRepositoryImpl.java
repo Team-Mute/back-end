@@ -54,7 +54,7 @@ public class ReservationRepositoryImpl implements ReservationRepositoryCustom {
 
 		// 3. 상태 필터링 조건 추가
 		if (statusIds != null && !statusIds.isEmpty()) {
-			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in((Number)statusIds));
+			predicate = predicate.and(reservation.reservationStatus.reservationStatusId.in(statusIds));
 		}
 
 		// 4. 기본 쿼리 생성 (정렬 포함)
