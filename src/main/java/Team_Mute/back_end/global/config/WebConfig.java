@@ -31,7 +31,11 @@ public class WebConfig {
 		// 허용할 Origin 패턴 (프론트엔드 URL)
 		config.setAllowedOriginPatterns(List.of(
 			"https://localhost:3000",  // HTTPS 개발 환경
-			"http://localhost:3000"    // HTTP 개발 환경
+			"http://localhost:3000",    // HTTP 개발 환경
+			"https://shinhan-reservation-app.vercel.app",
+			"http://shinhan-reservation-app.vercel.app",
+			"https://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/",
+			"http://healthy-velvet-sinhan-space-rental-36c4aa0c.koyeb.app/"
 		));
 
 		// 허용할 HTTP 메서드
