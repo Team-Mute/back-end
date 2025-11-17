@@ -5,6 +5,7 @@ import Team_Mute.back_end.domain.space_admin.dto.SpaceUpdateDoc;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.AdminListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.DeleteSpaceResponseDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.RegionListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.service.SpaceAdminService;
 import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
@@ -348,5 +349,19 @@ public class SpaceAdminController {
 	@Operation(summary = "지역 아이디로 승인자 리스트 조회", description = "토큰을 확인하여 지역 관리자 리스트(1차, 2차 승인자 포함)를 조회합니다.")
 	public List<AdminListResponseDto> getApproversByRegionId(@PathVariable Integer regionId) {
 		return spaceAdminService.getApproversByRegionId(regionId);
+	}
+
+	/**
+	 * 지역 아이디로 관리자 리스트 조회
+	 *
+	 * @return 지역 ID와 이름을 포함하는 DTO 리스트
+	 **/
+	@GetMapping("/regions")
+	@Operation(summary = "공간 등록 시 지역 리스트 조회", description = "토큰을 확인하여 지역 리스트를 조회합니다.")
+	public List<RegionListResponseDto> getRegions(Authentication authentication) {
+		// 관리자 권한 아이디
+		Long adminId = Long.valueOf((String) authentication.getPrincipal());
+
+		return spaceAdminService.getAllRegions(adminId);
 	}
 }

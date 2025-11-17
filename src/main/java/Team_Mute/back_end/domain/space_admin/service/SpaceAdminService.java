@@ -9,6 +9,7 @@ import Team_Mute.back_end.domain.reservation.repository.PrevisitRepository;
 import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
 import Team_Mute.back_end.domain.space_admin.dto.request.SpaceCreateRequestDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.AdminListResponseDto;
+import Team_Mute.back_end.domain.space_admin.dto.response.RegionListResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceDatailResponseDto;
 import Team_Mute.back_end.domain.space_admin.dto.response.SpaceListResponseDto;
 import Team_Mute.back_end.domain.space_admin.entity.Space;
@@ -42,6 +43,7 @@ import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -890,6 +892,37 @@ public class SpaceAdminService {
 					adminNameWithRole
 				);
 			})
+			.toList();
+	}
+
+	/**
+	 * 공간 등록 시 지역 조회
+	 * - 모든 지역(Region) 목록을 ID 기준 오름차순으로 조회
+	 *
+	 * @return {@code RegionListResponseDto} 리스트
+	 **/
+	public List<RegionListResponseDto> getAllRegions(Long adminId) {
+		Admin admin = adminRepository.findById(adminId).orElseThrow(UserNotFoundException::new);
+		Integer adminRole = admin.getUserRole().getRoleId(); // 관리자의 권한 ID
+		Integer adminRegionId = (admin.getAdminRegion() != null)
+			? admin.getAdminRegion().getRegionId()
+			: null;
+
+		// 지역 목록 조회 및 필터링
+		return regionRepository.findAll(Sort.by(Sort.Direction.ASC, "regionId"))
+			.stream()
+			.filter(region -> {
+				// 마스터 계정, 2차 승인자는 모든 지역을 반환
+				if (adminRole.equals(AdminRoleEnum.ROLE_MASTER.getId()) || adminRole.equals(AdminRoleEnum.ROLE_SECOND_APPROVER.getId())) {
+					return true;
+				}
+				// 1차 승인자는 자신이 담당하는 지역 ID와 일치하는 지역만 반환
+				else if (adminRole.equals(AdminRoleEnum.ROLE_FIRST_APPROVER.getId())) {
+					return adminRegionId != null && region.getRegionId().equals(adminRegionId);
+				}
+				return false;
+			})
+			.map(element -> new RegionListResponseDto(element.getRegionId(), element.getRegionName()))
 			.toList();
 	}
 }
