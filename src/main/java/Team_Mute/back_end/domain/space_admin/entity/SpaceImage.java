@@ -1,5 +1,10 @@
 package Team_Mute.back_end.domain.space_admin.entity;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -12,10 +17,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * 공간 이미지 Entity
@@ -64,7 +65,7 @@ public class SpaceImage {
 	 * 등록일 (Entity 최초 생성 시 자동 입력)
 	 */
 	@CreationTimestamp
-	@Column(name = "reg_date", insertable = false, updatable = false, nullable = false)
+	@Column(name = "reg_date", insertable = true, updatable = false, nullable = false)
 	private LocalDateTime regDate;
 
 	/**
