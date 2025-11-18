@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,7 +28,10 @@ import org.hibernate.annotations.CreationTimestamp;
  * - tb_space_tag_map 테이블 매핑
  */
 @Entity
-@Table(name = "tb_space_tag_map")
+@Table(name = "tb_space_tag_map",
+	uniqueConstraints = {
+		@UniqueConstraint(columnNames = {"space_id", "tag_id"})}
+)
 @Getter
 @Setter
 @NoArgsConstructor

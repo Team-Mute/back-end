@@ -37,8 +37,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
@@ -332,8 +334,12 @@ public class SpaceAdminService {
 		}
 
 		// === 태그 처리 ===
-		for (String tagName : req.getTagNames()) {
-			// 태그명으로 조회 -> 없으면 새로 생성 및 저장
+
+		// 1. 요청 리스트에서 중복된 태그명 제거 (Set을 사용하여 O(1) 시간 복잡도로 처리)
+		Set<String> uniqueTagNames = new HashSet<>(req.getTagNames());
+
+		for (String tagName : uniqueTagNames) {
+			// 2. 태그명으로 조회 -> 없으면 새로 생성 및 저장
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
 					SpaceTag newTag = SpaceTag.builder()
@@ -343,14 +349,19 @@ public class SpaceAdminService {
 					return tagRepository.save(newTag);
 				});
 
-			// Space와 Tag의 매핑 엔티티 생성 및 저장
-			SpaceTagMap map = SpaceTagMap.builder()
-				.space(saved)
-				.tag(tag)
-				.regDate(LocalDateTime.now())
-				.build();
+			// 3. Space와 Tag의 매핑 엔티티 생성 및 저장 시도
+			// (이전 답변에서 제안했듯이, 이 부분에서 중복 저장을 방지하는 로직 또는 DB Unique Constraint가 필요합니다.)
 
-			tagMapRepository.save(map);
+			// 중복 매핑 방지 로직 (existsBy 확인)
+			if (!tagMapRepository.existsBySpaceAndTag(saved, tag)) {
+				SpaceTagMap map = SpaceTagMap.builder()
+					.space(saved)
+					.tag(tag)
+					.regDate(LocalDateTime.now())
+					.build();
+
+				tagMapRepository.save(map);
+			}
 		}
 
 		// === 운영시간 저장 ===
@@ -612,8 +623,16 @@ public class SpaceAdminService {
 		space.setSpaceRules(req.getSpaceRules());
 
 		// === 태그 전량 교체 ===
+
+		// 1. 기존 매핑 삭제
 		tagMapRepository.deleteBySpace(space);
-		for (String tagName : req.getTagNames()) {
+
+		// 2. 요청 리스트에서 중복 태그명을 제거하여 Set으로 만듦
+		Set<String> uniqueTagNames = new HashSet<>(req.getTagNames());
+
+		// 3. 고유한 태그명으로 루프 실행
+		for (String tagName : uniqueTagNames) {
+
 			// 태그명으로 조회 -> 없으면 새로 생성 및 저장
 			SpaceTag tag = tagRepository.findByTagName(tagName)
 				.orElseGet(() -> {
@@ -621,14 +640,17 @@ public class SpaceAdminService {
 						.tagName(tagName)
 						.regDate(LocalDateTime.now())
 						.build();
+					// 새로운 태그 저장
 					return tagRepository.save(newTag);
 				});
 
+			// Space와 Tag의 매핑 엔티티 생성 및 저장 (기존 데이터 삭제했으므로 바로 저장)
 			SpaceTagMap map = SpaceTagMap.builder()
 				.space(space)
 				.tag(tag)
 				.regDate(LocalDateTime.now())
 				.build();
+
 			tagMapRepository.save(map);
 		}
 

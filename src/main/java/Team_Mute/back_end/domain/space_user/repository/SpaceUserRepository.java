@@ -68,7 +68,13 @@ public interface SpaceUserRepository extends JpaRepository<Space, Integer> {
 		  s.space_capacity     AS spaceCapacity,
 		  s.category_id        AS categoryId,
 		  c.category_name      AS categoryName,
-		  COALESCE(t.tag_names, ARRAY[]::text[]) AS tagNames,   /* CHANGE: NULL → 빈 배열 */
+		  /* 태그 배열 */
+		 COALESCE((
+		   SELECT array_agg(DISTINCT tt.tag_name ORDER BY tt.tag_name)
+		   FROM tb_space_tag_map mm
+		   JOIN tb_space_tags tt ON tt.tag_id = mm.tag_id
+		   WHERE mm.space_id = s.space_id
+		 ), ARRAY[]::text[]) AS tagNames,
 		  COALESCE(
 		      json_build_object(
 			      'locationName', l.location_name,
