@@ -1,20 +1,5 @@
 package Team_Mute.back_end.domain.reservation.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import Team_Mute.back_end.domain.member.entity.User;
 import Team_Mute.back_end.domain.member.repository.UserRepository;
 import Team_Mute.back_end.domain.reservation.dto.request.ReservationRequestDto;
@@ -42,6 +27,20 @@ import Team_Mute.back_end.domain.space_admin.util.S3Deleter;
 import Team_Mute.back_end.domain.space_admin.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 /**
  * 예약 비즈니스 로직 서비스
  * 예약 CRUD, 중복 검증, 파일 업로드, 상태 관리 기능 제공
@@ -62,21 +61,21 @@ public class ReservationService {
 
 	/**
 	 * 예약 생성
-	 *
+	 * <p>
 	 * 처리 흐름:
 	 * 1. 사용자 권한 확인 (roleId=3)
 	 * 2. 비관적 락으로 중복 예약 검증 (일반 + 사전답사)
 	 * 3. 예약 생성 및 저장 (초기 상태: 승인 대기)
 	 * 4. 첨부 파일 S3 업로드
 	 * 5. 사전답사 예약 생성 (선택적)
-	 *
+	 * <p>
 	 * 동시성 제어:
 	 * - PESSIMISTIC_WRITE 락으로 중복 예약 방지
 	 *
-	 * @param userId 사용자 ID
+	 * @param userId     사용자 ID
 	 * @param requestDto 예약 요청 DTO
 	 * @return 생성된 예약 DTO
-	 * @throws ForbiddenAccessException 권한 없음
+	 * @throws ForbiddenAccessException     권한 없음
 	 * @throws ReservationConflictException 중복 예약
 	 */
 	@Transactional
@@ -191,9 +190,9 @@ public class ReservationService {
 	/**
 	 * 예약 목록 조회 (페이징 및 필터링)
 	 *
-	 * @param userId 사용자 ID
+	 * @param userId       사용자 ID
 	 * @param filterOption 필터 옵션 ("진행중", "예약완료", "이용완료", "취소", null)
-	 * @param pageable 페이징 정보 (null이면 unpaged)
+	 * @param pageable     페이징 정보 (null이면 unpaged)
 	 * @return 페이징된 예약 목록
 	 * @throws ForbiddenAccessException 일반 사용자 아님
 	 */
@@ -219,7 +218,7 @@ public class ReservationService {
 	/**
 	 * 예약 상세 조회
 	 *
-	 * @param userId 사용자 ID
+	 * @param userId        사용자 ID
 	 * @param reservationId 예약 ID
 	 * @return 예약 상세 DTO
 	 * @throws ForbiddenAccessException 권한 없음
@@ -238,31 +237,11 @@ public class ReservationService {
 	}
 
 	/**
-	 * 예약 삭제 (Hard Delete)
-	 * S3 첨부 파일도 함께 삭제
-	 *
-	 * @param userId 사용자 ID
-	 * @param reservationId 예약 ID
-	 */
-	public void deleteReservation(String userId, Long reservationId) {
-		User user = findUserById(userId);
-		Reservation reservation = findReservationAndVerifyOwnership(user, reservationId);
-
-		// S3 첨부 파일 삭제
-		List<String> attachmentUrls = reservation.getReservationAttachment();
-		if (attachmentUrls != null && !attachmentUrls.isEmpty()) {
-			attachmentUrls.forEach(s3Deleter::deleteByUrl);
-		}
-
-		reservationRepository.delete(reservation);
-	}
-
-	/**
 	 * 예약 취소 (상태 변경: 취소됨)
-	 *
+	 * <p>
 	 * 취소 가능 상태: 1,2,3,4 (1차, 2차 승인 대기, 최종 승인, 반려)
 	 *
-	 * @param userId 사용자 ID
+	 * @param userId        사용자 ID
 	 * @param reservationId 예약 ID
 	 * @return 취소 결과 DTO
 	 * @throws IllegalArgumentException 취소 불가능한 상태
@@ -302,7 +281,7 @@ public class ReservationService {
 	 * 반려 사유 조회
 	 * 반려 상태(4)의 예약에 대한 관리자 메모 조회
 	 *
-	 * @param userId 사용자 ID
+	 * @param userId        사용자 ID
 	 * @param reservationId 예약 ID
 	 * @return 반려 사유 DTO
 	 * @throws IllegalArgumentException 반려 상태가 아님

@@ -23,7 +23,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -299,41 +298,6 @@ public class ReservationController {
 
 		// 2. 응답 반환
 		return ResponseEntity.ok(responseDto);
-	}
-
-	/**
-	 * 예약 삭제 API
-	 * - 예약 정보를 데이터베이스에서 완전히 삭제 (Hard Delete)
-	 * - 승인 대기 상태의 예약만 삭제 가능
-	 * <p>
-	 * 처리 로직:
-	 * 1. JWT에서 사용자 ID 추출
-	 * 2. Path Variable에서 예약 ID 추출
-	 * 3. 본인의 예약인지 검증
-	 * 4. 예약 상태 확인 (승인 대기 상태만 삭제 가능)
-	 * 5. 첨부 파일 삭제 (AWS S3)
-	 * 6. 예약 정보 삭제 (데이터베이스)
-	 * 7. 204 No Content 응답 반환
-	 * <p>
-	 * 보안:
-	 * - 본인의 예약만 삭제 가능
-	 * - 다른 사용자의 예약 삭제 시 403 Forbidden
-	 *
-	 * @param userId        인증된 사용자 ID (JWT에서 자동 추출)
-	 * @param reservationId 삭제할 예약 ID (Path Variable)
-	 * @return ResponseEntity<Void> (204 No Content)
-	 */
-	@Operation(summary = "예약 삭제", description = "저장된 예약 정보를 삭제합니다.")
-	@DeleteMapping("/{reservationId}")
-	public ResponseEntity<Void> deleteReservation(
-		@AuthenticationPrincipal String userId,
-		@PathVariable("reservationId") Long reservationId) {
-
-		// 1. ReservationService에서 예약 삭제 처리
-		reservationService.deleteReservation(userId, reservationId);
-
-		// 2. 204 No Content 응답 반환
-		return ResponseEntity.noContent().build();
 	}
 
 	/**
