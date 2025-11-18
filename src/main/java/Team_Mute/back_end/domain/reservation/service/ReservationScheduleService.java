@@ -1,5 +1,19 @@
 package Team_Mute.back_end.domain.reservation.service;
 
+import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse;
+import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse.TimeSlot;
+import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
+import Team_Mute.back_end.domain.reservation.entity.Reservation;
+import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
+import Team_Mute.back_end.domain.reservation.repository.PrevisitRepository;
+import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceClosedDay;
+import Team_Mute.back_end.domain.space_admin.entity.SpaceOperation;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceClosedDayRepository;
+import Team_Mute.back_end.domain.space_admin.repository.SpaceOperationRepository;
+import Team_Mute.back_end.global.constants.ReservationStatusEnum;
+import lombok.RequiredArgsConstructor;
+
 import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -18,22 +32,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse;
-import Team_Mute.back_end.domain.reservation.dto.response.AvailableTimeResponse.TimeSlot;
-import Team_Mute.back_end.domain.reservation.entity.PrevisitReservation;
-import Team_Mute.back_end.domain.reservation.entity.Reservation;
-import Team_Mute.back_end.domain.reservation.exception.InvalidInputValueException;
-import Team_Mute.back_end.domain.reservation.repository.PrevisitRepository;
-import Team_Mute.back_end.domain.reservation.repository.ReservationRepository;
-import Team_Mute.back_end.domain.space_admin.entity.SpaceClosedDay;
-import Team_Mute.back_end.domain.space_admin.entity.SpaceOperation;
-import Team_Mute.back_end.domain.space_admin.repository.SpaceClosedDayRepository;
-import Team_Mute.back_end.domain.space_admin.repository.SpaceOperationRepository;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 예약 스케줄 서비스
@@ -52,7 +52,7 @@ public class ReservationScheduleService {
 
 	/**
 	 * 특정 날짜의 예약 가능 시간대 조회
-	 *
+	 * <p>
 	 * 처리 흐름:
 	 * 1. 날짜 유효성 검증
 	 * 2. 운영일/휴무일 확인
@@ -61,9 +61,9 @@ public class ReservationScheduleService {
 	 * 5. 운영 시간에서 예약된 시간 제외하여 가능 시간 계산
 	 * 6. 과거 시간 필터링
 	 *
-	 * @param year 년도
-	 * @param month 월
-	 * @param day 일
+	 * @param year    년도
+	 * @param month   월
+	 * @param day     일
 	 * @param spaceId 공간 ID
 	 * @return 예약 가능 시간대 리스트
 	 * @throws InvalidInputValueException 운영일이 아니거나 휴무일인 경우
@@ -109,15 +109,15 @@ public class ReservationScheduleService {
 
 	/**
 	 * 특정 월의 예약 가능 날짜 조회
-	 *
+	 * <p>
 	 * 처리 흐름:
 	 * 1. 운영 요일 기반으로 가능한 날짜 계산
 	 * 2. 오늘 이전 날짜 제외
 	 * 3. 지정된 휴무일 제외
 	 * 4. 예약이 꽉 찬 날짜 제외
 	 *
-	 * @param year 년도
-	 * @param month 월
+	 * @param year    년도
+	 * @param month   월
 	 * @param spaceId 공간 ID
 	 * @return 예약 가능한 날짜(일) 리스트
 	 */
@@ -146,7 +146,92 @@ public class ReservationScheduleService {
 	}
 
 	/**
+	 * 특정 월의 하루를 통으로 예약 가능한 날짜 조회 (예약이 전혀 없는 날)
+	 * <p>
+	 * 처리 흐름:
+	 * 1. 운영 요일 기반으로 가능한 날짜 계산
+	 * 2. 오늘 이전 날짜 제외
+	 * 3. 지정된 휴무일 제외
+	 * 4. 기존 예약이 '전혀' 없는 날짜만 필터링
+	 *
+	 * @param year    년도
+	 * @param month   월
+	 * @param spaceId 공간 ID
+	 * @return 예약이 없는 날짜(일) 리스트
+	 */
+	public List<Integer> getFullyAvailableDays(int year, int month, int spaceId) {
+		YearMonth yearMonth = YearMonth.of(year, month);
+		LocalDate today = LocalDate.now();
+
+		LocalDateTime startOfMonth = yearMonth.atDay(1).atStartOfDay();
+		LocalDateTime endOfMonth = yearMonth.atEndOfMonth().atTime(23, 59, 59);
+
+		// 1. 운영 요일 기반 가능 날짜 계산
+		Set<Integer> openDays = getOpenDaysOfMonth(spaceId, yearMonth);
+
+		// 2. 오늘 이전 날짜 제외
+		openDays = openDays.stream()
+			.filter(day -> !yearMonth.atDay(day).isBefore(today))
+			.collect(Collectors.toSet());
+
+		// 3. 휴무일 제외
+		removeClosedDays(openDays, spaceId, startOfMonth, endOfMonth);
+
+		// 4. 예약이 '전혀' 없는 날짜만 유지
+		keepOnlyDaysWithoutAnyReservations(openDays, spaceId, startOfMonth, endOfMonth, yearMonth);
+
+		return openDays.stream().sorted().collect(Collectors.toList());
+	}
+
+	/**
+	 * 기존 예약이 전혀 없는 날짜만 남기는 처리
+	 * 일자별 예약 시간을 집계하여 예약이 있는 날짜는 제거
+	 *
+	 * @param openDays 가능 날짜 Set
+	 */
+	private void keepOnlyDaysWithoutAnyReservations(Set<Integer> openDays, Integer spaceId, LocalDateTime start,
+													LocalDateTime end, YearMonth yearMonth) {
+
+		// 1. 해당 월의 모든 일반 예약 및 사전답사 예약 조회
+		List<Integer> validStatusIds = Arrays.asList(
+			ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId(),
+			ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId(),
+			ReservationStatusEnum.FINAL_APPROVAL.getId());
+
+		List<Reservation> reservations = reservationRepository.findReservationsBySpaceAndMonth(spaceId, start, end,
+			validStatusIds);
+		List<PrevisitReservation> previsits = previsitRepository.findValidPrevisitsBySpaceAndDay(spaceId, start, end,
+			validStatusIds);
+
+		// 2. 예약이 '있는' 날짜(일) Set 생성
+		Set<Integer> bookedDays = new HashSet<>();
+
+		for (Reservation r : reservations) {
+			bookedDays.add(r.getReservationFrom().getDayOfMonth());
+			if (r.getReservationTo().getDayOfMonth() != r.getReservationFrom().getDayOfMonth()) {
+				// 예약 시작일과 종료일이 다를 경우, 예약 기간 내 모든 날짜 추가 (월 경계를 넘는 경우는 현재 로직상 미고려)
+				IntStream.rangeClosed(r.getReservationFrom().getDayOfMonth(), r.getReservationTo().getDayOfMonth())
+					.filter(day -> yearMonth.atDay(day).getMonth() == yearMonth.getMonth())
+					.forEach(bookedDays::add);
+			}
+		}
+
+		for (PrevisitReservation pr : previsits) {
+			bookedDays.add(pr.getPrevisitFrom().getDayOfMonth());
+			if (pr.getPrevisitTo().getDayOfMonth() != pr.getPrevisitFrom().getDayOfMonth()) {
+				IntStream.rangeClosed(pr.getPrevisitFrom().getDayOfMonth(), pr.getPrevisitTo().getDayOfMonth())
+					.filter(day -> yearMonth.atDay(day).getMonth() == yearMonth.getMonth())
+					.forEach(bookedDays::add);
+			}
+		}
+
+		// 3. openDays에서 예약이 '있는' 날짜(bookedDays) 제거
+		openDays.removeAll(bookedDays);
+	}
+
+	/**
 	 * 운영 요일 기반으로 해당 월의 가능한 날짜 계산
+	 *
 	 * @return 운영 요일에 해당하는 날짜(일) Set
 	 */
 	private Set<Integer> getOpenDaysOfMonth(Integer spaceId, YearMonth yearMonth) {
@@ -168,6 +253,7 @@ public class ReservationScheduleService {
 
 	/**
 	 * 휴무일 제외 처리
+	 *
 	 * @param openDays 가능 날짜 Set
 	 */
 	private void removeClosedDays(Set<Integer> openDays, Integer spaceId, LocalDateTime start, LocalDateTime end) {
@@ -186,14 +272,18 @@ public class ReservationScheduleService {
 	/**
 	 * 예약이 꽉 찬 날짜 제외 처리
 	 * 일자별 예약 시간을 집계하여 운영 시간과 비교
+	 *
 	 * @param openDays 가능 날짜 Set
 	 */
 	private void removeFullyBookedDays(Set<Integer> openDays, Integer spaceId, LocalDateTime start, LocalDateTime end,
-		YearMonth yearMonth) {
+									   YearMonth yearMonth) {
 		Map<Integer, List<LocalTime[]>> dailyBookedTimes = new HashMap<>();
 
 		// 1. 일반 예약 시간 집계
-		List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
+		List<Integer> validStatusIds = Arrays.asList(
+			ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId(),
+			ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId(),
+			ReservationStatusEnum.FINAL_APPROVAL.getId());
 		List<Reservation> reservations = reservationRepository.findReservationsBySpaceAndMonth(spaceId, start, end,
 			validStatusIds);
 		for (Reservation r : reservations) {
@@ -234,18 +324,19 @@ public class ReservationScheduleService {
 	 * 예약 시간을 일자별 맵에 추가
 	 */
 	private void addBookedTimes(Map<Integer, List<LocalTime[]>> map, LocalDateTime from, LocalDateTime to,
-		YearMonth yearMonth) {
+								YearMonth yearMonth) {
 		IntStream.rangeClosed(from.getDayOfMonth(), to.getDayOfMonth()).forEach(day -> {
 			if (from.getYear() == yearMonth.getYear() && from.getMonth() == yearMonth.getMonth()) {
 				LocalTime startTime = (day == from.getDayOfMonth()) ? from.toLocalTime() : LocalTime.MIN;
 				LocalTime endTime = (day == to.getDayOfMonth()) ? to.toLocalTime() : LocalTime.MAX;
-				map.computeIfAbsent(day, k -> new ArrayList<>()).add(new LocalTime[] {startTime, endTime});
+				map.computeIfAbsent(day, k -> new ArrayList<>()).add(new LocalTime[]{startTime, endTime});
 			}
 		});
 	}
 
 	/**
 	 * 중복 시간 병합하여 총 예약 시간 계산
+	 *
 	 * @return 총 예약 시간 (분 단위)
 	 */
 	private long calculateTotalBookedMinutes(List<LocalTime[]> slots) {
@@ -273,6 +364,7 @@ public class ReservationScheduleService {
 
 	/**
 	 * 특정 날짜가 예약 가능한지 확인
+	 *
 	 * @return 운영일이면서 휴무일이 아니면 true
 	 */
 	private boolean isBookableDay(LocalDate date, int spaceId) {
@@ -299,6 +391,7 @@ public class ReservationScheduleService {
 
 	/**
 	 * 특정 날짜의 예약된 시간대 조회
+	 *
 	 * @return 예약된 시간 배열 리스트 [시작, 종료]
 	 */
 	private List<LocalTime[]> getBookedSlotsForDay(LocalDate date, int spaceId) {
@@ -306,7 +399,10 @@ public class ReservationScheduleService {
 		LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
 
 		List<LocalTime[]> bookedSlots = new ArrayList<>();
-		List<Long> validStatusIds = Arrays.asList(1L, 2L, 3L);
+		List<Integer> validStatusIds = Arrays.asList(
+			ReservationStatusEnum.WAITING_FIRST_APPROVAL.getId(),
+			ReservationStatusEnum.WAITING_SECOND_APPROVAL.getId(),
+			ReservationStatusEnum.FINAL_APPROVAL.getId());
 
 		// 일반 예약 시간 추가
 		List<Reservation> reservations = reservationRepository.findReservationsBySpaceAndMonth(spaceId, startOfDay,
@@ -349,24 +445,25 @@ public class ReservationScheduleService {
 	 * 나노초 오차 제거로 정확한 시간 비교 보장
 	 */
 	private void addBookedSlotForDay(List<LocalTime[]> slots, LocalDateTime from, LocalDateTime to,
-		LocalDate targetDate) {
+									 LocalDate targetDate) {
 		if (from.toLocalDate().isEqual(targetDate) || to.toLocalDate().isEqual(targetDate) ||
 			(from.toLocalDate().isBefore(targetDate) && to.toLocalDate().isAfter(targetDate))) {
 
 			LocalTime startTime =
 				from.toLocalDate().isEqual(targetDate) ? from.toLocalTime().withNano(0) : LocalTime.MIN;
 			LocalTime endTime = to.toLocalDate().isEqual(targetDate) ? to.toLocalTime().withNano(0) : LocalTime.MAX;
-			slots.add(new LocalTime[] {startTime, endTime});
+			slots.add(new LocalTime[]{startTime, endTime});
 		}
 	}
 
 	/**
 	 * 예약 가능 시간대 계산
 	 * 운영 시간에서 예약된 시간을 제외하여 빈 시간대 반환
+	 *
 	 * @return 예약 가능 TimeSlot 리스트
 	 */
 	private List<TimeSlot> calculateAvailableTimeSlots(LocalTime operationStart, LocalTime operationEnd,
-		List<LocalTime[]> bookedSlots) {
+													   List<LocalTime[]> bookedSlots) {
 		List<TimeSlot> availableSlots = new ArrayList<>();
 
 		// 예약된 시간을 시작 시간 기준으로 정렬
@@ -395,6 +492,7 @@ public class ReservationScheduleService {
 
 	/**
 	 * 날짜 유효성 검증
+	 *
 	 * @throws InvalidInputValueException 유효하지 않은 날짜
 	 */
 	private LocalDate validateAndGetDate(int year, int month, int day) {

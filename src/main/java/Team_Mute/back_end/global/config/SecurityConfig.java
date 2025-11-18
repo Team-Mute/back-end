@@ -1,5 +1,9 @@
 package Team_Mute.back_end.global.config;
 
+import Team_Mute.back_end.domain.member.jwt.JwtService;
+import Team_Mute.back_end.domain.member.session.SessionStore;
+import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -10,14 +14,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import Team_Mute.back_end.domain.member.jwt.JwtService;
-import Team_Mute.back_end.domain.member.session.SessionStore;
-import Team_Mute.back_end.domain.member.util.JwtAuthFilter;
-
 /**
  * Spring Security 설정 클래스
  * JWT 기반 인증/인가 및 역할 기반 접근 제어 설정
- *
+ * <p>
  * 주요 기능:
  * - JWT 인증 필터 등록
  * - 역할별 엔드포인트 접근 제어
@@ -32,9 +32,9 @@ public class SecurityConfig {
 	/**
 	 * Security Filter Chain 설정
 	 *
-	 * @param http HttpSecurity 객체
+	 * @param http       HttpSecurity 객체
 	 * @param jwtService JWT 토큰 서비스
-	 * @param store Redis 세션 저장소
+	 * @param store      Redis 세션 저장소
 	 * @return SecurityFilterChain
 	 */
 	@Bean
@@ -59,7 +59,8 @@ public class SecurityConfig {
 					"/swagger-ui/**",
 					"/swagger-resources/**",
 					"/swagger-ui.html", "/api/auth/refresh", "/api/admin/auth/refresh",
-					"/api/reservations/available-dates", "/api/reservations/available-times", "/api/spaces/regions", "/api/spaces/tags",
+					"/api/reservations/fully-available-dates", "/api/reservations/available-dates", "/api/reservations/available-times",
+					"/api/spaces/regions", "/api/spaces/tags",
 					"/api/spaces-user/**", "/api/invitations/**")
 				.permitAll()
 
